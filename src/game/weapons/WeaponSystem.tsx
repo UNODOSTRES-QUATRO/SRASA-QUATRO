@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import {
@@ -18,12 +18,27 @@ import { soundManager } from "../audio/SoundManager";
 // ─── Projectile Meshes ────────────────────────────────────────────────────────
 
 function ProjectileMesh({ projectile }: { projectile: Projectile }) {
+  const groupRef = useRef<THREE.Group>(null);
   const def = WEAPON_DEFS[projectile.weaponId];
+
+  useFrame(() => {
+    if (groupRef.current) {
+      groupRef.current.position.set(projectile.position[0], projectile.position[1], projectile.position[2]);
+      const vx = projectile.velocity[0];
+      const vy = projectile.velocity[1];
+      const vz = projectile.velocity[2];
+      const pitch = Math.atan2(-vy, Math.hypot(vx, vz));
+      const yaw = Math.atan2(vx, vz);
+      groupRef.current.rotation.set(pitch, yaw, 0);
+    }
+  });
+
   const lifeRatio = projectile.age / projectile.maxAge;
 
   if (projectile.weaponId === "RPG") {
     return (
       <group
+        ref={groupRef}
         position={projectile.position}
         rotation={[
           Math.atan2(
@@ -53,6 +68,7 @@ function ProjectileMesh({ projectile }: { projectile: Projectile }) {
   if (projectile.weaponId === "BOW") {
     return (
       <group
+        ref={groupRef}
         position={projectile.position}
         rotation={[
           Math.atan2(
@@ -83,7 +99,7 @@ function ProjectileMesh({ projectile }: { projectile: Projectile }) {
   // Heavenly Pen ink glyph projectile
   if (projectile.weaponId === "HEAVENLY_PEN") {
     return (
-      <group position={projectile.position}>
+      <group ref={groupRef} position={projectile.position}>
         <mesh>
           <sphereGeometry args={[0.12 + projectile.chargeLevel * 0.08, 8, 8]} />
           <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={2.5} />
@@ -110,7 +126,7 @@ function ProjectileMesh({ projectile }: { projectile: Projectile }) {
 
   // Generic energy orb for other ranged types
   return (
-    <mesh position={projectile.position}>
+    <mesh ref={groupRef as any} position={projectile.position}>
       <sphereGeometry args={[0.1, 8, 8]} />
       <meshStandardMaterial color={def.color} emissive={def.color} emissiveIntensity={2} />
     </mesh>
@@ -120,14 +136,24 @@ function ProjectileMesh({ projectile }: { projectile: Projectile }) {
 // ─── Hit Effect Meshes ────────────────────────────────────────────────────────
 
 function HitEffectMesh({ effect }: { effect: HitEffect }) {
+  const groupRef = useRef<THREE.Group>(null);
   const def = WEAPON_DEFS[effect.weaponId];
   const ratio = effect.age / effect.maxAge;
   const scale = 0.3 + ratio * 1.8;
 
+  useFrame(() => {
+    if (groupRef.current) {
+      const liveRatio = Math.min(1.0, effect.age / effect.maxAge);
+      const liveScale = 0.3 + liveRatio * 1.8;
+      groupRef.current.position.set(effect.position[0], effect.position[1], effect.position[2]);
+      groupRef.current.scale.set(liveScale, liveScale, liveScale);
+    }
+  });
+
   if (effect.weaponId === "RPG") {
     // Blast sphere
     return (
-      <group position={effect.position}>
+      <group ref={groupRef} position={effect.position}>
         <mesh scale={[scale * 1.8, scale * 1.8, scale * 1.8]}>
           <sphereGeometry args={[0.4, 12, 12]} />
           <meshBasicMaterial color="#f97316" transparent opacity={(1 - ratio) * 0.85} depthWrite={false} />
@@ -143,7 +169,7 @@ function HitEffectMesh({ effect }: { effect: HitEffect }) {
 
   if (effect.weaponId === "BLUE_SHARD_SWORD") {
     return (
-      <group position={effect.position}>
+      <group ref={groupRef} position={effect.position}>
         {[0, 1, 2, 3, 4].map((i) => (
           <mesh
             key={i}
@@ -163,7 +189,7 @@ function HitEffectMesh({ effect }: { effect: HitEffect }) {
 
   // Generic flash
   return (
-    <mesh position={effect.position} scale={[scale, scale, scale]}>
+    <mesh ref={groupRef as any} position={effect.position} scale={[scale, scale, scale]}>
       <sphereGeometry args={[0.25, 8, 8]} />
       <meshBasicMaterial color={def.color} transparent opacity={(1 - ratio) * 0.7} depthWrite={false} />
     </mesh>
@@ -351,6 +377,9 @@ export function WeaponSystem3D({
   isAttacking,
   isChargingRef,
 }: WeaponSystemProps) {
+  const [, setTick] = useState(0);
+  const prevCountRef = useRef(0);
+
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05);
     const s = stateRef.current;
@@ -411,6 +440,12 @@ export function WeaponSystem3D({
       e.age += dt;
       return e.age < e.maxAge;
     });
+
+    const activeCount = s.projectiles.length + s.hitEffects.length;
+    if (activeCount !== prevCountRef.current || activeCount > 0) {
+      prevCountRef.current = activeCount;
+      setTick((t) => (t + 1) % 1000000);
+    }
   });
 
   const s = stateRef.current;

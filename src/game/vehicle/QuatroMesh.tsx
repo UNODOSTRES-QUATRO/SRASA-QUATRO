@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { VehicleState } from "./vehicleTypes";
@@ -35,37 +35,39 @@ function RallyWheel({
 
   return (
     <group ref={steerRef} rotation={[0, initialSteering, camber]}>
-      {/* Outer tire with rotation */}
-      <group ref={spinRef} rotation={[initialRotation, 0, Math.PI / 2]}>
-        {/* Rubber Tire */}
-        <mesh castShadow receiveShadow>
-          <cylinderGeometry args={[wheelRadius, wheelRadius, wheelWidth, 24]} />
-          <meshStandardMaterial color="#14171d" roughness={0.85} metalness={0.15} />
-        </mesh>
-
-        {/* Deep Dish Rim Lip (Polished Bronze/Silver) */}
-        <mesh position={[0, isLeft ? 0.06 : -0.06, 0]}>
-          <cylinderGeometry args={[0.27, 0.25, 0.08, 20]} />
-          <meshStandardMaterial color="#e2e8f0" roughness={0.25} metalness={0.85} />
-        </mesh>
-
-        {/* 5-Spoke Star Design */}
-        {[0, 1, 2, 3, 4].map((i) => (
-          <mesh
-            key={i}
-            rotation={[0, (i * Math.PI * 2) / 5, 0]}
-            position={[0, isLeft ? 0.1 : -0.1, 0]}
-          >
-            <boxGeometry args={[0.045, 0.03, 0.22]} />
-            <meshStandardMaterial color="#cbd5e1" roughness={0.3} metalness={0.8} />
+      {/* Outer tire with rotation strictly around X-axis (axle) */}
+      <group ref={spinRef} rotation={[initialRotation, 0, 0]}>
+        <group rotation={[0, 0, Math.PI / 2]}>
+          {/* Rubber Tire */}
+          <mesh castShadow receiveShadow>
+            <cylinderGeometry args={[wheelRadius, wheelRadius, wheelWidth, 24]} />
+            <meshStandardMaterial color="#14171d" roughness={0.85} metalness={0.15} />
           </mesh>
-        ))}
 
-        {/* Center Nut */}
-        <mesh position={[0, isLeft ? 0.12 : -0.12, 0]}>
-          <cylinderGeometry args={[0.07, 0.07, 0.04, 12]} />
-          <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.9} />
-        </mesh>
+          {/* Deep Dish Rim Lip (Polished Bronze/Silver) */}
+          <mesh position={[0, isLeft ? 0.06 : -0.06, 0]}>
+            <cylinderGeometry args={[0.27, 0.25, 0.08, 20]} />
+            <meshStandardMaterial color="#e2e8f0" roughness={0.25} metalness={0.85} />
+          </mesh>
+
+          {/* 5-Spoke Star Design */}
+          {[0, 1, 2, 3, 4].map((i) => (
+            <mesh
+              key={i}
+              rotation={[0, (i * Math.PI * 2) / 5, 0]}
+              position={[0, isLeft ? 0.1 : -0.1, 0]}
+            >
+              <boxGeometry args={[0.045, 0.03, 0.22]} />
+              <meshStandardMaterial color="#cbd5e1" roughness={0.3} metalness={0.8} />
+            </mesh>
+          ))}
+
+          {/* Center Nut */}
+          <mesh position={[0, isLeft ? 0.12 : -0.12, 0]}>
+            <cylinderGeometry args={[0.07, 0.07, 0.04, 12]} />
+            <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.9} />
+          </mesh>
+        </group>
       </group>
 
       {/* Non-rotating Brake Rotor */}
@@ -209,16 +211,20 @@ export function QuatroMesh({
     }
   });
 
+  useEffect(() => {
+    if (groupRef.current) {
+      const live = vehicleStateRef?.current ?? vehicleState;
+      groupRef.current.position.set(live.position.x, live.position.y, live.position.z);
+      groupRef.current.rotation.y = live.heading;
+    }
+  }, []);
+
   const accentColor = "#f8f4eb"; // Heritage warm off-white
   const trimColor = "#1a1c22"; // Dark matte aero trim
   const glassColor = "#151b24"; // Smoked glass
 
   return (
-    <group
-      ref={groupRef}
-      position={[vehicleState.position.x, vehicleState.position.y, vehicleState.position.z]}
-      rotation={[0, vehicleState.heading, 0]}
-    >
+    <group ref={groupRef}>
       {/* ========================================================
           CYBER UNDERGLOW NEON (Aesthetic Cyan/Amber Glow)
           ======================================================== */}

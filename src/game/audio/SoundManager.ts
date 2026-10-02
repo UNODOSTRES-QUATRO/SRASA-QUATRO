@@ -89,7 +89,7 @@ export class SoundManager {
       this.compressor.release.setValueAtTime(0.18, this.ctx.currentTime);
 
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(1.85, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(2.0, this.ctx.currentTime);
 
       this.compressor.connect(this.masterGain);
       this.masterGain.connect(this.ctx.destination);
@@ -386,14 +386,14 @@ export class SoundManager {
 
     const now = this.ctx.currentTime;
     if (mode === "DRIVING") {
-      this.ambientGain.gain.setTargetAtTime(0.75, now, 0.5);
-      this.ambientFilter.frequency.setTargetAtTime(920, now, 1.0);
+      this.ambientGain.gain.setTargetAtTime(0.85, now, 0.5);
+      this.ambientFilter.frequency.setTargetAtTime(950, now, 1.0);
     } else if (mode === "COMBAT") {
-      this.ambientGain.gain.setTargetAtTime(0.90, now, 0.4);
-      this.ambientFilter.frequency.setTargetAtTime(1200, now, 0.5);
+      this.ambientGain.gain.setTargetAtTime(1.10, now, 0.4);
+      this.ambientFilter.frequency.setTargetAtTime(1250, now, 0.5);
     } else {
-      this.ambientGain.gain.setTargetAtTime(0.85, now, 0.8);
-      this.ambientFilter.frequency.setTargetAtTime(760, now, 1.2);
+      this.ambientGain.gain.setTargetAtTime(1.15, now, 0.8);
+      this.ambientFilter.frequency.setTargetAtTime(820, now, 1.2);
     }
   }
 
@@ -783,7 +783,7 @@ export class SoundManager {
   public setMuted(muted: boolean) {
     this.isMuted = muted;
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(muted ? 0 : 1.85, this.ctx.currentTime, 0.05);
+      this.masterGain.gain.setTargetAtTime(muted ? 0 : 2.0, this.ctx.currentTime, 0.05);
     }
   }
 

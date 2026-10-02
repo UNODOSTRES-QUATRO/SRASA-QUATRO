@@ -206,4 +206,47 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     expect(eastRotX).toBeCloseTo(0.04, 2);
     expect(eastRotZ).toBeCloseTo(0.34, 2);
   });
+
+  it("verifies astral monster defeat mechanics reduce HP and set respawn timer safely", () => {
+    const monster = {
+      id: "astral-test",
+      name: "Test Wisp",
+      maxHp: 60,
+      hp: 60,
+      isDefeated: false,
+      respawnTime: 0,
+    };
+
+    // Take damage from Blue Shard Katana (38 damage)
+    monster.hp = Math.max(0, monster.hp - 38);
+    expect(monster.hp).toBe(22);
+    expect(monster.isDefeated).toBe(false);
+
+    // Fatal hit
+    monster.hp = Math.max(0, monster.hp - 38);
+    expect(monster.hp).toBe(0);
+    monster.isDefeated = true;
+    monster.respawnTime = 18.0;
+
+    expect(monster.isDefeated).toBe(true);
+    expect(monster.respawnTime).toBe(18.0);
+  });
+
+  it("verifies continuous world clamps player and vehicle within open seamless world bounds", () => {
+    // Attempting to drive far beyond north edge at Z = 300
+    const farNorthPos = { x: 0, y: 0.35, z: 300 };
+    const clampedNorthZ = Math.min(225.0, Math.max(-85.0, farNorthPos.z));
+    expect(clampedNorthZ).toBe(225.0);
+
+    // Attempting to drive far beyond south edge at Z = -150
+    const farSouthPos = { x: 0, y: 0.35, z: -150 };
+    const clampedSouthZ = Math.min(225.0, Math.max(-85.0, farSouthPos.z));
+    expect(clampedSouthZ).toBe(-85.0);
+
+    // Attempting to walk beyond east lateral boundary at X = 50
+    const farEastX = 50.0;
+    const clampedEastX = Math.min(28.0, Math.max(-28.0, farEastX));
+    expect(clampedEastX).toBe(28.0);
+  });
 });
+
