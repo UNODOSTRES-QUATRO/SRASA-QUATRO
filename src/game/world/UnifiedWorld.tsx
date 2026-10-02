@@ -583,6 +583,9 @@ export function UnifiedWorld({
         vehicleStateRef={vehicleStateRef}
         isCatAlert={dayNumber >= 2}
         isCockpit={playerMode === "DRIVING" && cameraMode === "COCKPIT"}
+        playerMode={playerMode}
+        playerPos={humanPos}
+        humanPosRef={humanPosRef}
       />
 
       {/* Car Headlights Beams cast into continuous world */}

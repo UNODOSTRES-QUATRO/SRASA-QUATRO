@@ -268,13 +268,13 @@ export function UnifiedCamera({
         liveTargetPos[2] + cockpitOffset.z
       );
 
-      const lookDist = 22;
-      const lookOffsetLateral = steerSway * 3.5;
-      const rotLookX = Math.sin(smoothedHeading.current) * lookDist + Math.cos(smoothedHeading.current) * lookOffsetLateral;
-      const rotLookZ = Math.cos(smoothedHeading.current) * lookDist - Math.sin(smoothedHeading.current) * lookOffsetLateral;
+      const lookDist = 20;
+      const lookOffsetLateral = steerSway * 3.2;
+      const rotLookX = Math.sin(liveVehicle.heading) * lookDist + Math.cos(liveVehicle.heading) * lookOffsetLateral;
+      const rotLookZ = Math.cos(liveVehicle.heading) * lookDist - Math.sin(liveVehicle.heading) * lookOffsetLateral;
       desiredLookAt.set(
         liveTargetPos[0] + rotLookX,
-        liveTargetPos[1] + 1.0,
+        liveTargetPos[1] + 1.05 + gPitch * 2.0,
         liveTargetPos[2] + rotLookZ
       );
 
@@ -402,15 +402,20 @@ export function UnifiedCamera({
     const lookAlpha = 1.0 - Math.exp(-lookLambda * dt);
 
     if (mode === "DRIVING_COCKPIT") {
-      // Pin cockpit camera tightly to interior cabin with smooth exponential damping (1 - exp(-lambda * dt))
-      const cockpitLambda = THREE.MathUtils.lerp(55.0, 12.0, transitionProgress.current);
-      const cockpitPosAlpha = 1.0 - Math.exp(-cockpitLambda * dt);
-      currentPos.current.lerp(desiredPos, cockpitPosAlpha);
+      if (transitionProgress.current > 0.01) {
+        // Smooth cinematic glide into the driver's seat during mode transitions
+        const cockpitPosAlpha = 1.0 - Math.exp(-14.0 * dt);
+        currentPos.current.lerp(desiredPos, cockpitPosAlpha);
+      } else {
+        // Pin eye position rigidly to cabin coordinate space (zero dashboard jitter / zero clipping)
+        currentPos.current.copy(desiredPos);
+      }
+      const cockpitLookAlpha = 1.0 - Math.exp(-24.0 * dt);
+      currentLookAt.current.lerp(desiredLookAt, cockpitLookAlpha);
     } else {
       currentPos.current.lerp(desiredPos, posAlpha);
+      currentLookAt.current.lerp(desiredLookAt, lookAlpha);
     }
-
-    currentLookAt.current.lerp(desiredLookAt, lookAlpha);
 
     camera.position.copy(currentPos.current);
     camera.lookAt(currentLookAt.current);

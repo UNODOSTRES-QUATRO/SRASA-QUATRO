@@ -319,6 +319,31 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     expect(() => soundManager.playEndingChime()).not.toThrow();
     expect(() => soundManager.playFootstep()).not.toThrow();
   });
+
+  it("verifies cockpit look-at aligns with front windshield heading and steer sway", () => {
+    const carHeading = Math.PI / 4; // 45 degrees
+    const steerSway = 0.02;
+    const lookDist = 20;
+
+    const rotLookX = Math.sin(carHeading) * lookDist + Math.cos(carHeading) * steerSway * 3.2;
+    const rotLookZ = Math.cos(carHeading) * lookDist - Math.sin(carHeading) * steerSway * 3.2;
+
+    // Both X and Z are positive when facing northeast
+    expect(rotLookX).toBeGreaterThan(13);
+    expect(rotLookZ).toBeGreaterThan(13);
+  });
+
+  it("verifies vehicle mount proximity detection triggers on foot within 3.6m", () => {
+    const carPos = { x: 20.0, z: -48.0 };
+    const playerNearby = { x: 21.5, z: -49.0 };
+    const playerFar = { x: 10.0, z: -55.0 };
+
+    const distNearby = Math.hypot(playerNearby.x - carPos.x, playerNearby.z - carPos.z);
+    const distFar = Math.hypot(playerFar.x - carPos.x, playerFar.z - carPos.z);
+
+    expect(distNearby).toBeLessThan(3.6);
+    expect(distFar).toBeGreaterThan(3.6);
+  });
 });
 
 

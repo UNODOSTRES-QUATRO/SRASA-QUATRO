@@ -553,6 +553,29 @@ function SingleAstralEntity({
         <meshBasicMaterial color="#38bdf8" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
       </mesh>
 
+      {/* Harmonic Impact Sparkles (Burst outward when hit) */}
+      {hitShudderRef.current > 0 && (
+        <group>
+          {[0, 1, 2, 3, 4, 5].map((i) => {
+            const angle = (i * Math.PI * 2) / 6;
+            const dist = 0.35 + (0.22 - hitShudderRef.current) * 2.8;
+            return (
+              <mesh
+                key={`sparkle-${i}`}
+                position={[Math.cos(angle) * dist, Math.sin(angle * 2) * 0.2, Math.sin(angle) * dist]}
+              >
+                <octahedronGeometry args={[0.06]} />
+                <meshStandardMaterial
+                  color="#ffffff"
+                  emissive={data.accentColor}
+                  emissiveIntensity={4.5}
+                />
+              </mesh>
+            );
+          })}
+        </group>
+      )}
+
       {/* Defeat Harmonic Crystallization Bloom (Ascending Stars Effect) */}
       <group ref={defeatBloomRef} visible={false}>
         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => (

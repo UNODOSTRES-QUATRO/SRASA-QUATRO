@@ -13,6 +13,9 @@ interface QuatroMeshProps {
   isCatAlert?: boolean;
   bodyColor?: string;
   isCockpit?: boolean;
+  playerMode?: "ON_FOOT" | "DRIVING";
+  playerPos?: [number, number, number];
+  humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
 }
 
 // Deep-dish rally wheel with visible rotor, caliper, and camber
@@ -90,6 +93,9 @@ export function QuatroMesh({
   isCatAlert = false,
   bodyColor = "#d65d28",
   isCockpit = false,
+  playerMode = "ON_FOOT",
+  playerPos,
+  humanPosRef,
 }: QuatroMeshProps) {
   const groupRef = useRef<THREE.Group>(null);
   const chassisRef = useRef<THREE.Group>(null);
@@ -100,6 +106,7 @@ export function QuatroMesh({
   const taillightMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
   const taillightLightRef = useRef<THREE.PointLight>(null);
   const reverseLightRef = useRef<THREE.MeshStandardMaterial>(null);
+  const mountPromptRef = useRef<THREE.Group>(null);
 
   // Wheel refs for zero-jitter, 60+ FPS direct rotation
   const flSteerRef = useRef<THREE.Group>(null);
@@ -212,6 +219,25 @@ export function QuatroMesh({
     }
     if (reverseLightRef.current) {
       reverseLightRef.current.emissiveIntensity = live.isReversing ? 3.5 : 0;
+    }
+
+    // ── Proximity 3D Mount Hologram Indicator (On foot, within 3.6m) ──
+    if (mountPromptRef.current) {
+      if (playerMode === "ON_FOOT") {
+        const px = humanPosRef?.current?.x ?? playerPos?.[0] ?? 0;
+        const pz = humanPosRef?.current?.z ?? playerPos?.[2] ?? 0;
+        const dist = Math.hypot(px - live.position.x, pz - live.position.z);
+        if (dist < 3.6) {
+          mountPromptRef.current.visible = true;
+          const bob = Math.sin(state.clock.getElapsedTime() * 3.5) * 0.05;
+          mountPromptRef.current.position.y = 1.35 + bob;
+          mountPromptRef.current.rotation.y = state.clock.getElapsedTime() * 1.8;
+        } else {
+          mountPromptRef.current.visible = false;
+        }
+      } else {
+        mountPromptRef.current.visible = false;
+      }
     }
   });
 
@@ -701,6 +727,26 @@ export function QuatroMesh({
             </mesh>
           </group>
         ))}
+      </group>
+
+      {/* ── 3D Mount Holographic Interactive Beacon (Driver Door) ── */}
+      <group ref={mountPromptRef} position={[-1.15, 1.35, 0.0]} visible={false}>
+        {/* Floating Rotating Beacon Diamond */}
+        <mesh rotation={[0, 0, Math.PI / 4]}>
+          <boxGeometry args={[0.22, 0.22, 0.02]} />
+          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={3.2} />
+        </mesh>
+        {/* Inner Glowing Core */}
+        <mesh>
+          <sphereGeometry args={[0.06, 12, 12]} />
+          <meshStandardMaterial color="#ffffff" emissive="#f8fafc" emissiveIntensity={4.5} />
+        </mesh>
+        {/* Interactive glow ring */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.18, 0.24, 16]} />
+          <meshBasicMaterial color="#38bdf8" transparent opacity={0.65} side={THREE.DoubleSide} />
+        </mesh>
+        <pointLight color="#38bdf8" intensity={2.4} distance={4} />
       </group>
     </group>
   );
