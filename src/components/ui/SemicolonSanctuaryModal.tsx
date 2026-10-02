@@ -57,14 +57,14 @@ export function SemicolonSanctuaryModal({
     try {
       const supabase = getSupabaseBrowserClient();
       if (supabase) {
-        // Record story progress if player session exists
-        const driverId = sessionStorage.getItem("quatro_tab_driver_id") || "guest_driver";
-        await supabase.from("story_progress").upsert({
-          chapter: "CHAPTER_3_SANCTUARY",
-          completed: true,
-          unlocked_at: new Date().toISOString(),
-          notes: `Sanctuary reached by driver ${driverId}`,
-        });
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData?.user) {
+          await supabase.from("story_progress").upsert({
+            user_id: authData.user.id,
+            flag_key: "CHAPTER_3_SANCTUARY",
+            flag_value: true,
+          });
+        }
       }
       setSyncSuccess(true);
       soundManager.playPurr();

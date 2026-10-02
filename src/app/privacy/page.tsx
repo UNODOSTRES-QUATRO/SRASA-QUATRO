@@ -1,8 +1,9 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — Project Quatro",
-  description: "Privacy policy and data retention details for Project Quatro.",
+  title: "Privacy Policy & Data Security — Project Quatro Narrative Game",
+  description:
+    "Read the official Privacy Policy for Project Quatro. Learn how player session data, telemetry, and Supabase cloud progress are securely handled.",
 };
 
 export default function PrivacyPage() {

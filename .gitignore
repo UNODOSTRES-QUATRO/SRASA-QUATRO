@@ -1,33 +1,94 @@
-# dependencies
-/node_modules
+# ========================================================
+# Security & Environment Secrets
+# ========================================================
+# Ignore all environment files except the template .env.example
+.env
+.env.*
+!.env.example
+*.env
+
+# Private keys, certificates, and credentials
+*.pem
+*.key
+*.pkcs12
+*.pfx
+*.p12
+*.crt
+*.cert
+id_rsa*
+id_ed25519*
+credentials.json
+service-account*.json
+*.keystore
+
+# Local databases and SQL dumps
+*.sqlite
+*.sqlite3
+*.db
+*.sql.dump
+dump.sql
+
+# Supabase local cli cache & branches
+supabase/.temp
+supabase/.branches
+.supabase/
+
+# ========================================================
+# Dependencies & Package Managers
+# ========================================================
+node_modules/
 /.pnp
 .pnp.js
+.pnpm-store/
 
-# testing
-/coverage
+# ========================================================
+# Testing & Coverage
+# ========================================================
+coverage/
+.nyc_output/
 
-# next.js
+# ========================================================
+# Next.js & Build Artifacts
+# ========================================================
 /.next/
 /out/
-
-# production
 /build
+dist/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
 
-# misc
-.DS_Store
-*.pem
-
-# debug
+# ========================================================
+# Debugging & Logs
+# ========================================================
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# local env files
-.env*.local
+# ========================================================
+# Operating System & IDE Files
+# ========================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 
-# vercel
+# Editors & IDEs
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Vercel & Deployment
 .vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts

@@ -1,8 +1,9 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "About — Project Quatro",
-  description: "Learn about Project Quatro, the philosophy of The Semicolon, and the development vision.",
+  title: "About Project Quatro — Cozy Driving & Voxel Sanctuary Exploration",
+  description:
+    "Learn about Project Quatro, the philosophy of The Semicolon, retro-voxel driving mechanics, and our low-cortisol game exploration design.",
 };
 
 export default function AboutPage() {
