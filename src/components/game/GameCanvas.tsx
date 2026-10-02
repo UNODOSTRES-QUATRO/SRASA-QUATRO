@@ -9,10 +9,15 @@ import { VehicleState } from "@/game/vehicle/vehicleTypes";
 
 interface GameCanvasProps {
   vehicleState: VehicleState;
+  isCatAlert?: boolean;
   children?: React.ReactNode;
 }
 
-export function GameCanvas({ vehicleState, children }: GameCanvasProps) {
+export function GameCanvas({
+  vehicleState,
+  isCatAlert = false,
+  children,
+}: GameCanvasProps) {
   return (
     <Canvas
       shadows
@@ -25,7 +30,7 @@ export function GameCanvas({ vehicleState, children }: GameCanvasProps) {
       className="w-full h-full"
     >
       <SceneLighting />
-      <QuatroMesh vehicleState={vehicleState} />
+      <QuatroMesh vehicleState={vehicleState} isCatAlert={isCatAlert} />
       <FollowCamera vehicleState={vehicleState} />
       {children}
     </Canvas>

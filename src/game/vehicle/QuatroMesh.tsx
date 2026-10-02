@@ -3,12 +3,17 @@
 import { useRef } from "react";
 import * as THREE from "three";
 import { VehicleState } from "./vehicleTypes";
+import { SemicolonCat } from "../character/SemicolonCat";
 
 interface QuatroMeshProps {
   vehicleState: VehicleState;
+  isCatAlert?: boolean;
 }
 
-export function QuatroMesh({ vehicleState }: QuatroMeshProps) {
+export function QuatroMesh({
+  vehicleState,
+  isCatAlert = false,
+}: QuatroMeshProps) {
   const groupRef = useRef<THREE.Group>(null);
   const frontLeftWheelRef = useRef<THREE.Group>(null);
   const frontRightWheelRef = useRef<THREE.Group>(null);
@@ -44,6 +49,9 @@ export function QuatroMesh({ vehicleState }: QuatroMeshProps) {
           roughness={0.7}
         />
       </mesh>
+
+      {/* SEMICOLON COMPANION CAT IN PASSENGER SEAT */}
+      <SemicolonCat position={[0.38, 0.65, -0.1]} isAlert={isCatAlert} />
 
       {/* WINDSHIELD & WINDOWS (Tinted warm glass) */}
       <mesh position={[0, 0.93, 0.72]} rotation={[-0.2, 0, 0]}>

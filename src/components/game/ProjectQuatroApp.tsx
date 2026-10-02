@@ -5,21 +5,26 @@ import { GameCanvas } from "./GameCanvas";
 import { WorldEnvironment } from "@/game/world/WorldEnvironment";
 import { QuietHUD } from "@/components/ui/QuietHUD";
 import { PauseOverlay } from "@/components/ui/PauseOverlay";
+import { WorkplaceMiniGame } from "@/components/ui/WorkplaceMiniGame";
+import { PortalTransitionOverlay } from "@/components/ui/PortalTransitionOverlay";
 import {
   createInitialVehicleState,
   updateVehiclePhysics,
 } from "@/game/vehicle/vehiclePhysics";
 import { VehicleInput, VehicleState } from "@/game/vehicle/vehicleTypes";
+import {
+  createInitialSessionState,
+  advanceDay,
+  GameSessionState,
+} from "@/game/core/gameStore";
 import { useAudioEngine } from "@/game/audio/useAudioEngine";
 import { soundManager } from "@/game/audio/SoundManager";
 
 export default function ProjectQuatroApp() {
   const [vehicleState, setVehicleState] = useState<VehicleState>(createInitialVehicleState);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [activePrompt, setActivePrompt] = useState<string | null>(
-    "Drive down the familiar road to work."
-  );
+  const [session, setSession] = useState<GameSessionState>(createInitialSessionState);
+  const [isWorkModalOpen, setIsWorkModalOpen] = useState(false);
+  const [isPortalModalOpen, setIsPortalModalOpen] = useState(false);
 
   const inputRef = useRef<VehicleInput>({
     forward: false,
@@ -32,26 +37,64 @@ export default function ProjectQuatroApp() {
   const stateRef = useRef<VehicleState>(createInitialVehicleState());
 
   // Link audio engine with current speed and mute state
-  useAudioEngine(vehicleState.speed, isAudioMuted || isPaused);
+  useAudioEngine(
+    vehicleState.speed,
+    session.isAudioMuted || session.isPaused || isWorkModalOpen || isPortalModalOpen
+  );
 
-  // Clear prompt after 7 seconds of driving
+  // Proximity checks for Office and Portal
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setActivePrompt(null);
-    }, 7000);
-    return () => clearTimeout(timer);
-  }, []);
+    const { position } = vehicleState;
+    const { dayNumber, workDone } = session;
+
+    // Check distance to office parking bay: [8, 0, 70]
+    const distToOffice = Math.hypot(position.x - 8, position.z - 70);
+
+    if (distToOffice < 6 && !workDone && dayNumber < 3) {
+      setSession((prev) => ({
+        ...prev,
+        activePrompt: "Parked at office. Press [SPACE] or Click to Start Work.",
+        officeParkingUnlocked: true,
+      }));
+    } else if (dayNumber === 3 && position.z > 98) {
+      // Reached Voxel Portal!
+      soundManager.playMeow();
+      setIsPortalModalOpen(true);
+    } else if (distToOffice >= 6 && session.officeParkingUnlocked && !workDone) {
+      setSession((prev) => ({
+        ...prev,
+        activePrompt: null,
+        officeParkingUnlocked: false,
+      }));
+    }
+  }, [vehicleState, session.dayNumber, session.workDone, session.officeParkingUnlocked]);
 
   // Keyboard input listeners
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         soundManager.playClick();
-        setIsPaused((prev) => !prev);
+        if (isWorkModalOpen) {
+          setIsWorkModalOpen(false);
+        } else if (isPortalModalOpen) {
+          setIsPortalModalOpen(false);
+        } else {
+          setSession((prev) => ({ ...prev, isPaused: !prev.isPaused }));
+        }
         return;
       }
 
-      if (isPaused) return;
+      if (session.isPaused || isWorkModalOpen || isPortalModalOpen) return;
+
+      if (e.code === "Space") {
+        if (session.officeParkingUnlocked && !session.workDone) {
+          soundManager.playClick();
+          setIsWorkModalOpen(true);
+          return;
+        }
+        inputRef.current.brake = true;
+        return;
+      }
 
       switch (e.code) {
         case "KeyW":
@@ -69,9 +112,6 @@ export default function ProjectQuatroApp() {
         case "KeyD":
         case "ArrowRight":
           inputRef.current.right = true;
-          break;
-        case "Space":
-          inputRef.current.brake = true;
           break;
       }
     };
@@ -107,9 +147,9 @@ export default function ProjectQuatroApp() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [isPaused]);
+  }, [session.isPaused, session.officeParkingUnlocked, session.workDone, isWorkModalOpen, isPortalModalOpen]);
 
-  // Main 60FPS Physics Animation Loop
+  // 60FPS Physics Loop
   useEffect(() => {
     let animationFrameId: number;
     let lastTime = performance.now();
@@ -118,7 +158,7 @@ export default function ProjectQuatroApp() {
       const dt = (currentTime - lastTime) / 1000;
       lastTime = currentTime;
 
-      if (!isPaused) {
+      if (!session.isPaused && !isWorkModalOpen && !isPortalModalOpen) {
         const nextState = updateVehiclePhysics(
           stateRef.current,
           inputRef.current,
@@ -134,37 +174,80 @@ export default function ProjectQuatroApp() {
     animationFrameId = requestAnimationFrame(loop);
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isPaused]);
+  }, [session.isPaused, isWorkModalOpen, isPortalModalOpen]);
 
   const handleToggleAudio = useCallback(() => {
     soundManager.playClick();
-    setIsAudioMuted((prev) => !prev);
+    setSession((prev) => ({ ...prev, isAudioMuted: !prev.isAudioMuted }));
   }, []);
 
   const handleResume = useCallback(() => {
     soundManager.playClick();
-    setIsPaused(false);
+    setSession((prev) => ({ ...prev, isPaused: false }));
   }, []);
+
+  const handleCompleteWork = useCallback(() => {
+    setIsWorkModalOpen(false);
+    soundManager.playPurr();
+
+    // Advance to next day and reset car to home road position
+    const nextSession = advanceDay(session);
+    setSession(nextSession);
+
+    // Reset car position
+    const resetVehicle = createInitialVehicleState();
+    stateRef.current = resetVehicle;
+    setVehicleState(resetVehicle);
+  }, [session]);
+
+  const handleEnterVoxelWorld = useCallback(() => {
+    soundManager.playPurr();
+    setIsPortalModalOpen(false);
+    setSession((prev) => ({
+      ...prev,
+      portalEntered: true,
+      activePrompt: "Chapter 2: The Castle awaits ahead in the Voxel Dimension.",
+    }));
+  }, []);
+
+  const handlePromptAction = session.officeParkingUnlocked && !session.workDone
+    ? () => setIsWorkModalOpen(true)
+    : undefined;
 
   return (
     <div className="relative w-full h-full">
-      <GameCanvas vehicleState={vehicleState}>
-        <WorldEnvironment />
+      <GameCanvas vehicleState={vehicleState} isCatAlert={session.catAlert}>
+        <WorldEnvironment dayNumber={session.dayNumber} />
       </GameCanvas>
 
       <QuietHUD
         vehicleState={vehicleState}
-        activePrompt={activePrompt}
+        activePrompt={session.activePrompt}
+        dayNumber={session.dayNumber}
+        catAlert={session.catAlert}
         onOpenPause={() => {
           soundManager.playClick();
-          setIsPaused(true);
+          setSession((prev) => ({ ...prev, isPaused: true }));
         }}
+        onPromptAction={handlePromptAction}
+      />
+
+      <WorkplaceMiniGame
+        isOpen={isWorkModalOpen}
+        dayNumber={session.dayNumber}
+        onComplete={handleCompleteWork}
+        onClose={() => setIsWorkModalOpen(false)}
+      />
+
+      <PortalTransitionOverlay
+        isOpen={isPortalModalOpen}
+        onEnterVoxelWorld={handleEnterVoxelWorld}
       />
 
       <PauseOverlay
-        isOpen={isPaused}
+        isOpen={session.isPaused}
         onResume={handleResume}
-        isAudioMuted={isAudioMuted}
+        isAudioMuted={session.isAudioMuted}
         onToggleAudio={handleToggleAudio}
       />
     </div>

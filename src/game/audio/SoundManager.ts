@@ -111,6 +111,61 @@ export class SoundManager {
     osc.start();
     osc.stop(this.ctx.currentTime + 0.04);
   }
+
+  // Gentle cat purr (warm rhythmic low frequency vibration)
+  public playPurr() {
+    if (!this.ctx || this.isMuted) return;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const lfo = this.ctx.createOscillator();
+    const lfoGain = this.ctx.createGain();
+
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(28, this.ctx.currentTime);
+
+    // LFO for purr pulsation (~24Hz modulation)
+    lfo.type = "sine";
+    lfo.frequency.setValueAtTime(24, this.ctx.currentTime);
+
+    lfoGain.gain.setValueAtTime(0.025, this.ctx.currentTime);
+    lfo.connect(lfoGain.gain);
+
+    gain.gain.setValueAtTime(0.03, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.2);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    lfo.start();
+    osc.start();
+
+    lfo.stop(this.ctx.currentTime + 1.2);
+    osc.stop(this.ctx.currentTime + 1.2);
+  }
+
+  // Soft high harmonic meow
+  public playMeow() {
+    if (!this.ctx || this.isMuted) return;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(520, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(780, this.ctx.currentTime + 0.18);
+    osc.frequency.exponentialRampToValueAtTime(440, this.ctx.currentTime + 0.45);
+
+    gain.gain.setValueAtTime(0.001, this.ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.045, this.ctx.currentTime + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.45);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.45);
+  }
 }
 
 export const soundManager = new SoundManager();
