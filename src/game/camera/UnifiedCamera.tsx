@@ -136,10 +136,19 @@ export function UnifiedCamera({
     // Decouple delta to eliminate micro-stutters: sub-frame clamped
     const dt = Math.min(delta, 0.05);
 
+    const liveVehicle = vehicleStateRef?.current ?? vehicleState;
+    const liveTargetPos: [number, number, number] = mode === "ON_FOOT"
+      ? (humanPosRef?.current ? [humanPosRef.current.x, humanPosRef.current.y, humanPosRef.current.z] : targetPos)
+      : (liveVehicle ? [liveVehicle.position.x, liveVehicle.position.y, liveVehicle.position.z] : targetPos);
+
+    const liveHeading = mode === "ON_FOOT"
+      ? (humanPosRef?.current ? humanPosRef.current.heading : targetHeading)
+      : (liveVehicle ? liveVehicle.heading : targetHeading);
+
     // Smooth mode switch alignment with dynamic transition easing
     if (prevMode.current !== mode) {
       if (mode === "ON_FOOT") {
-        orbitAzimuth.current = smoothedHeading.current;
+        orbitAzimuth.current = liveHeading;
         pointerVel.current = { x: 0, y: 0 };
       }
       prevMode.current = mode;
@@ -154,15 +163,6 @@ export function UnifiedCamera({
     let desiredPos = new THREE.Vector3();
     let desiredLookAt = new THREE.Vector3();
     let targetFov = 50;
-
-    const liveVehicle = vehicleStateRef?.current ?? vehicleState;
-    const liveTargetPos: [number, number, number] = mode === "ON_FOOT"
-      ? (humanPosRef?.current ? [humanPosRef.current.x, humanPosRef.current.y, humanPosRef.current.z] : targetPos)
-      : (liveVehicle ? [liveVehicle.position.x, liveVehicle.position.y, liveVehicle.position.z] : targetPos);
-
-    const liveHeading = mode === "ON_FOOT"
-      ? (humanPosRef?.current ? humanPosRef.current.heading : targetHeading)
-      : (liveVehicle ? liveVehicle.heading : targetHeading);
 
     // ── 1. Heading Shortest-Arc Smoothing (Exponential decay) ────────────────
     let angleDiff = liveHeading - smoothedHeading.current;

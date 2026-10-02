@@ -79,7 +79,7 @@ export class SoundManager {
       this.compressor.release.setValueAtTime(0.16, this.ctx.currentTime);
 
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(1.15, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(1.28, this.ctx.currentTime);
 
       this.compressor.connect(this.masterGain);
       this.masterGain.connect(this.ctx.destination);
@@ -277,7 +277,7 @@ export class SoundManager {
     this.ambientFilter.Q.setValueAtTime(1.8, this.ctx.currentTime);
 
     this.ambientGain = this.ctx.createGain();
-    this.ambientGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+    this.ambientGain.gain.setValueAtTime(0.92, this.ctx.currentTime);
 
     this.ambientFilter.connect(this.ambientGain);
     this.ambientGain.connect(this.compressor);
@@ -287,7 +287,7 @@ export class SoundManager {
     this.subDroneOsc.type = "sine";
     this.subDroneOsc.frequency.setValueAtTime(55, this.ctx.currentTime);
     this.subDroneGain = this.ctx.createGain();
-    this.subDroneGain.gain.setValueAtTime(0.18, this.ctx.currentTime);
+    this.subDroneGain.gain.setValueAtTime(0.22, this.ctx.currentTime);
     this.subDroneOsc.connect(this.subDroneGain);
     this.subDroneGain.connect(this.ambientFilter);
     this.subDroneOsc.start();
@@ -407,7 +407,7 @@ export class SoundManager {
     }
 
     // Warm, heavy bass volume that scales with speed
-    const engineVol = 0.32 + Math.min(1.0, absSpeed / 22) * 0.48;
+    const engineVol = 0.38 + Math.min(1.0, absSpeed / 22) * 0.52;
     this.engineGain.gain.setTargetAtTime(this.isCinematic ? 0 : engineVol, now, 0.05);
 
     if (this.engineFilter) {
@@ -445,7 +445,7 @@ export class SoundManager {
     const absSpeed = Math.abs(speed);
     if (driftFactor > 0.08 && absSpeed > 2.0) {
       const intensity = Math.min(1.0, (driftFactor - 0.08) * 2.1);
-      const tireVol = intensity * 0.65;
+      const tireVol = intensity * 0.72;
       const targetFreq = 850 + intensity * 900;
 
       const now = this.ctx.currentTime;

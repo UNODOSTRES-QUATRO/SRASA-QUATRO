@@ -42,6 +42,7 @@ export interface VehicleState {
   isHandbraking: boolean;
   scaleMode: "BIG" | "POCKET";
   scaleFactor: number; // 1.0 for BIG, 0.22 for POCKET
+  doorAngle?: number; // 0 = closed, ~1.1 rad = fully open
 }
 
 export type CameraMode = "CHASE" | "COCKPIT";

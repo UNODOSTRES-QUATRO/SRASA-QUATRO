@@ -1,20 +1,20 @@
 import { VehicleConfig, VehicleInput, VehicleState } from "./vehicleTypes";
 
 export const DEFAULT_VEHICLE_CONFIG: VehicleConfig = {
-  maxSpeed: 25.0,          // Punchy highway top speed
-  maxReverseSpeed: 7.0,
-  acceleration: 14.5,      // Responsive instant torque
-  reverseAcceleration: 6.0,
-  brakingDeceleration: 16.0,
-  naturalDrag: 2.8,
-  maxSteerAngle: Math.PI / 5.2, // ~35 degrees – quick and agile
-  steerSpeed: 6.5,
-  steerReturnSpeed: 8.5,
+  maxSpeed: 26.0,          // Punchy highway top speed
+  maxReverseSpeed: 8.0,
+  acceleration: 16.0,      // Responsive instant torque
+  reverseAcceleration: 7.0,
+  brakingDeceleration: 18.0,
+  naturalDrag: 2.5,
+  maxSteerAngle: Math.PI / 4.8, // ~37.5 degrees – quick and agile
+  steerSpeed: 7.2,
+  steerReturnSpeed: 9.5,
   wheelbase: 2.2,
-  // Drift physics
-  gripFactor: 0.85,        // Solid straight grip, smooth break-away
-  handbrakeGrip: 0.16,     // Very loose on handbrake flick
-  driftAngularMomentum: 0.76, // Smooth momentum carry through corners
+  // Drift physics (FR Legends Flow)
+  gripFactor: 0.86,        // Solid straight grip, smooth break-away
+  handbrakeGrip: 0.14,     // Very loose on handbrake flick
+  driftAngularMomentum: 0.82, // Smooth momentum carry through corners
 };
 
 export function createInitialVehicleState(): VehicleState {
@@ -29,6 +29,7 @@ export function createInitialVehicleState(): VehicleState {
     isReversing: false,
     isHandbraking: false,
     driftFactor: 0,
+    doorAngle: 0,
     scaleMode: "BIG",
     scaleFactor: 1.0,
   };
@@ -123,15 +124,15 @@ export function updateVehiclePhysics(
   // Counter-steer stability assist (FR Legends style flow)
   // Stabilizes slide when driver counter-steers into the drift and keeps forward throttle power
   const isCounterSteering =
-    (lateralSpeed > 0.25 && steeringAngle < -0.02) ||
-    (lateralSpeed < -0.25 && steeringAngle > 0.02);
+    (lateralSpeed > 0.18 && steeringAngle < -0.02) ||
+    (lateralSpeed < -0.18 && steeringAngle > 0.02);
 
   if (isCounterSteering) {
     // Lock drift angle and prevent spin-out
-    angularVelocity *= (1.0 - Math.min(0.8, clampedDt * 8.0));
+    angularVelocity *= (1.0 - Math.min(0.85, clampedDt * 8.5));
     // Power-slide propulsion when holding throttle
-    if (input.forward && Math.abs(speed) < config.maxSpeed * 0.95) {
-      speed += config.acceleration * 0.42 * clampedDt;
+    if (input.forward && Math.abs(speed) < config.maxSpeed * 0.98) {
+      speed += config.acceleration * 0.48 * clampedDt;
     }
   }
 
@@ -140,10 +141,10 @@ export function updateVehiclePhysics(
 
   // ─── 4. LATERAL VELOCITY (slide/drift) ───────────────────────────────────
   // Centrifugal lateral force from rotation
-  const centrifugalLateral = angularVelocity * speed * 0.62;
+  const centrifugalLateral = angularVelocity * speed * 0.65;
   // If counter-steering in a slide, let drift carry; if centering, recover grip quickly
-  const gripMultiplier = isCounterSteering ? 0.65 : Math.abs(steeringAngle) < 0.04 ? 1.4 : 1.0;
-  const lateralGripDamp = effectiveGrip * 12.5 * gripMultiplier * clampedDt;
+  const gripMultiplier = isCounterSteering ? 0.62 : Math.abs(steeringAngle) < 0.04 ? 1.45 : 1.0;
+  const lateralGripDamp = effectiveGrip * 12.0 * gripMultiplier * clampedDt;
   lateralSpeed += centrifugalLateral * clampedDt;
   lateralSpeed -= lateralSpeed * Math.min(0.9, lateralGripDamp); // dampen toward 0
 
@@ -174,6 +175,7 @@ export function updateVehiclePhysics(
     isReversing: speed < -0.1,
     isHandbraking,
     driftFactor: Math.min(1.0, driftFactor),
+    doorAngle: current.doorAngle || 0,
     scaleMode: current.scaleMode,
     scaleFactor: current.scaleFactor,
   };

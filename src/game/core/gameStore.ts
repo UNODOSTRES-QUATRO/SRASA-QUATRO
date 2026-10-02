@@ -249,7 +249,7 @@ export function advanceDay(current: GameSessionState): GameSessionState {
     dayNumber: nextDay,
     phase: "MORNING_ROUTINE",
     activePrompt: prompt,
-    humanPosition: [-1.0, 0, -3.2],
+    humanPosition: [18.8, 0, -63.2],
     humanHeading: 0,
     rumah: {
       wokenUp: false,
@@ -298,7 +298,7 @@ export function beginCommuteToWork(current: GameSessionState): GameSessionState 
     ...current,
     currentLocation: "JALAN",
     phase: "COMMUTE_TO_WORK",
-    humanPosition: [0, 0, 0],
+    humanPosition: [20.0, 0, -54.0],
     activePrompt: "Tujuan: kantor",
   };
 }
@@ -366,7 +366,7 @@ export function takeMorningShower(current: GameSessionState): GameSessionState {
   return {
     ...current,
     rumah: { ...current.rumah, hasShowered: true, canExitHouse: true },
-    activePrompt: "Rutinitas selesai. Tujuan berikutnya: kantor.",
+    activePrompt: "Rutinitas selesai. Mobil Quattro menunggu di luar.",
   };
 }
 
@@ -420,7 +420,7 @@ export function arriveAtWork(current: GameSessionState): GameSessionState {
     ...current,
     currentLocation: "TEMPAT_KERJA",
     phase: "AT_WORK",
-    humanPosition: [0, 0, 5.5],
+    humanPosition: [21.0, 0, 67.0],
     activePrompt: "Tugas hari ini menunggu di workstation.",
   };
 }
@@ -466,7 +466,7 @@ export function beginCommuteHome(current: GameSessionState): GameSessionState {
     ...current,
     currentLocation: "JALAN",
     phase: "COMMUTE_HOME",
-    humanPosition: [0, 0, 0],
+    humanPosition: [18.0, 0, 77.0],
     activePrompt: "✦ Tujuan: kembali ke rumah.",
   };
 }
@@ -484,7 +484,7 @@ export function arriveHomeForEvening(current: GameSessionState): GameSessionStat
     currentLocation: "RUMAH",
     phase: "EVENING_ROUTINE",
     homeReached: true,
-    humanPosition: [0, 0, 3.4],
+    humanPosition: [20.0, 0, -57.0],
     activePrompt: "✦ Sampai di rumah. Mandi malam dan siapkan makan malam.",
   };
 }
@@ -518,7 +518,7 @@ export function enterCastle(current: GameSessionState): GameSessionState {
     ...current,
     currentLocation: "KASTIL",
     phase: "CASTLE_EXPLORATION",
-    humanPosition: [0, 0, 8],
+    humanPosition: [0, 0, 180],
     kastil: { ...current.kastil, insideEscapeRoom: false },
     activePrompt: "",
   };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useMemo } from "react";
+import { useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { VehicleState } from "./vehicleTypes";
@@ -16,31 +16,35 @@ interface QuatroMeshProps {
 
 // Deep-dish rally wheel with visible rotor, caliper, and camber
 function RallyWheel({
-  rotation,
-  steeringAngle = 0,
   isLeft = false,
+  steerRef,
+  spinRef,
+  initialRotation = 0,
+  initialSteering = 0,
 }: {
-  rotation: number;
-  steeringAngle?: number;
   isLeft?: boolean;
+  steerRef?: React.RefObject<THREE.Group>;
+  spinRef?: React.RefObject<THREE.Group>;
+  initialRotation?: number;
+  initialSteering?: number;
 }) {
   const wheelRadius = 0.34;
   const wheelWidth = 0.26;
-  const camber = isLeft ? 0.055 : -0.055; // Subtle FR Legends negative camber
+  const camber = isLeft ? 0.055 : -0.055; // Subtle FR Legends negative camber (-3.5 deg)
 
   return (
-    <group rotation={[0, steeringAngle, camber]}>
+    <group ref={steerRef} rotation={[0, initialSteering, camber]}>
       {/* Outer tire with rotation */}
-      <group rotation={[rotation, 0, Math.PI / 2]}>
+      <group ref={spinRef} rotation={[initialRotation, 0, Math.PI / 2]}>
         {/* Rubber Tire */}
         <mesh castShadow receiveShadow>
-          <cylinderGeometry args={[wheelRadius, wheelRadius, wheelWidth, 20]} />
-          <meshStandardMaterial color="#14171d" roughness={0.88} metalness={0.12} />
+          <cylinderGeometry args={[wheelRadius, wheelRadius, wheelWidth, 24]} />
+          <meshStandardMaterial color="#14171d" roughness={0.85} metalness={0.15} />
         </mesh>
 
         {/* Deep Dish Rim Lip (Polished Bronze/Silver) */}
         <mesh position={[0, isLeft ? 0.06 : -0.06, 0]}>
-          <cylinderGeometry args={[0.27, 0.25, 0.08, 18]} />
+          <cylinderGeometry args={[0.27, 0.25, 0.08, 20]} />
           <meshStandardMaterial color="#e2e8f0" roughness={0.25} metalness={0.85} />
         </mesh>
 
@@ -85,18 +89,25 @@ export function QuatroMesh({
 }: QuatroMeshProps) {
   const groupRef = useRef<THREE.Group>(null);
   const chassisRef = useRef<THREE.Group>(null);
+  const driverDoorRef = useRef<THREE.Group>(null);
   const exhaustFlameRef = useRef<THREE.Group>(null);
   const driftSmokeRef = useRef<THREE.Group>(null);
 
-  const liveState = vehicleStateRef?.current ?? vehicleState;
-  const { position, heading, steeringAngle, wheelRotation, speed, driftFactor = 0, lateralSpeed = 0, scaleFactor = 1.0, isHandbraking } = liveState;
+  // Wheel refs for zero-jitter, 60+ FPS direct rotation
+  const flSteerRef = useRef<THREE.Group>(null);
+  const frSteerRef = useRef<THREE.Group>(null);
+  const flSpinRef = useRef<THREE.Group>(null);
+  const frSpinRef = useRef<THREE.Group>(null);
+  const rlSpinRef = useRef<THREE.Group>(null);
+  const rrSpinRef = useRef<THREE.Group>(null);
 
   // Suspension & dynamics state
-  const prevSpeed = useRef(speed);
+  const prevSpeed = useRef(vehicleState.speed);
   const chassisPitch = useRef(0);
   const chassisRoll = useRef(0);
   const exhaustTimer = useRef(0);
   const currentScale = useRef(1.0);
+  const currentDoorAngle = useRef(0);
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -114,6 +125,21 @@ export function QuatroMesh({
       groupRef.current.scale.setScalar(currentScale.current);
     }
 
+    // ── Update Wheel Steer & Rotation directly in render frame (Zero Stutter) ──
+    if (flSteerRef.current) flSteerRef.current.rotation.y = live.steeringAngle;
+    if (frSteerRef.current) frSteerRef.current.rotation.y = live.steeringAngle;
+    if (flSpinRef.current) flSpinRef.current.rotation.x = live.wheelRotation;
+    if (frSpinRef.current) frSpinRef.current.rotation.x = live.wheelRotation;
+    if (rlSpinRef.current) rlSpinRef.current.rotation.x = live.wheelRotation;
+    if (rrSpinRef.current) rrSpinRef.current.rotation.x = live.wheelRotation;
+
+    // ── Driver Door Smooth Mount/Dismount Animation ─────────────────────────
+    const targetDoor = live.doorAngle ?? 0;
+    currentDoorAngle.current = THREE.MathUtils.damp(currentDoorAngle.current, targetDoor, 10, dt);
+    if (driverDoorRef.current) {
+      driverDoorRef.current.rotation.y = -currentDoorAngle.current;
+    }
+
     // ── Suspension Dynamics (Pitch on Accel/Brake, Roll on Turn/Drift) ──────
     const accel = (live.speed - prevSpeed.current) / dt;
     prevSpeed.current = live.speed;
@@ -124,14 +150,14 @@ export function QuatroMesh({
 
     // Body roll in cornering & drift counter-lean
     const targetRoll = THREE.MathUtils.clamp(
-      (lateralSpeed * 0.026) + (steeringAngle * -0.038),
+      (live.lateralSpeed * 0.026) + (live.steeringAngle * -0.038),
       -0.11,
       0.11
     );
     chassisRoll.current = THREE.MathUtils.damp(chassisRoll.current, targetRoll, 8.5, dt);
 
-    // Subtle road surface bounce
-    const bounce = Math.sin(state.clock.getElapsedTime() * 24) * Math.min(0.015, Math.abs(speed) * 0.0009);
+    // Subtle road surface vibration
+    const bounce = Math.sin(state.clock.getElapsedTime() * 24) * Math.min(0.015, Math.abs(live.speed) * 0.0009);
 
     if (chassisRef.current) {
       chassisRef.current.rotation.x = chassisPitch.current;
@@ -140,7 +166,7 @@ export function QuatroMesh({
     }
 
     // ── Exhaust Pops on Deceleration ────────────────────────────────────────
-    if (accel < -5.5 && Math.abs(speed) > 4 && Math.random() < 0.18) {
+    if (accel < -5.5 && Math.abs(live.speed) > 4 && Math.random() < 0.18) {
       exhaustTimer.current = 0.18;
       soundManager.playExhaustPop();
     }
@@ -155,9 +181,9 @@ export function QuatroMesh({
 
     // ── Drift Tire Smoke & Friction Dynamics ─────────────────────────────────
     if (driftSmokeRef.current) {
-      if (driftFactor > 0.10 && Math.abs(speed) > 2.0) {
+      if ((live.driftFactor ?? 0) > 0.10 && Math.abs(live.speed) > 2.0) {
         driftSmokeRef.current.visible = true;
-        const s = THREE.MathUtils.lerp(0.85, 2.0, driftFactor);
+        const s = THREE.MathUtils.lerp(0.85, 2.0, live.driftFactor ?? 0);
         driftSmokeRef.current.scale.set(s, s, s);
       } else {
         driftSmokeRef.current.visible = false;
@@ -172,8 +198,8 @@ export function QuatroMesh({
   return (
     <group
       ref={groupRef}
-      position={[position.x, position.y, position.z]}
-      rotation={[0, heading, 0]}
+      position={[vehicleState.position.x, vehicleState.position.y, vehicleState.position.z]}
+      rotation={[0, vehicleState.heading, 0]}
     >
       {/* ========================================================
           CYBER UNDERGLOW NEON (Aesthetic Cyan/Amber Glow)
@@ -183,11 +209,11 @@ export function QuatroMesh({
         <meshBasicMaterial
           color="#38bdf8"
           transparent
-          opacity={0.42 + driftFactor * 0.38}
+          opacity={0.42 + (vehicleState.driftFactor ?? 0) * 0.38}
           depthWrite={false}
         />
       </mesh>
-      <pointLight position={[0, 0.15, 0]} color="#38bdf8" intensity={2.2 + driftFactor * 2.0} distance={4.5} />
+      <pointLight position={[0, 0.15, 0]} color="#38bdf8" intensity={2.2 + (vehicleState.driftFactor ?? 0) * 2.0} distance={4.5} />
 
       {/* ========================================================
           DYNAMIC SUSPENSION CHASSIS GROUP
@@ -211,7 +237,7 @@ export function QuatroMesh({
           <meshStandardMaterial color={bodyColor} roughness={0.38} metalness={0.25} />
         </mesh>
 
-        {/* Side Aero Skirts with Cyber Neon Light Strip */}
+        {/* Right Side Aero Skirt with Cyber Neon Strip */}
         <mesh position={[0.84, 0.28, 0]}>
           <boxGeometry args={[0.06, 0.1, 1.3]} />
           <meshStandardMaterial color={trimColor} roughness={0.8} />
@@ -221,6 +247,7 @@ export function QuatroMesh({
           <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={2.5} />
         </mesh>
 
+        {/* Left Side Aero Skirt with Cyber Neon Strip */}
         <mesh position={[-0.84, 0.28, 0]}>
           <boxGeometry args={[0.06, 0.1, 1.3]} />
           <meshStandardMaterial color={trimColor} roughness={0.8} />
@@ -304,20 +331,52 @@ export function QuatroMesh({
           <boxGeometry args={[1.34, 0.08, 1.75]} />
           <meshStandardMaterial color={accentColor} roughness={0.45} />
         </mesh>
+        {/* Roof Aerodynamic Scoop */}
+        <mesh position={[0, 1.12, -0.05]} castShadow>
+          <boxGeometry args={[0.42, 0.08, 0.45]} />
+          <meshStandardMaterial color={trimColor} roughness={0.6} />
+        </mesh>
         {/* Front Windshield */}
         <mesh position={[0, 0.88, 0.52]} rotation={[-0.42, 0, 0]}>
           <boxGeometry args={[1.3, 0.55, 0.04]} />
           <meshStandardMaterial color={glassColor} roughness={0.1} metalness={0.85} />
         </mesh>
-        {/* Side Windows */}
+        {/* Passenger Side Windows */}
         <mesh position={[0.67, 0.86, -0.2]}>
           <boxGeometry args={[0.04, 0.42, 1.5]} />
           <meshStandardMaterial color={glassColor} roughness={0.15} metalness={0.8} />
         </mesh>
-        <mesh position={[-0.67, 0.86, -0.2]}>
-          <boxGeometry args={[0.04, 0.42, 1.5]} />
-          <meshStandardMaterial color={glassColor} roughness={0.15} metalness={0.8} />
-        </mesh>
+
+        {/* ── SEAMLESS ANIMATED DRIVER DOOR (LEFT SIDE) ───────────────────── */}
+        {/* Hinge located at front of door frame at [-0.82, 0.6, 0.48] */}
+        <group ref={driverDoorRef} position={[-0.82, 0.6, 0.48]}>
+          {/* Main door panel (offset relative to hinge) */}
+          <mesh position={[0, -0.05, -0.48]} castShadow receiveShadow>
+            <boxGeometry args={[0.08, 0.46, 0.94]} />
+            <meshStandardMaterial color={bodyColor} roughness={0.38} metalness={0.25} />
+          </mesh>
+          {/* Driver Window glass */}
+          <mesh position={[0.02, 0.28, -0.48]}>
+            <boxGeometry args={[0.03, 0.38, 0.88]} />
+            <meshStandardMaterial color={glassColor} roughness={0.15} metalness={0.8} />
+          </mesh>
+          {/* Driver Side Mirror */}
+          <mesh position={[-0.12, 0.18, -0.08]} castShadow>
+            <boxGeometry args={[0.14, 0.09, 0.16]} />
+            <meshStandardMaterial color={trimColor} roughness={0.6} />
+          </mesh>
+          {/* Recessed Flush Door Handle */}
+          <mesh position={[-0.045, -0.02, -0.78]}>
+            <boxGeometry args={[0.02, 0.04, 0.14]} />
+            <meshStandardMaterial color="#1e293b" metalness={0.9} roughness={0.2} />
+          </mesh>
+          {/* Interior Door Card / Armrest */}
+          <mesh position={[0.05, -0.08, -0.48]}>
+            <boxGeometry args={[0.04, 0.32, 0.86]} />
+            <meshStandardMaterial color="#1f2937" roughness={0.9} />
+          </mesh>
+        </group>
+
         {/* C-Pillars */}
         <mesh position={[0.67, 0.86, -0.92]} rotation={[0.35, 0, 0]}>
           <boxGeometry args={[0.06, 0.46, 0.35]} />
@@ -371,7 +430,7 @@ export function QuatroMesh({
           <meshStandardMaterial
             color="#ef4444"
             emissive="#dc2626"
-            emissiveIntensity={isHandbraking || driftFactor > 0.2 ? 3.5 : 1.2}
+            emissiveIntensity={vehicleState.isHandbraking || (vehicleState.driftFactor ?? 0) > 0.2 ? 3.5 : 1.4}
             roughness={0.2}
           />
         </mesh>
@@ -413,32 +472,44 @@ export function QuatroMesh({
       {/* ========================================================
           7. HIGH-DETAIL DEEP-DISH RALLY WHEELS (FR LEGENDS STANCE)
           ======================================================== */}
-      {/* Front Left Wheel with Steering */}
+      {/* Front Left Wheel with Steering (direct ref updates) */}
       <group position={[0.9, 0.32, 1.1]}>
         <RallyWheel
-          rotation={wheelRotation}
-          steeringAngle={steeringAngle}
+          steerRef={flSteerRef}
+          spinRef={flSpinRef}
+          initialRotation={vehicleState.wheelRotation}
+          initialSteering={vehicleState.steeringAngle}
           isLeft={true}
         />
       </group>
 
-      {/* Front Right Wheel with Steering */}
+      {/* Front Right Wheel with Steering (direct ref updates) */}
       <group position={[-0.9, 0.32, 1.1]}>
         <RallyWheel
-          rotation={wheelRotation}
-          steeringAngle={steeringAngle}
+          steerRef={frSteerRef}
+          spinRef={frSpinRef}
+          initialRotation={vehicleState.wheelRotation}
+          initialSteering={vehicleState.steeringAngle}
           isLeft={false}
         />
       </group>
 
-      {/* Rear Left Wheel */}
+      {/* Rear Left Wheel (direct ref updates) */}
       <group position={[0.92, 0.32, -1.1]}>
-        <RallyWheel rotation={wheelRotation} isLeft={true} />
+        <RallyWheel
+          spinRef={rlSpinRef}
+          initialRotation={vehicleState.wheelRotation}
+          isLeft={true}
+        />
       </group>
 
-      {/* Rear Right Wheel */}
+      {/* Rear Right Wheel (direct ref updates) */}
       <group position={[-0.92, 0.32, -1.1]}>
-        <RallyWheel rotation={wheelRotation} isLeft={false} />
+        <RallyWheel
+          spinRef={rrSpinRef}
+          initialRotation={vehicleState.wheelRotation}
+          isLeft={false}
+        />
       </group>
 
       {/* ── FR Legends Drift Tire Smoke & Sparks Emitter ── */}
@@ -451,14 +522,14 @@ export function QuatroMesh({
               <meshBasicMaterial
                 color="#cbd5e1"
                 transparent
-                opacity={0.35 + driftFactor * 0.3}
+                opacity={0.35 + (vehicleState.driftFactor ?? 0) * 0.3}
                 depthWrite={false}
               />
             </mesh>
             {/* Cyan/amber friction spark */}
             <mesh position={[0, -0.06, -0.22]}>
               <sphereGeometry args={[0.07, 6, 6]} />
-              <meshBasicMaterial color={driftFactor > 0.4 ? "#38bdf8" : "#fbbf24"} />
+              <meshBasicMaterial color={(vehicleState.driftFactor ?? 0) > 0.4 ? "#38bdf8" : "#fbbf24"} />
             </mesh>
           </group>
         ))}

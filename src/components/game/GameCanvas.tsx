@@ -1,6 +1,7 @@
 "use client";
 
-import { Canvas } from "@react-three/fiber";
+import { useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { SceneLighting } from "./SceneLighting";
 import { UnifiedCamera, UnifiedCameraMode } from "@/game/camera/UnifiedCamera";
@@ -8,9 +9,141 @@ import { HumanPlayer } from "@/game/character/HumanPlayer";
 import { RemoteVehicle } from "@/game/vehicle/RemoteVehicle";
 import { RemotePlayer } from "@/game/realtime/useGameRealtime";
 import { VehicleState, CameraMode } from "@/game/vehicle/vehicleTypes";
+import { updateVehiclePhysics } from "@/game/vehicle/vehiclePhysics";
+import { resolvePlayerWorldPosition } from "@/game/core/playerCollision";
+import { soundManager } from "@/game/audio/SoundManager";
 import { WeaponSystem3D } from "@/game/weapons/WeaponSystem";
 import type { WeaponSystemState } from "@/game/weapons/WeaponSystem";
 import { WeaponId } from "@/game/weapons/weaponTypes";
+
+interface ContinuousPhysicsProps {
+  playerMode: "ON_FOOT" | "DRIVING";
+  vehicleStateRef?: React.MutableRefObject<VehicleState>;
+  humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
+  humanVelocityRef?: React.MutableRefObject<{ vx: number; vz: number }>;
+  inputRef?: React.MutableRefObject<{ forward: boolean; backward: boolean; left: boolean; right: boolean; brake: boolean }>;
+  canExitHouse?: boolean;
+  isPaused?: boolean;
+  onFootstep?: () => void;
+  onSyncUI?: (x: number, z: number, heading: number, isMoving: boolean, vehicle?: VehicleState) => void;
+}
+
+function ContinuousWorldPhysics({
+  playerMode,
+  vehicleStateRef,
+  humanPosRef,
+  humanVelocityRef,
+  inputRef,
+  canExitHouse = true,
+  isPaused = false,
+  onFootstep,
+  onSyncUI,
+}: ContinuousPhysicsProps) {
+  const lastSyncTime = useRef(0);
+  const lastFootstepTime = useRef(0);
+
+  useFrame((_, delta) => {
+    if (isPaused) return;
+    const dt = Math.min(delta, 0.05);
+
+    if (playerMode === "ON_FOOT" && humanPosRef?.current && humanVelocityRef?.current && inputRef?.current) {
+      let inputX = 0;
+      let inputZ = 0;
+      const input = inputRef.current;
+      if (input.forward) inputZ -= 1;
+      if (input.backward) inputZ += 1;
+      if (input.left) inputX -= 1;
+      if (input.right) inputX += 1;
+
+      const isPressingMove = inputX !== 0 || inputZ !== 0;
+      let targetVx = 0;
+      let targetVz = 0;
+      const walkSpeed = 4.8;
+
+      if (isPressingMove) {
+        const len = Math.hypot(inputX, inputZ);
+        targetVx = (inputX / len) * walkSpeed;
+        targetVz = (inputZ / len) * walkSpeed;
+      }
+
+      // Smooth exponential velocity damping
+      const velAlpha = 1.0 - Math.exp(-15.0 * dt);
+      humanVelocityRef.current.vx += (targetVx - humanVelocityRef.current.vx) * velAlpha;
+      humanVelocityRef.current.vz += (targetVz - humanVelocityRef.current.vz) * velAlpha;
+
+      const curSpeed = Math.hypot(humanVelocityRef.current.vx, humanVelocityRef.current.vz);
+      const isMoving = curSpeed > 0.05;
+
+      if (isMoving) {
+        const curX = humanPosRef.current.x;
+        const curZ = humanPosRef.current.z;
+        let nextX = curX + humanVelocityRef.current.vx * dt;
+        let nextZ = curZ + humanVelocityRef.current.vz * dt;
+
+        // Smooth shortest-arc heading
+        const targetHeading = Math.atan2(humanVelocityRef.current.vx, humanVelocityRef.current.vz);
+        let headingDiff = targetHeading - humanPosRef.current.heading;
+        while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
+        while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
+        const headingAlpha = 1.0 - Math.exp(-16.0 * dt);
+        const nextHeading = humanPosRef.current.heading + headingDiff * headingAlpha;
+
+        // Continuous world collision checking
+        const [rx, , rz] = resolvePlayerWorldPosition(
+          [curX, 0, curZ],
+          [nextX, 0, nextZ],
+          0.32,
+          !canExitHouse
+        );
+
+        nextX = THREE.MathUtils.clamp(rx, -28.0, 28.0);
+        nextZ = THREE.MathUtils.clamp(rz, -85.0, 225.0);
+
+        humanPosRef.current.x = nextX;
+        humanPosRef.current.y = 0;
+        humanPosRef.current.z = nextZ;
+        humanPosRef.current.heading = nextHeading;
+
+        const now = performance.now();
+        if (now - lastFootstepTime.current > 310) {
+          onFootstep?.();
+          lastFootstepTime.current = now;
+        }
+
+        if (now - lastSyncTime.current > 60) {
+          onSyncUI?.(nextX, nextZ, nextHeading, isMoving);
+          lastSyncTime.current = now;
+        }
+      } else {
+        const now = performance.now();
+        if (now - lastSyncTime.current > 60) {
+          onSyncUI?.(humanPosRef.current.x, humanPosRef.current.z, humanPosRef.current.heading, false);
+          lastSyncTime.current = now;
+        }
+      }
+    } else if (playerMode === "DRIVING" && vehicleStateRef?.current && inputRef?.current) {
+      const input = inputRef.current;
+      const nextVehicle = updateVehiclePhysics(vehicleStateRef.current, input, dt);
+
+      // Clamp to continuous map boundaries
+      nextVehicle.position.x = THREE.MathUtils.clamp(nextVehicle.position.x, -28.0, 28.0);
+      nextVehicle.position.z = THREE.MathUtils.clamp(nextVehicle.position.z, -85.0, 225.0);
+
+      vehicleStateRef.current = nextVehicle;
+
+      soundManager.updateEngine(nextVehicle.speed, true);
+      soundManager.updateTireDrift(nextVehicle.driftFactor, nextVehicle.speed);
+
+      const now = performance.now();
+      if (now - lastSyncTime.current > 60) {
+        onSyncUI?.(nextVehicle.position.x, nextVehicle.position.z, nextVehicle.heading, false, nextVehicle);
+        lastSyncTime.current = now;
+      }
+    }
+  });
+
+  return null;
+}
 
 interface GameCanvasProps {
   playerMode: "ON_FOOT" | "DRIVING";
@@ -22,6 +155,12 @@ interface GameCanvasProps {
   vehicleState?: VehicleState;
   vehicleStateRef?: React.MutableRefObject<VehicleState>;
   humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
+  humanVelocityRef?: React.MutableRefObject<{ vx: number; vz: number }>;
+  inputRef?: React.MutableRefObject<{ forward: boolean; backward: boolean; left: boolean; right: boolean; brake: boolean }>;
+  canExitHouse?: boolean;
+  isPaused?: boolean;
+  onFootstep?: () => void;
+  onSyncUI?: (x: number, z: number, heading: number, isMoving: boolean, vehicle?: VehicleState) => void;
   cameraMode?: CameraMode;
   // Weapons
   weaponSystemStateRef?: React.MutableRefObject<WeaponSystemState>;
@@ -44,6 +183,12 @@ export function GameCanvas({
   vehicleState,
   vehicleStateRef,
   humanPosRef,
+  humanVelocityRef,
+  inputRef,
+  canExitHouse = true,
+  isPaused = false,
+  onFootstep,
+  onSyncUI,
   cameraMode = "CHASE",
   weaponSystemStateRef,
   isAttackingRef,
@@ -54,9 +199,6 @@ export function GameCanvas({
   isAttacking = false,
   children,
 }: GameCanvasProps) {
-  // Determine camera mode:
-  // If DRIVING -> DRIVING_CHASE or DRIVING_COCKPIT
-  // If ON_FOOT -> ON_FOOT
   const unifiedMode: UnifiedCameraMode =
     playerMode === "DRIVING"
       ? cameraMode === "COCKPIT"
@@ -77,7 +219,7 @@ export function GameCanvas({
       shadows
       dpr={[1, 2]}
       frameloop="always"
-      camera={{ position: [-6, 6, 12], fov: 48, near: 0.1, far: 400 }}
+      camera={{ position: [-6, 6, 12], fov: 48, near: 0.1, far: 450 }}
       gl={{
         antialias: true,
         toneMapping: THREE.ACESFilmicToneMapping,
@@ -87,6 +229,19 @@ export function GameCanvas({
       className="w-full h-full"
     >
       <SceneLighting />
+
+      {/* ── Sub-Frame Synchronized Continuous World Physics (Zero-Jitter, 60+ FPS) ── */}
+      <ContinuousWorldPhysics
+        playerMode={playerMode}
+        vehicleStateRef={vehicleStateRef}
+        humanPosRef={humanPosRef}
+        humanVelocityRef={humanVelocityRef}
+        inputRef={inputRef}
+        canExitHouse={canExitHouse}
+        isPaused={isPaused}
+        onFootstep={onFootstep}
+        onSyncUI={onSyncUI}
+      />
 
       {/* ── Buttery-Smooth Unified Camera Controller (No Jitter, No Snapping) ── */}
       <UnifiedCamera
@@ -125,7 +280,7 @@ export function GameCanvas({
         />
       )}
 
-      {/* ── 3D World Scene Content ── */}
+      {/* ── 3D Continuous World Scene Content ── */}
       {children}
 
       {/* ── Multiplayer Remote Vehicles ── */}

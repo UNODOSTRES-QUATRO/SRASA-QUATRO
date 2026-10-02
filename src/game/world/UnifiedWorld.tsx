@@ -437,24 +437,63 @@ export function UnifiedWorld({
         isCatAlert={dayNumber >= 2}
       />
 
-      {/* Car Headlights Beams cast into world */}
-      <spotLight
-        position={[
-          vehicleState.position.x - Math.sin(vehicleState.heading) * 0.7,
-          vehicleState.position.y + 0.65,
-          vehicleState.position.z + Math.cos(vehicleState.heading) * 2.1,
-        ]}
-        target-position={[
-          vehicleState.position.x + Math.sin(vehicleState.heading) * 35,
-          0,
-          vehicleState.position.z + Math.cos(vehicleState.heading) * 35,
-        ]}
-        color="#fffbeb"
-        intensity={playerMode === "DRIVING" ? 8.0 : 2.0}
-        angle={0.42}
-        penumbra={0.6}
-        distance={60}
+      {/* Car Headlights Beams cast into continuous world */}
+      <CarHeadlights
+        vehicleState={vehicleState}
+        vehicleStateRef={vehicleStateRef}
+        playerMode={playerMode}
       />
     </group>
+  );
+}
+
+function CarHeadlights({
+  vehicleState,
+  vehicleStateRef,
+  playerMode,
+}: {
+  vehicleState: VehicleState;
+  vehicleStateRef?: React.MutableRefObject<VehicleState>;
+  playerMode: "ON_FOOT" | "DRIVING";
+}) {
+  const lightRef = useRef<THREE.SpotLight>(null);
+  const targetRef = useRef<THREE.Object3D>(null);
+
+  useFrame(() => {
+    const live = vehicleStateRef?.current ?? vehicleState;
+    if (lightRef.current) {
+      lightRef.current.position.set(
+        live.position.x,
+        live.position.y + 0.65,
+        live.position.z + Math.cos(live.heading) * 1.8
+      );
+    }
+    if (targetRef.current) {
+      targetRef.current.position.set(
+        live.position.x + Math.sin(live.heading) * 35,
+        0,
+        live.position.z + Math.cos(live.heading) * 35
+      );
+    }
+  });
+
+  return (
+    <>
+      <object3D ref={targetRef} position={[vehicleState.position.x, 0, vehicleState.position.z + 35]} />
+      <spotLight
+        ref={lightRef}
+        target={targetRef.current ?? undefined}
+        position={[
+          vehicleState.position.x,
+          vehicleState.position.y + 0.65,
+          vehicleState.position.z + Math.cos(vehicleState.heading) * 1.8,
+        ]}
+        color="#fffbeb"
+        intensity={playerMode === "DRIVING" ? 8.5 : 2.5}
+        angle={0.44}
+        penumbra={0.65}
+        distance={65}
+      />
+    </>
   );
 }

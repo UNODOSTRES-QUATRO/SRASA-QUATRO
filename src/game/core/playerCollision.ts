@@ -1,13 +1,13 @@
 import { LocationType } from "./gameStore";
 
-type Footprint = {
+export type Footprint = {
   minX: number;
   maxX: number;
   minZ: number;
   maxZ: number;
 };
 
-const sceneFootprints: Partial<Record<Exclude<LocationType, "JALAN" | "DIMENSI_LAIN" | "END_SCREEN">, Footprint[]>> = {
+export const sceneFootprints: Partial<Record<Exclude<LocationType, "JALAN" | "DIMENSI_LAIN" | "END_SCREEN">, Footprint[]>> = {
   RUMAH: [
     { minX: -4.5, maxX: 4.5, minZ: -4.55, maxZ: -4.25 },
     { minX: -4.55, maxX: -4.25, minZ: -4.3, maxZ: 4.3 },
@@ -71,7 +71,7 @@ const sceneFootprints: Partial<Record<Exclude<LocationType, "JALAN" | "DIMENSI_L
   ],
 };
 
-const escapeRoomFootprints: Footprint[] = [
+export const escapeRoomFootprints: Footprint[] = [
   { minX: -7.2, maxX: 0.8, minZ: -6.8, maxZ: -6.2 },
   { minX: 3.2, maxX: 7.2, minZ: -6.8, maxZ: -6.2 },
   { minX: -6.8, maxX: -6.2, minZ: -6.2, maxZ: 6.2 },
@@ -123,6 +123,71 @@ export function resolvePlayerPosition(
 
   z = desired[2];
   if (footprints.some((footprint) => overlapsFootprint(x, z, radius, footprint))) {
+    z = current[2];
+  }
+
+  return [x, desired[1], z];
+}
+
+// ── World-Coordinate Native Collision Footprints ──────────────────────────────
+export const WORLD_COLLISION_FOOTPRINTS: Footprint[] = [
+  // ── 1. COZY HOME AT [20, 0, -60] ──
+  { minX: 15.5, maxX: 24.5, minZ: -64.55, maxZ: -64.25 },
+  { minX: 15.45, maxX: 15.75, minZ: -64.3, maxZ: -55.7 },
+  { minX: 24.25, maxX: 24.55, minZ: -64.3, maxZ: -55.7 },
+  { minX: 15.5, maxX: 19.45, minZ: -55.75, maxZ: -55.45 },
+  { minX: 20.55, maxX: 24.5, minZ: -55.75, maxZ: -55.45 },
+  { minX: 15.5, maxX: 19.55, minZ: -61.35, maxZ: -61.05 },
+  { minX: 21.6, maxX: 21.9, minZ: -64.35, maxZ: -63.26 },
+  { minX: 21.6, maxX: 21.9, minZ: -61.84, maxZ: -61.35 },
+  { minX: 22.85, maxX: 24.35, minZ: -61.35, maxZ: -61.05 },
+  { minX: 16.65, maxX: 18.55, minZ: -64.25, maxZ: -62.1 },
+  { minX: 15.7, maxX: 16.7, minZ: -59.9, maxZ: -56.45 },
+  { minX: 20.0, maxX: 21.6, minZ: -59.0, maxZ: -57.8 },
+
+  // ── 2. MECHANIC SHOP AT [-18, 0, 0] ──
+  { minX: -24.2, maxX: -23.8, minZ: -6.0, maxZ: 6.0 },
+  { minX: -24.0, maxX: -12.0, minZ: 5.8, maxZ: 6.2 },
+  { minX: -24.0, maxX: -12.0, minZ: -6.2, maxZ: -5.8 },
+  { minX: -16.0, maxX: -13.0, minZ: -5.4, maxZ: -4.2 },
+
+  // ── 3. TECH WORKPLACE AT [18, 0, 70] ──
+  { minX: 11.0, maxX: 25.0, minZ: 62.8, maxZ: 63.2 },
+  { minX: 10.8, maxX: 11.2, minZ: 63.0, maxZ: 77.0 },
+  { minX: 24.8, maxX: 25.2, minZ: 63.0, maxZ: 77.0 },
+  { minX: 11.0, maxX: 17.0, minZ: 76.8, maxZ: 77.2 },
+  { minX: 19.0, maxX: 25.0, minZ: 76.8, maxZ: 77.2 },
+  { minX: 13.6, maxX: 16.4, minZ: 66.7, maxZ: 69.3 },
+  { minX: 19.6, maxX: 22.4, minZ: 66.7, maxZ: 69.3 },
+
+  // ── 4. CASTLE WALLS & KEEP AT Z = 170 to 215 ──
+  { minX: -13.2, maxX: 13.2, minZ: 169.4, maxZ: 170.6 },
+  { minX: -14.0, maxX: -12.0, minZ: 170.0, maxZ: 215.0 },
+  { minX: 12.0, maxX: 14.0, minZ: 170.0, maxZ: 215.0 },
+  { minX: -7.0, maxX: 7.0, minZ: 211.5, maxZ: 212.5 },
+];
+
+export function resolvePlayerWorldPosition(
+  current: [number, number, number],
+  desired: [number, number, number],
+  radius = 0.32,
+  isDoorClosed = false
+): [number, number, number] {
+  let x = desired[0];
+  let z = current[2];
+
+  const doorFootprint: Footprint | null = isDoorClosed
+    ? { minX: 19.4, maxX: 20.6, minZ: -55.75, maxZ: -55.45 }
+    : null;
+
+  const testX = (fp: Footprint) => overlapsFootprint(x, z, radius, fp);
+  if (WORLD_COLLISION_FOOTPRINTS.some(testX) || (doorFootprint && testX(doorFootprint))) {
+    x = current[0];
+  }
+
+  z = desired[2];
+  const testZ = (fp: Footprint) => overlapsFootprint(x, z, radius, fp);
+  if (WORLD_COLLISION_FOOTPRINTS.some(testZ) || (doorFootprint && testZ(doorFootprint))) {
     z = current[2];
   }
 
