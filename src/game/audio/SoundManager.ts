@@ -8,6 +8,7 @@ export class SoundManager {
   private engineMidOsc: OscillatorNode | null = null;
   private engineHarmonicOsc: OscillatorNode | null = null;
   private engineFilter: BiquadFilterNode | null = null;
+  private engineBassShelf: BiquadFilterNode | null = null;
   private engineGain: GainNode | null = null;
 
   // Turbocharger Spool Whine
@@ -29,6 +30,7 @@ export class SoundManager {
   private ambientGain: GainNode | null = null;
   private ambientFilter: BiquadFilterNode | null = null;
   private ambientTimer: ReturnType<typeof setInterval> | null = null;
+  private ambientArpTimer: ReturnType<typeof setInterval> | null = null;
   private currentChordIndex = 0;
   private activeVoices: { osc: OscillatorNode; gain: GainNode }[] = [];
   private subDroneOsc: OscillatorNode | null = null;
@@ -152,6 +154,12 @@ export class SoundManager {
     this.engineFilter.frequency.setValueAtTime(360, this.ctx.currentTime);
     this.engineFilter.Q.setValueAtTime(2.4, this.ctx.currentTime);
 
+    // Dedicated sub-bass shelf boost for satisfying 5-cylinder rumble
+    this.engineBassShelf = this.ctx.createBiquadFilter();
+    this.engineBassShelf.type = "lowshelf";
+    this.engineBassShelf.frequency.setValueAtTime(85, this.ctx.currentTime);
+    this.engineBassShelf.gain.setValueAtTime(6.5, this.ctx.currentTime); // +6.5dB visceral bass boost
+
     this.engineGain = this.ctx.createGain();
     this.engineGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
 
@@ -166,7 +174,8 @@ export class SoundManager {
     harmGain.connect(this.engineFilter);
 
     this.engineSubOsc.connect(this.engineFilter);
-    this.engineFilter.connect(this.engineGain);
+    this.engineFilter.connect(this.engineBassShelf);
+    this.engineBassShelf.connect(this.engineGain);
     this.engineGain.connect(this.compressor);
 
     this.engineSubOsc.start();
@@ -316,6 +325,38 @@ export class SoundManager {
         this.playNextPadChord();
       }
     }, 5500);
+
+    // Trigger gentle melodic bell chimes (warm Rhodes/Juno bell vibe)
+    this.ambientArpTimer = setInterval(() => {
+      if (!this.isMuted && !this.isCinematic && Math.random() < 0.72) {
+        this.playAmbientBell();
+      }
+    }, 3800);
+  }
+
+  private playAmbientBell() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.ambientFilter || this.isMuted) return;
+
+    const chord = SoundManager.CHORD_PROGRESSION[this.currentChordIndex];
+    const randomFreq = chord[Math.floor(Math.random() * chord.length)] * 2;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(randomFreq, now);
+
+    // Warm, dreamy bell chime with slow decaying tail
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.075, now + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 3.2);
+
+    osc.connect(gain);
+    gain.connect(this.ambientFilter);
+
+    osc.start(now);
+    osc.stop(now + 3.2);
   }
 
   private playNextPadChord() {
@@ -445,7 +486,7 @@ export class SoundManager {
     }
 
     // Warm, heavy bass volume that scales with speed (punchy & satisfying)
-    const engineVol = 0.52 + Math.min(1.0, absSpeed / 22) * 0.62;
+    const engineVol = 0.58 + Math.min(1.0, absSpeed / 20) * 0.72;
     this.engineGain.gain.setTargetAtTime(this.isCinematic ? 0 : engineVol, now, 0.05);
 
     if (this.engineFilter) {
@@ -640,7 +681,7 @@ export class SoundManager {
 
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.48, now + 0.04);
+    gain.gain.linearRampToValueAtTime(0.58, now + 0.04);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
     // High crystal blade sheen
@@ -649,7 +690,7 @@ export class SoundManager {
     sheen.type = "sine";
     sheen.frequency.setValueAtTime(1760, now);
     sheen.frequency.exponentialRampToValueAtTime(1046, now + 0.18);
-    sheenGain.gain.setValueAtTime(0.24, now);
+    sheenGain.gain.setValueAtTime(0.35, now);
     sheenGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
     sheen.connect(sheenGain);
@@ -678,7 +719,7 @@ export class SoundManager {
     osc.frequency.setValueAtTime(330, now);
     osc.frequency.exponentialRampToValueAtTime(180, now + 0.24);
 
-    gain.gain.setValueAtTime(0.46, now);
+    gain.gain.setValueAtTime(0.54, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
 
     osc.connect(gain);
@@ -692,7 +733,7 @@ export class SoundManager {
     whistle.type = "sine";
     whistle.frequency.setValueAtTime(880, now);
     whistle.frequency.linearRampToValueAtTime(1400, now + 0.15);
-    whistleGain.gain.setValueAtTime(0.22, now);
+    whistleGain.gain.setValueAtTime(0.28, now);
     whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
 
     whistle.connect(whistleGain);
@@ -963,17 +1004,41 @@ export class SoundManager {
 
   public playFootstep() {
     if (!this.ctx || !this.compressor || this.isMuted) return;
+    const now = this.ctx.currentTime;
+
+    // Low solid foot thump
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = "sine";
-    osc.frequency.setValueAtTime(95 + Math.random() * 30, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(40, this.ctx.currentTime + 0.06);
-    gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.06);
+    osc.frequency.setValueAtTime(95 + Math.random() * 30, now);
+    osc.frequency.exponentialRampToValueAtTime(36, now + 0.07);
+    gain.gain.setValueAtTime(0.14, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
     osc.connect(gain);
     gain.connect(this.compressor);
     osc.start();
-    osc.stop(this.ctx.currentTime + 0.06);
+    osc.stop(now + 0.07);
+
+    // Subtle road/gravel friction crunch
+    const bufferSize = Math.floor(this.ctx.sampleRate * 0.06);
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.015));
+    }
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.setValueAtTime(1400, now);
+    filter.Q.setValueAtTime(2.0, now);
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.08, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    noise.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(this.compressor);
+    noise.start(now);
   }
 
   public playKeyPickup() {

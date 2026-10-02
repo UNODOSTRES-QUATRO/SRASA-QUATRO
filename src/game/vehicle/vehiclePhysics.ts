@@ -3,18 +3,18 @@ import { VehicleConfig, VehicleInput, VehicleState } from "./vehicleTypes";
 export const DEFAULT_VEHICLE_CONFIG: VehicleConfig = {
   maxSpeed: 28.0,          // Punchy, satisfying highway top speed
   maxReverseSpeed: 8.5,
-  acceleration: 17.5,      // Responsive instant torque
+  acceleration: 18.0,      // Responsive instant torque
   reverseAcceleration: 7.5,
   brakingDeceleration: 19.0,
   naturalDrag: 2.2,
-  maxSteerAngle: Math.PI / 4.7, // ~38.3 degrees – quick and agile
-  steerSpeed: 8.0,
-  steerReturnSpeed: 10.5,
+  maxSteerAngle: Math.PI / 4.6, // ~39.1 degrees – quick and agile
+  steerSpeed: 9.5,
+  steerReturnSpeed: 12.0,
   wheelbase: 2.2,
   // Drift physics (FR Legends Flow)
-  gripFactor: 0.88,        // Solid straight grip, smooth break-away
-  handbrakeGrip: 0.12,     // Instant, loose initiation on handbrake flick
-  driftAngularMomentum: 0.88, // Smooth momentum carry through corners
+  gripFactor: 0.86,        // Solid straight grip, smooth break-away
+  handbrakeGrip: 0.10,     // Instant, loose initiation on handbrake flick
+  driftAngularMomentum: 0.90, // Smooth momentum carry through corners
 };
 
 export function createInitialVehicleState(): VehicleState {
@@ -100,18 +100,18 @@ export function updateVehiclePhysics(
 
   // ─── 3. DRIFT PHYSICS (True slip-angle bicycle model with FR Legends flow) ───
   const isWeightTransferFlick =
-    Math.abs(speed) > 8.0 &&
-    Math.abs(steeringAngle) > config.maxSteerAngle * 0.55;
+    Math.abs(speed) > 6.0 &&
+    Math.abs(steeringAngle) > config.maxSteerAngle * 0.40;
 
   const isSustainedDrift =
-    (current.driftFactor > 0.14 || Math.abs(current.lateralSpeed) > 1.2) &&
+    (current.driftFactor > 0.12 || Math.abs(current.lateralSpeed) > 1.0) &&
     input.forward &&
-    Math.abs(speed) > 4.5;
+    Math.abs(speed) > 4.0;
 
   const effectiveGrip = isHandbraking
     ? config.handbrakeGrip
     : isWeightTransferFlick || isSustainedDrift
-    ? config.gripFactor * 0.40
+    ? config.gripFactor * 0.38
     : config.gripFactor;
 
   const effectiveWheelbase = current.scaleMode === "POCKET" ? config.wheelbase * 0.35 : config.wheelbase;
@@ -129,15 +129,15 @@ export function updateVehiclePhysics(
   // Counter-steer stability assist (FR Legends style flow)
   // Stabilizes slide when driver counter-steers into the drift and keeps forward throttle power
   const isCounterSteering =
-    (lateralSpeed > 0.18 && steeringAngle < -0.02) ||
-    (lateralSpeed < -0.18 && steeringAngle > 0.02);
+    (lateralSpeed > 0.15 && steeringAngle < -0.02) ||
+    (lateralSpeed < -0.15 && steeringAngle > 0.02);
 
   if (isCounterSteering) {
     // Lock drift angle and prevent spin-out
     angularVelocity *= (1.0 - Math.min(0.85, clampedDt * 8.5));
     // Power-slide propulsion when holding throttle
     if (input.forward && Math.abs(speed) < config.maxSpeed * 0.98) {
-      speed += config.acceleration * 0.48 * clampedDt;
+      speed += config.acceleration * 0.52 * clampedDt;
     }
   }
 

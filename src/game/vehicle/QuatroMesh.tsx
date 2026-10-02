@@ -99,6 +99,7 @@ export function QuatroMesh({
   const underglowLightRef = useRef<THREE.PointLight>(null);
   const taillightMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
   const taillightLightRef = useRef<THREE.PointLight>(null);
+  const reverseLightRef = useRef<THREE.MeshStandardMaterial>(null);
 
   // Wheel refs for zero-jitter, 60+ FPS direct rotation
   const flSteerRef = useRef<THREE.Group>(null);
@@ -197,7 +198,7 @@ export function QuatroMesh({
       }
     }
 
-    // ── Live 60 FPS Underglow & Taillight Dynamics ───────────────────────────
+    // ── Live 60 FPS Underglow, Reverse & Taillight Dynamics ─────────────────
     const liveDrift = live.driftFactor ?? 0;
     const isBraking = live.isHandbraking || accel < -1.5;
     if (underglowLightRef.current) {
@@ -208,6 +209,9 @@ export function QuatroMesh({
     }
     if (taillightLightRef.current) {
       taillightLightRef.current.intensity = isBraking || liveDrift > 0.15 ? 4.8 : 1.5;
+    }
+    if (reverseLightRef.current) {
+      reverseLightRef.current.emissiveIntensity = live.isReversing ? 3.5 : 0;
     }
   });
 
@@ -293,17 +297,22 @@ export function QuatroMesh({
         </mesh>
 
         {/* 2. FRONT END & CYBER LIGHTBAR */}
-        {/* Front Chin Spoiler with Air Splitters */}
+        {/* Front Chin Spoiler with Air Splitters & Central Intercooler */}
         <mesh position={[0, 0.25, 1.76]} castShadow>
           <boxGeometry args={[1.74, 0.22, 0.18]} />
           <meshStandardMaterial color={trimColor} roughness={0.7} />
         </mesh>
-        <mesh position={[0.4, 0.24, 1.84]}>
-          <boxGeometry args={[0.34, 0.1, 0.04]} />
+        {/* Polished Aluminum Intercooler Core */}
+        <mesh position={[0, 0.25, 1.82]}>
+          <boxGeometry args={[0.72, 0.14, 0.05]} />
+          <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.25} />
+        </mesh>
+        <mesh position={[0.48, 0.24, 1.84]}>
+          <boxGeometry args={[0.26, 0.1, 0.04]} />
           <meshStandardMaterial color="#0c0e12" roughness={0.9} />
         </mesh>
-        <mesh position={[-0.4, 0.24, 1.84]}>
-          <boxGeometry args={[0.34, 0.1, 0.04]} />
+        <mesh position={[-0.48, 0.24, 1.84]}>
+          <boxGeometry args={[0.26, 0.1, 0.04]} />
           <meshStandardMaterial color="#0c0e12" roughness={0.9} />
         </mesh>
 
@@ -562,6 +571,19 @@ export function QuatroMesh({
             roughness={0.2}
           />
         </mesh>
+        {/* Twin High-Intensity Reverse LED Lights (White when reversing) */}
+        {[-0.42, 0.42].map((rx, ri) => (
+          <mesh key={`rev-light-${ri}`} position={[rx, 0.52, -1.785]}>
+            <boxGeometry args={[0.18, 0.06, 0.015]} />
+            <meshStandardMaterial
+              ref={ri === 0 ? reverseLightRef : undefined}
+              color="#ffffff"
+              emissive="#f8fafc"
+              emissiveIntensity={0}
+              roughness={0.1}
+            />
+          </mesh>
+        ))}
         {/* Rear taillight glow wash onto ground & road */}
         <pointLight
           ref={taillightLightRef}
@@ -652,17 +674,27 @@ export function QuatroMesh({
       <group ref={driftSmokeRef} visible={false}>
         {[-0.92, 0.92].map((wx, wi) => (
           <group key={`drift-smoke-${wi}`} position={[wx, 0.14, -1.35]}>
-            {/* White/gray smoke cloud puff */}
-            <mesh scale={[0.45, 0.28, 0.75]}>
-              <sphereGeometry args={[0.35, 8, 8]} />
+            {/* Primary dense smoke puff */}
+            <mesh scale={[0.55, 0.35, 0.95]}>
+              <sphereGeometry args={[0.38, 8, 8]} />
               <meshBasicMaterial
                 color="#cbd5e1"
                 transparent
-                opacity={0.35 + (vehicleState.driftFactor ?? 0) * 0.3}
+                opacity={0.42 + (vehicleState.driftFactor ?? 0) * 0.32}
                 depthWrite={false}
               />
             </mesh>
-            {/* Cyan/amber friction spark */}
+            {/* Secondary trailing billowing puff */}
+            <mesh position={[0, 0.08, -0.45]} scale={[0.75, 0.45, 1.1]}>
+              <sphereGeometry args={[0.32, 8, 8]} />
+              <meshBasicMaterial
+                color="#e2e8f0"
+                transparent
+                opacity={0.25 + (vehicleState.driftFactor ?? 0) * 0.25}
+                depthWrite={false}
+              />
+            </mesh>
+            {/* Cyan/amber friction sparks */}
             <mesh position={[0, -0.06, -0.22]}>
               <sphereGeometry args={[0.07, 6, 6]} />
               <meshBasicMaterial color={(vehicleState.driftFactor ?? 0) > 0.4 ? "#38bdf8" : "#fbbf24"} />

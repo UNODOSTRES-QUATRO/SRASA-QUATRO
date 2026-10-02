@@ -97,6 +97,14 @@ function overlapsFootprint(x: number, z: number, radius: number, footprint: Foot
   return distanceX * distanceX + distanceZ * distanceZ < radius * radius;
 }
 
+// Check if moving from cur to des moves further away from the collider
+function isMovingAway(cur: number, des: number, minBound: number, maxBound: number): boolean {
+  const mid = (minBound + maxBound) / 2;
+  const curDist = Math.abs(cur - mid);
+  const desDist = Math.abs(des - mid);
+  return desDist > curDist;
+}
+
 export function resolvePlayerPosition(
   current: [number, number, number],
   desired: [number, number, number],
@@ -181,13 +189,13 @@ export function resolvePlayerWorldPosition(
     ? { minX: 19.4, maxX: 20.6, minZ: -55.75, maxZ: -55.45 }
     : null;
 
-  const testX = (fp: Footprint) => overlapsFootprint(x, z, radius, fp);
+  const testX = (fp: Footprint) => overlapsFootprint(x, z, radius, fp) && !isMovingAway(current[0], desired[0], fp.minX, fp.maxX);
   if (WORLD_COLLISION_FOOTPRINTS.some(testX) || (doorFootprint && testX(doorFootprint))) {
     x = current[0];
   }
 
   z = desired[2];
-  const testZ = (fp: Footprint) => overlapsFootprint(x, z, radius, fp);
+  const testZ = (fp: Footprint) => overlapsFootprint(x, z, radius, fp) && !isMovingAway(current[2], desired[2], fp.minZ, fp.maxZ);
   if (WORLD_COLLISION_FOOTPRINTS.some(testZ) || (doorFootprint && testZ(doorFootprint))) {
     z = current[2];
   }
@@ -218,14 +226,14 @@ export function resolveVehicleWorldPosition(
 
   const vehicleColliders = [...WORLD_COLLISION_FOOTPRINTS, ...HIGHWAY_GUARDRAILS_FOOTPRINTS];
 
-  const testX = (fp: Footprint) => overlapsFootprint(x, z, radius, fp);
+  const testX = (fp: Footprint) => overlapsFootprint(x, z, radius, fp) && !isMovingAway(current.x, desired.x, fp.minX, fp.maxX);
   if (vehicleColliders.some(testX)) {
     x = current.x;
     collided = true;
   }
 
   z = desired.z;
-  const testZ = (fp: Footprint) => overlapsFootprint(x, z, radius, fp);
+  const testZ = (fp: Footprint) => overlapsFootprint(x, z, radius, fp) && !isMovingAway(current.z, desired.z, fp.minZ, fp.maxZ);
   if (vehicleColliders.some(testZ)) {
     z = current.z;
     collided = true;

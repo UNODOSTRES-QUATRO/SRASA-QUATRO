@@ -43,6 +43,8 @@ export function UnifiedCamera({
   // Orbit parameters for ON_FOOT mode
   const orbitAzimuth = useRef(targetHeading);
   const orbitPolar = useRef(0.65);
+  const smoothedOrbitAzimuth = useRef(targetHeading);
+  const smoothedOrbitPolar = useRef(0.65);
   const orbitDistance = useRef(isInsideEscapeRoom ? 6.0 : 8.0);
   const targetOrbitDistance = useRef(isInsideEscapeRoom ? 6.0 : 8.0);
   const pointer = useRef({ dragging: false, pointerId: -1, x: 0, y: 0 });
@@ -64,7 +66,7 @@ export function UnifiedCamera({
     const element = gl.domElement;
 
     const handlePointerDown = (event: PointerEvent) => {
-      if (mode !== "ON_FOOT" || event.button !== 0) return;
+      if (mode !== "ON_FOOT" || (event.button !== 0 && event.button !== 2)) return;
       pointer.current = {
         dragging: true,
         pointerId: event.pointerId,
@@ -280,8 +282,20 @@ export function UnifiedCamera({
 
     } else {
       // ── MODE: ON_FOOT (Smooth Over-The-Shoulder / Isometric Orbit) ─────────
+      // Smooth orbit azimuth and polar with exponential damping (1 - exp(-lambda * dt))
+      let azDiff = orbitAzimuth.current - smoothedOrbitAzimuth.current;
+      while (azDiff < -Math.PI) azDiff += Math.PI * 2;
+      while (azDiff > Math.PI) azDiff -= Math.PI * 2;
+      const orbitAlpha = 1.0 - Math.exp(-24.0 * dt);
+      smoothedOrbitAzimuth.current += azDiff * orbitAlpha;
+      while (smoothedOrbitAzimuth.current < -Math.PI) smoothedOrbitAzimuth.current += Math.PI * 2;
+      while (smoothedOrbitAzimuth.current > Math.PI) smoothedOrbitAzimuth.current -= Math.PI * 2;
+
+      const polarAlpha = 1.0 - Math.exp(-24.0 * dt);
+      smoothedOrbitPolar.current += (orbitPolar.current - smoothedOrbitPolar.current) * polarAlpha;
+
       if (camAzimuthRef) {
-        camAzimuthRef.current = orbitAzimuth.current;
+        camAzimuthRef.current = smoothedOrbitAzimuth.current;
       }
       // Detect if player is inside an interior (Home, Workplace, or Great Keep)
       const isInsideHome =
@@ -342,8 +356,8 @@ export function UnifiedCamera({
       while (orbitAzimuth.current < -Math.PI) orbitAzimuth.current += Math.PI * 2;
       while (orbitAzimuth.current > Math.PI) orbitAzimuth.current -= Math.PI * 2;
 
-      const hDist = orbitDistance.current * Math.sin(orbitPolar.current);
-      const vDist = orbitDistance.current * Math.cos(orbitPolar.current);
+      const hDist = orbitDistance.current * Math.sin(smoothedOrbitPolar.current);
+      const vDist = orbitDistance.current * Math.cos(smoothedOrbitPolar.current);
 
       const calculatedCamY = liveTargetPos[1] + vDist + (isInterior ? 0.35 : 0.85);
       const clampedCamY = isInterior
@@ -351,9 +365,9 @@ export function UnifiedCamera({
         : Math.max(0.55, calculatedCamY);
 
       desiredPos.set(
-        liveTargetPos[0] - Math.sin(orbitAzimuth.current) * hDist,
+        liveTargetPos[0] - Math.sin(smoothedOrbitAzimuth.current) * hDist,
         clampedCamY,
-        liveTargetPos[2] - Math.cos(orbitAzimuth.current) * hDist
+        liveTargetPos[2] - Math.cos(smoothedOrbitAzimuth.current) * hDist
       );
 
       desiredLookAt.set(
@@ -389,7 +403,7 @@ export function UnifiedCamera({
 
     if (mode === "DRIVING_COCKPIT") {
       // Pin cockpit camera tightly to interior cabin with smooth exponential damping (1 - exp(-lambda * dt))
-      const cockpitLambda = THREE.MathUtils.lerp(36.0, 9.0, transitionProgress.current);
+      const cockpitLambda = THREE.MathUtils.lerp(55.0, 12.0, transitionProgress.current);
       const cockpitPosAlpha = 1.0 - Math.exp(-cockpitLambda * dt);
       currentPos.current.lerp(desiredPos, cockpitPosAlpha);
     } else {

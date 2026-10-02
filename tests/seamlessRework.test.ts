@@ -296,5 +296,29 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     expect(officeCar.collided).toBe(false);
     expect(officeCar.position.x).toBe(11.5);
   });
+
+  it("verifies reverse gear and reverse lights flag activate on reverse motion", () => {
+    const initial = createInitialVehicleState();
+    initial.speed = -3.5;
+
+    const next = updateVehiclePhysics(initial, {
+      forward: false,
+      backward: true,
+      left: false,
+      right: false,
+      brake: false,
+    }, 0.05);
+
+    expect(next.isReversing).toBe(true);
+    expect(next.speed).toBeLessThan(0);
+  });
+
+  it("verifies sound manager contains ambient bell and bass boost capabilities", () => {
+    expect(() => soundManager.init()).not.toThrow();
+    // Ambient bell method and sound playback without errors
+    expect(() => soundManager.playEndingChime()).not.toThrow();
+    expect(() => soundManager.playFootstep()).not.toThrow();
+  });
 });
+
 

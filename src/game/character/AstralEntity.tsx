@@ -309,6 +309,8 @@ function SingleAstralEntity({
   const rootRef = useRef<THREE.Group>(null);
   const coreRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Group>(null);
+  const leftWingRef = useRef<THREE.Mesh>(null);
+  const rightWingRef = useRef<THREE.Mesh>(null);
   const defeatBloomRef = useRef<THREE.Group>(null);
   const rippleRingRef = useRef<THREE.Mesh>(null);
 
@@ -358,12 +360,16 @@ function SingleAstralEntity({
       }
       if (coreRef.current) coreRef.current.visible = false;
       if (ringRef.current) ringRef.current.visible = false;
+      if (leftWingRef.current) leftWingRef.current.visible = false;
+      if (rightWingRef.current) rightWingRef.current.visible = false;
       return;
     }
 
     defeatProgressRef.current = 0;
     if (coreRef.current) coreRef.current.visible = true;
     if (ringRef.current) ringRef.current.visible = true;
+    if (leftWingRef.current) leftWingRef.current.visible = true;
+    if (rightWingRef.current) rightWingRef.current.visible = true;
     if (defeatBloomRef.current) {
       defeatBloomRef.current.visible = false;
       defeatBloomRef.current.scale.set(1, 1, 1);
@@ -405,6 +411,16 @@ function SingleAstralEntity({
     if (ringRef.current) {
       ringRef.current.rotation.x = t * 0.7;
       ringRef.current.rotation.y = t * 1.1;
+    }
+
+    // Gentle wing undulations
+    if (leftWingRef.current) {
+      leftWingRef.current.rotation.z = 0.35 + Math.sin(t * 2.2 + idHash) * 0.22;
+      leftWingRef.current.rotation.y = Math.cos(t * 1.8 + idHash) * 0.15;
+    }
+    if (rightWingRef.current) {
+      rightWingRef.current.rotation.z = -0.35 - Math.sin(t * 2.2 + idHash) * 0.22;
+      rightWingRef.current.rotation.y = -Math.cos(t * 1.8 + idHash) * 0.15;
     }
 
     // Pulsing core breathing with hit flash
@@ -483,6 +499,28 @@ function SingleAstralEntity({
         />
       </mesh>
 
+      {/* Ethereal Floating Mantles / Celestial Wings */}
+      <mesh ref={leftWingRef} position={[-0.48, 0.05, 0]}>
+        <coneGeometry args={[0.2, 0.95, 4]} />
+        <meshStandardMaterial
+          color={data.accentColor}
+          emissive={data.color}
+          emissiveIntensity={1.8}
+          transparent
+          opacity={0.45}
+        />
+      </mesh>
+      <mesh ref={rightWingRef} position={[0.48, 0.05, 0]}>
+        <coneGeometry args={[0.2, 0.95, 4]} />
+        <meshStandardMaterial
+          color={data.accentColor}
+          emissive={data.color}
+          emissiveIntensity={1.8}
+          transparent
+          opacity={0.45}
+        />
+      </mesh>
+
       {/* Orbiting Sacred Geometry Rings */}
       <group ref={ringRef}>
         <mesh>
@@ -517,21 +555,21 @@ function SingleAstralEntity({
 
       {/* Defeat Harmonic Crystallization Bloom (Ascending Stars Effect) */}
       <group ref={defeatBloomRef} visible={false}>
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => (
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((i) => (
           <mesh
             key={`crystal-bloom-${i}`}
             position={[
-              Math.cos((i * Math.PI * 2) / 12) * 0.65,
-              Math.sin((i * Math.PI * 2) / 12) * 0.45 + (i % 3) * 0.2,
-              Math.sin((i * Math.PI * 2) / 6) * 0.3,
+              Math.cos((i * Math.PI * 2) / 16) * 0.75,
+              Math.sin((i * Math.PI * 2) / 16) * 0.55 + (i % 4) * 0.18,
+              Math.sin((i * Math.PI * 2) / 8) * 0.35,
             ]}
-            rotation={[i * 0.5, i * 0.8, i * 0.3]}
+            rotation={[i * 0.4, i * 0.6, i * 0.2]}
           >
-            <tetrahedronGeometry args={[0.11]} />
-            <meshBasicMaterial color={data.accentColor} transparent opacity={0.8} />
+            <tetrahedronGeometry args={[0.12]} />
+            <meshBasicMaterial color={data.accentColor} transparent opacity={0.85} />
           </mesh>
         ))}
-        <pointLight color={data.accentColor} intensity={4.5} distance={10} decay={2} />
+        <pointLight color={data.accentColor} intensity={5.0} distance={12} decay={2} />
       </group>
 
       {/* Atmospheric Point Light cast on surroundings */}
