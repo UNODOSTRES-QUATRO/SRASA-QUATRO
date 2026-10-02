@@ -43,6 +43,25 @@ export function UnifiedWorld({
   const roadLength = 340; // From Z = -100 to Z = 240
   const roadCenterZ = 70;
 
+  // Segmented guardrails & curbs for seamless driveway access
+  // Right side openings:
+  // - Home Driveway: Z = -60 to -44
+  // - Office Parking: Z = 58 to 82
+  // - Outskirts/Torii: Z = 120 to 240
+  const rightRailSegments = [
+    { startZ: -100, endZ: -60 }, // 40m
+    { startZ: -44, endZ: 58 },   // 102m
+    { startZ: 82, endZ: 120 },   // 38m
+  ];
+
+  // Left side openings:
+  // - Bengkel Apron: Z = -14 to 14
+  // - Outskirts/Torii: Z = 120 to 240
+  const leftRailSegments = [
+    { startZ: -100, endZ: -14 }, // 86m
+    { startZ: 14, endZ: 120 },   // 106m
+  ];
+
   return (
     <group>
       {/* ========================================================
@@ -58,15 +77,77 @@ export function UnifiedWorld({
         <meshStandardMaterial color="#262d3d" roughness={0.82} />
       </mesh>
 
-      {/* Road Curbs (Left & Right) */}
-      <mesh position={[-7.2, 0.08, roadCenterZ]} receiveShadow>
-        <boxGeometry args={[0.5, 0.18, roadLength]} />
-        <meshStandardMaterial color="#475569" roughness={0.9} />
-      </mesh>
-      <mesh position={[7.2, 0.08, roadCenterZ]} receiveShadow>
-        <boxGeometry args={[0.5, 0.18, roadLength]} />
-        <meshStandardMaterial color="#475569" roughness={0.9} />
-      </mesh>
+      {/* Segmented Curbs - Left Side */}
+      {leftRailSegments.map((seg, i) => {
+        const len = seg.endZ - seg.startZ;
+        const cz = (seg.startZ + seg.endZ) / 2;
+        return (
+          <mesh key={`curb-l-${i}`} position={[-7.2, 0.08, cz]} receiveShadow>
+            <boxGeometry args={[0.5, 0.18, len]} />
+            <meshStandardMaterial color="#475569" roughness={0.9} />
+          </mesh>
+        );
+      })}
+
+      {/* Segmented Curbs - Right Side */}
+      {rightRailSegments.map((seg, i) => {
+        const len = seg.endZ - seg.startZ;
+        const cz = (seg.startZ + seg.endZ) / 2;
+        return (
+          <mesh key={`curb-r-${i}`} position={[7.2, 0.08, cz]} receiveShadow>
+            <boxGeometry args={[0.5, 0.18, len]} />
+            <meshStandardMaterial color="#475569" roughness={0.9} />
+          </mesh>
+        );
+      })}
+
+      {/* Segmented Highway Guardrails with Posts - Left Side */}
+      {leftRailSegments.map((seg, sIdx) => {
+        const len = seg.endZ - seg.startZ;
+        const cz = (seg.startZ + seg.endZ) / 2;
+        const numPosts = Math.max(2, Math.floor(len / 8));
+        return (
+          <group key={`guardrail-l-${sIdx}`}>
+            <mesh position={[-7.8, 0.55, cz]}>
+              <boxGeometry args={[0.08, 0.32, len]} />
+              <meshStandardMaterial color="#94a3b8" metalness={0.75} roughness={0.3} />
+            </mesh>
+            {Array.from({ length: numPosts }).map((_, pIdx) => (
+              <mesh
+                key={`post-l-${sIdx}-${pIdx}`}
+                position={[-7.8, 0.28, seg.startZ + (pIdx * len) / (numPosts - 1)]}
+              >
+                <boxGeometry args={[0.12, 0.58, 0.12]} />
+                <meshStandardMaterial color="#334155" metalness={0.6} />
+              </mesh>
+            ))}
+          </group>
+        );
+      })}
+
+      {/* Segmented Highway Guardrails with Posts - Right Side */}
+      {rightRailSegments.map((seg, sIdx) => {
+        const len = seg.endZ - seg.startZ;
+        const cz = (seg.startZ + seg.endZ) / 2;
+        const numPosts = Math.max(2, Math.floor(len / 8));
+        return (
+          <group key={`guardrail-r-${sIdx}`}>
+            <mesh position={[7.8, 0.55, cz]}>
+              <boxGeometry args={[0.08, 0.32, len]} />
+              <meshStandardMaterial color="#94a3b8" metalness={0.75} roughness={0.3} />
+            </mesh>
+            {Array.from({ length: numPosts }).map((_, pIdx) => (
+              <mesh
+                key={`post-r-${sIdx}-${pIdx}`}
+                position={[7.8, 0.28, seg.startZ + (pIdx * len) / (numPosts - 1)]}
+              >
+                <boxGeometry args={[0.12, 0.58, 0.12]} />
+                <meshStandardMaterial color="#334155" metalness={0.6} />
+              </mesh>
+            ))}
+          </group>
+        );
+      })}
 
       {/* Road Center Dashed Yellow Stripes */}
       {Array.from({ length: 42 }).map((_, i) => (
@@ -88,28 +169,46 @@ export function UnifiedWorld({
           position={[lx, 0.012, roadCenterZ]}
         >
           <planeGeometry args={[0.18, roadLength]} />
-          <meshBasicMaterial color="#e2e8f0" transparent opacity={0.7} />
+          <meshBasicMaterial color="#e2e8f0" transparent opacity={0.75} />
         </mesh>
       ))}
 
-      {/* Highway Guardrails with Posts */}
-      {[-7.8, 7.8].map((sideX, sIdx) => (
-        <group key={`highway-rail-${sIdx}`}>
-          <mesh position={[sideX, 0.55, roadCenterZ]}>
-            <boxGeometry args={[0.08, 0.32, roadLength]} />
-            <meshStandardMaterial color="#94a3b8" metalness={0.75} roughness={0.3} />
-          </mesh>
-          {Array.from({ length: 34 }).map((_, pIdx) => (
-            <mesh
-              key={`post-${pIdx}`}
-              position={[sideX, 0.28, -100 + pIdx * 10]}
-            >
-              <boxGeometry args={[0.12, 0.58, 0.12]} />
-              <meshStandardMaterial color="#334155" metalness={0.6} />
-            </mesh>
-          ))}
-        </group>
-      ))}
+      {/* Aesthetic Roadside Directional Signs */}
+      {/* 1. Home Exit Sign */}
+      <group position={[8.5, 0, -62]}>
+        <mesh position={[0, 1.5, 0]}>
+          <cylinderGeometry args={[0.06, 0.06, 3.0]} />
+          <meshStandardMaterial color="#334155" metalness={0.8} />
+        </mesh>
+        <mesh position={[0, 2.7, 0]} rotation={[0, -0.2, 0]}>
+          <boxGeometry args={[1.8, 0.7, 0.08]} />
+          <meshStandardMaterial color="#065f46" roughness={0.4} />
+        </mesh>
+      </group>
+
+      {/* 2. Bengkel Exit Sign */}
+      <group position={[-8.5, 0, -16]}>
+        <mesh position={[0, 1.5, 0]}>
+          <cylinderGeometry args={[0.06, 0.06, 3.0]} />
+          <meshStandardMaterial color="#334155" metalness={0.8} />
+        </mesh>
+        <mesh position={[0, 2.7, 0]} rotation={[0, 0.2, 0]}>
+          <boxGeometry args={[2.0, 0.7, 0.08]} />
+          <meshStandardMaterial color="#991b1b" roughness={0.4} />
+        </mesh>
+      </group>
+
+      {/* 3. Office Exit Sign */}
+      <group position={[8.5, 0, 54]}>
+        <mesh position={[0, 1.5, 0]}>
+          <cylinderGeometry args={[0.06, 0.06, 3.0]} />
+          <meshStandardMaterial color="#334155" metalness={0.8} />
+        </mesh>
+        <mesh position={[0, 2.7, 0]} rotation={[0, -0.2, 0]}>
+          <boxGeometry args={[2.0, 0.7, 0.08]} />
+          <meshStandardMaterial color="#1e40af" roughness={0.4} />
+        </mesh>
+      </group>
 
       {/* Streetlamps along highway */}
       {Array.from({ length: 18 }).map((_, lIdx) => {
@@ -164,10 +263,10 @@ export function UnifiedWorld({
       {/* Driveway connecting Home to Highway */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
-        position={[13.5, -0.005, -53]}
+        position={[13.5, -0.005, -52]}
         receiveShadow
       >
-        <planeGeometry args={[13, 8]} />
+        <planeGeometry args={[13, 12]} />
         <meshStandardMaterial color="#334155" roughness={0.85} />
       </mesh>
 
@@ -211,18 +310,18 @@ export function UnifiedWorld({
         position={[-12, -0.005, 0]}
         receiveShadow
       >
-        <planeGeometry args={[12, 16]} />
+        <planeGeometry args={[12, 22]} />
         <meshStandardMaterial color="#334155" roughness={0.85} />
       </mesh>
       {/* Shop Entrance Sign */}
-      <group position={[-11, 0, 6]}>
+      <group position={[-11, 0, 8]}>
         <mesh position={[0, 1.5, 0]}>
           <cylinderGeometry args={[0.08, 0.08, 3.0]} />
           <meshStandardMaterial color="#1e293b" />
         </mesh>
         <mesh position={[0, 2.8, 0]}>
-          <boxGeometry args={[1.6, 0.6, 0.1]} />
-          <meshStandardMaterial color="#dc2626" emissive="#b91c1c" emissiveIntensity={0.6} />
+          <boxGeometry args={[1.8, 0.65, 0.1]} />
+          <meshStandardMaterial color="#dc2626" emissive="#b91c1c" emissiveIntensity={0.8} />
         </mesh>
       </group>
 
@@ -240,11 +339,11 @@ export function UnifiedWorld({
         position={[12, -0.005, 70]}
         receiveShadow
       >
-        <planeGeometry args={[12, 22]} />
+        <planeGeometry args={[12, 24]} />
         <meshStandardMaterial color="#334155" roughness={0.85} />
       </mesh>
       {/* Yellow Parking Bays */}
-      {[-6, -2, 2, 6].map((pz, pi) => (
+      {[-8, -4, 0, 4, 8].map((pz, pi) => (
         <mesh
           key={`parking-bay-${pi}`}
           rotation={[-Math.PI / 2, 0, 0]}

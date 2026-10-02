@@ -80,28 +80,30 @@ export function WorkplaceInterior({
         <meshStandardMaterial color={wallColor} roughness={0.8} />
       </mesh>
 
-      {/* Office Exit Door Frame & Door (X=0, Z=6.9) */}
+      {/* Office Entrance: Modern Sliding Glass Doors (Parted Open for Seamless Entry) */}
       <group position={[0, 1.4, 6.9]}>
-        <mesh>
-          <boxGeometry args={[1.8, 2.8, 0.1]} />
-          <meshStandardMaterial color="#2d3748" />
+        {/* Door Frame Header */}
+        <mesh position={[0, 1.4, 0]}>
+          <boxGeometry args={[2.4, 0.15, 0.15]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.8} />
         </mesh>
-        <mesh position={[0, 0, 0.02]} castShadow>
-          <boxGeometry args={[1.65, 2.65, 0.08]} />
-          <meshStandardMaterial color="#4a5568" metalness={0.4} />
+        {/* Left Open Glass Door */}
+        <mesh position={[-0.85, 0, 0]} castShadow>
+          <boxGeometry args={[0.7, 2.65, 0.04]} />
+          <meshStandardMaterial color="#38bdf8" transparent opacity={0.35} roughness={0.1} />
         </mesh>
-        {/* Door Push Bar */}
-        <mesh position={[0, -0.1, 0.08]}>
-          <boxGeometry args={[1.1, 0.08, 0.06]} />
-          <meshStandardMaterial color="#e2e8f0" metalness={0.9} />
+        {/* Right Open Glass Door */}
+        <mesh position={[0.85, 0, 0]} castShadow>
+          <boxGeometry args={[0.7, 2.65, 0.04]} />
+          <meshStandardMaterial color="#38bdf8" transparent opacity={0.35} roughness={0.1} />
         </mesh>
-        {/* Exit Sign */}
+        {/* Exit / Welcome Sign */}
         <mesh position={[0, 1.55, 0.06]}>
-          <boxGeometry args={[0.7, 0.25, 0.04]} />
+          <boxGeometry args={[0.8, 0.22, 0.04]} />
           <meshStandardMaterial
             color="#22c55e"
             emissive="#16a34a"
-            emissiveIntensity={1.5}
+            emissiveIntensity={1.8}
           />
         </mesh>
       </group>

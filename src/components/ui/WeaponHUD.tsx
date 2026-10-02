@@ -21,7 +21,7 @@ export function WeaponHUD({
   onNextWeapon,
   onPrevWeapon,
 }: WeaponHUDProps) {
-  const def = WEAPON_DEF[activeWeaponId];
+  const def = WEAPON_DEFS[activeWeaponId];
 
   return (
     <div className="pointer-events-none fixed bottom-5 right-40 z-30 flex flex-col items-end gap-2">

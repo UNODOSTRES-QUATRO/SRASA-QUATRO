@@ -68,6 +68,7 @@ export default function ProjectQuatroApp() {
   const playerModeRef = useRef(playerMode);
   const isHumanMovingRef = useRef(false);
   const vehicleStateRef = useRef(vehicleState);
+  const humanVelocityRef = useRef({ vx: 0, vz: 0 });
 
   sessionRef.current = session;
   playerModeRef.current = playerMode;
@@ -154,11 +155,12 @@ export default function ProjectQuatroApp() {
   const handleMountVehicle = useCallback(() => {
     soundManager.playVehicleMount();
     soundManager.setMode("DRIVING");
+    humanVelocityRef.current = { vx: 0, vz: 0 };
     setPlayerMode("DRIVING");
     setSession((prev) => ({
       ...prev,
       currentLocation: "JALAN",
-      activePrompt: "Di dalam Quattro. [WASD] Kemudikan, [Space] Drift, [C] Kamera, [E] Turun.",
+      activePrompt: "✦ Di dalam Quattro. [WASD] Kemudikan, [Space] Drift FR, [C] Ganti Kamera, [E] Turun.",
     }));
   }, []);
 
@@ -168,10 +170,11 @@ export default function ProjectQuatroApp() {
     soundManager.setMode("WALKING");
     soundManager.updateEngine(0, false);
     soundManager.updateTireDrift(0, 0);
+    humanVelocityRef.current = { vx: 0, vz: 0 };
 
-    // Dismount left of driver door
-    const dismountX = car.position.x - Math.cos(car.heading) * 1.6;
-    const dismountZ = car.position.z + Math.sin(car.heading) * 1.6;
+    // Dismount left of driver door safely within world bounds
+    const dismountX = THREE.MathUtils.clamp(car.position.x - Math.cos(car.heading) * 1.6, -26, 26);
+    const dismountZ = THREE.MathUtils.clamp(car.position.z + Math.sin(car.heading) * 1.6, -80, 220);
 
     setVehicleState((prev) => ({
       ...prev,
@@ -184,7 +187,7 @@ export default function ProjectQuatroApp() {
       ...prev,
       humanPosition: [dismountX, 0, dismountZ],
       humanHeading: car.heading - Math.PI / 2,
-      activePrompt: "Jalan kaki. [WASD] Gerak, [F] Serang, [Q] Ganti Senjata, [E] Masuk Mobil.",
+      activePrompt: "✦ Jalan kaki. [WASD] Gerak, [F] Serang, [Q] Ganti Senjata, [E] Masuk Mobil.",
     }));
     setPlayerMode("ON_FOOT");
   }, []);
@@ -234,11 +237,13 @@ export default function ProjectQuatroApp() {
           handleDismountVehicle();
           return;
         } else {
-          // Check proximity to car
-          const [hx, , hz] = currentSession.humanPosition;
+          // Check proximity to car in world coordinates
+          const [hx, , hz] = currentSession.currentLocation === "RUMAH"
+            ? [20 + currentSession.humanPosition[0], currentSession.humanPosition[1], -60 + currentSession.humanPosition[2]]
+            : currentSession.humanPosition;
           const car = vehicleStateRef.current;
           const distToCar = Math.hypot(hx - car.position.x, hz - car.position.z);
-          if (distToCar < 3.2) {
+          if (distToCar < 3.4) {
             handleMountVehicle();
             return;
           }
@@ -397,33 +402,53 @@ export default function ProjectQuatroApp() {
         currentSession.currentLocation !== "END_SCREEN"
       ) {
         if (currentMode === "ON_FOOT") {
-          let moveX = 0;
-          let moveZ = 0;
+          let inputX = 0;
+          let inputZ = 0;
 
-          if (inputRef.current.forward) moveZ -= 1;
-          if (inputRef.current.backward) moveZ += 1;
-          if (inputRef.current.left) moveX -= 1;
-          if (inputRef.current.right) moveX += 1;
+          if (inputRef.current.forward) inputZ -= 1;
+          if (inputRef.current.backward) inputZ += 1;
+          if (inputRef.current.left) inputX -= 1;
+          if (inputRef.current.right) inputX += 1;
 
-          const isMoving = moveX !== 0 || moveZ !== 0;
+          const isPressingMove = inputX !== 0 || inputZ !== 0;
+          let targetVx = 0;
+          let targetVz = 0;
+          const walkSpeed = 4.6;
+
+          if (isPressingMove) {
+            const len = Math.hypot(inputX, inputZ);
+            targetVx = (inputX / len) * walkSpeed;
+            targetVz = (inputZ / len) * walkSpeed;
+          }
+
+          // Smooth exponential velocity damping (1 - exp(-14 * dt))
+          const velAlpha = 1.0 - Math.exp(-14.0 * dt);
+          humanVelocityRef.current.vx += (targetVx - humanVelocityRef.current.vx) * velAlpha;
+          humanVelocityRef.current.vz += (targetVz - humanVelocityRef.current.vz) * velAlpha;
+
+          const currentSpeed = Math.hypot(humanVelocityRef.current.vx, humanVelocityRef.current.vz);
+          const isMoving = currentSpeed > 0.08;
+
           if (isHumanMovingRef.current !== isMoving) {
             isHumanMovingRef.current = isMoving;
             setIsHumanMoving(isMoving);
           }
 
           if (isMoving) {
-            const moveLen = Math.hypot(moveX, moveZ);
-            const normX = moveX / moveLen;
-            const normZ = moveZ / moveLen;
+            let nextX = currentSession.humanPosition[0] + humanVelocityRef.current.vx * dt;
+            let nextZ = currentSession.humanPosition[2] + humanVelocityRef.current.vz * dt;
 
-            const walkSpeed = 4.4;
-            let nextX = currentSession.humanPosition[0] + normX * walkSpeed * dt;
-            let nextZ = currentSession.humanPosition[2] + normZ * walkSpeed * dt;
-            const nextHeading = Math.atan2(normX, normZ);
+            // Shortest-arc smooth heading rotation
+            const targetHeading = Math.atan2(humanVelocityRef.current.vx, humanVelocityRef.current.vz);
+            let headingDiff = targetHeading - currentSession.humanHeading;
+            while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
+            while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
+            const headingAlpha = 1.0 - Math.exp(-15.0 * dt);
+            const nextHeading = currentSession.humanHeading + headingDiff * headingAlpha;
 
             if (currentSession.currentLocation === "RUMAH") {
               nextX = Math.max(-3.8, Math.min(3.8, nextX));
-              nextZ = Math.max(-3.8, Math.min(4.1, nextZ));
+              nextZ = Math.max(-3.8, Math.min(4.2, nextZ));
 
               // Resolve bedroom/kitchen/bathroom walls
               const [rx, , rz] = resolvePlayerPosition(
@@ -437,15 +462,16 @@ export default function ProjectQuatroApp() {
               nextZ = rz;
 
               // Walking out front door onto driveway
-              if (currentSession.rumah.canExitHouse && Math.hypot(nextX - 0, nextZ - 4.0) < 1.0) {
+              if (currentSession.rumah.canExitHouse && Math.hypot(nextX - 0, nextZ - 4.0) < 1.1) {
                 soundManager.playDoorOpen();
+                humanVelocityRef.current = { vx: 0, vz: 0 };
                 setSession((prev) => ({
                   ...prev,
                   currentLocation: "JALAN",
                   phase: "COMMUTE_TO_WORK",
                   humanPosition: [20.0, 0, -54.0],
                   humanHeading: 0,
-                  activePrompt: "Pagi yang cerah. Mobil Quattro terparkir di depan [E].",
+                  activePrompt: "✦ Pagi yang cerah. Mobil Quattro terparkir di depan [E].",
                 }));
                 return;
               }
@@ -465,8 +491,8 @@ export default function ProjectQuatroApp() {
               nextZ = rz;
             } else {
               // Continuous Open World Map bounds
-              nextX = Math.max(-28.0, Math.min(28.0, nextX));
-              nextZ = Math.max(-85.0, Math.min(225.0, nextZ));
+              nextX = THREE.MathUtils.clamp(nextX, -28.0, 28.0);
+              nextZ = THREE.MathUtils.clamp(nextZ, -85.0, 225.0);
 
               // Check walking into Day 3 Semicolon Portal at Office entrance
               if (
@@ -482,7 +508,7 @@ export default function ProjectQuatroApp() {
               }
 
               // Check walking into Keep Doorway in Castle Courtyard
-              if (Math.hypot(nextX - 0, nextZ - 198.0) < 2.0) {
+              if (Math.hypot(nextX - 0, nextZ - 198.0) < 2.2) {
                 soundManager.playDoorSlam();
                 setSession((prev) => ({
                   ...prev,
@@ -500,7 +526,7 @@ export default function ProjectQuatroApp() {
             }
 
             // Audio footstep throttle
-            if (currentTime - lastFootstepTime.current > 310) {
+            if (currentTime - lastFootstepTime.current > 300) {
               soundManager.playFootstep();
               lastFootstepTime.current = currentTime;
             }
@@ -820,46 +846,55 @@ export default function ProjectQuatroApp() {
     });
   };
 
+  // Dynamic rendered position: in RUMAH, seamlessly offsets local coords into the physical house at [20, 0, -60]
+  const renderedHumanPos: [number, number, number] =
+    session.currentLocation === "RUMAH"
+      ? [20 + session.humanPosition[0], session.humanPosition[1], -60 + session.humanPosition[2]]
+      : session.humanPosition;
+
   // Contextual HUD Prompt Calculation
   let contextualAction: string | null = null;
-  const [playerX, , playerZ] = session.humanPosition;
+  const [playerWorldX, , playerWorldZ] = renderedHumanPos;
+  const [playerLocalX, , playerLocalZ] = session.humanPosition;
 
-  if (playerMode === "ON_FOOT") {
-    // Check proximity to vehicle
-    const distToCar = Math.hypot(playerX - vehicleState.position.x, playerZ - vehicleState.position.z);
-    if (distToCar < 3.2) {
-      contextualAction = "Masuk Mobil (Quattro)";
+  if (playerMode === "DRIVING") {
+    contextualAction = "Turun Mobil";
+  } else if (playerMode === "ON_FOOT") {
+    // Check proximity to vehicle in world space
+    const distToCar = Math.hypot(playerWorldX - vehicleState.position.x, playerWorldZ - vehicleState.position.z);
+    if (distToCar < 3.4) {
+      contextualAction = "Masuk Quattro";
     } else if (session.currentLocation === "RUMAH") {
       const isEvening = session.phase === "EVENING_ROUTINE";
-      if (Math.hypot(playerX - (-2.4), playerZ - (-3.2)) < 2.0) {
+      if (Math.hypot(playerLocalX - (-2.4), playerLocalZ - (-3.2)) < 2.0) {
         contextualAction = isEvening && session.rumah.canSleepEvening ? "Tidur" : !isEvening && !session.rumah.wokenUp ? "Bangun" : null;
-      } else if (!isEvening && Math.hypot(playerX - (-3.8), playerZ - 1.0) < 1.8 && session.rumah.wokenUp && !session.rumah.hasCooked) {
+      } else if (!isEvening && Math.hypot(playerLocalX - (-3.8), playerLocalZ - 1.0) < 1.8 && session.rumah.wokenUp && !session.rumah.hasCooked) {
         contextualAction = "Masak Sarapan";
-      } else if (Math.hypot(playerX - 0.8, playerZ - 1.6) < 1.8) {
+      } else if (Math.hypot(playerLocalX - 0.8, playerLocalZ - 1.6) < 1.8) {
         if (isEvening && !session.rumah.hasEatenEvening) contextualAction = "Makan Malam";
         else if (!isEvening && session.rumah.hasCooked && !session.rumah.hasEaten) contextualAction = "Makan Sarapan";
-      } else if (Math.hypot(playerX - 3.4, playerZ - (-3.4)) < 2.0) {
+      } else if (Math.hypot(playerLocalX - 3.4, playerLocalZ - (-3.4)) < 2.0) {
         if (isEvening && !session.rumah.hasShoweredEvening) contextualAction = "Mandi Malam";
         else if (!isEvening && session.rumah.hasEaten && !session.rumah.hasShowered) contextualAction = "Mandi Pagi";
-      } else if (!isEvening && Math.hypot(playerX - 0, playerZ - 4.0) < 1.8 && session.rumah.canExitHouse) {
+      } else if (!isEvening && Math.hypot(playerLocalX - 0, playerLocalZ - 4.0) < 1.8 && session.rumah.canExitHouse) {
         contextualAction = "Keluar ke Halaman";
       }
     } else if (session.currentLocation === "KASTIL" && session.kastil.insideEscapeRoom) {
-      if (Math.hypot(playerX + 5.2, playerZ) < 2) contextualAction = "Periksa Lemari";
-      else if (session.kastil.escapeRoom.cabinetSearched && Math.hypot(playerX - 5.2, playerZ) < 2) contextualAction = "Periksa Perapian";
-      else if (session.kastil.escapeRoom.cabinetSearched && session.kastil.escapeRoom.stoveChecked && Math.hypot(playerX + 1.4, playerZ + 5.8) < 2) contextualAction = "Periksa Batu Longgar";
-      else if (Math.hypot(playerX - 2.0, playerZ + 5.8) < 2) contextualAction = "Periksa Pintu Keluar";
+      if (Math.hypot(playerLocalX + 5.2, playerLocalZ) < 2) contextualAction = "Periksa Lemari";
+      else if (session.kastil.escapeRoom.cabinetSearched && Math.hypot(playerLocalX - 5.2, playerLocalZ) < 2) contextualAction = "Periksa Perapian";
+      else if (session.kastil.escapeRoom.cabinetSearched && session.kastil.escapeRoom.stoveChecked && Math.hypot(playerLocalX + 1.4, playerLocalZ + 5.8) < 2) contextualAction = "Periksa Batu Longgar";
+      else if (Math.hypot(playerLocalX - 2.0, playerLocalZ + 5.8) < 2) contextualAction = "Periksa Pintu Keluar";
     } else {
       // In Continuous World
-      if (Math.hypot(playerX - 20.0, playerZ - (-55.7)) < 2.5) contextualAction = "Masuk Rumah";
-      else if (Math.hypot(playerX - (-16.0), playerZ - (-1.5)) < 2.8) contextualAction = "Bincang · Pak Montir";
-      else if (Math.hypot(playerX - 21.0, playerZ - 68.0) < 2.8 && !session.workplace.allTasksDone) contextualAction = "Workstation · Coding";
-      else if (Math.hypot(playerX + 3.5, playerZ - 176.0) < 2.4) contextualAction = "Bincang · Jeffrey";
-      else if (Math.hypot(playerX - 3.5, playerZ - 176.0) < 2.4) contextualAction = "Bincang · Vespera";
-      else if (Math.hypot(playerX + 5.0, playerZ - 180.0) < 2.4) contextualAction = "Bincang · Barnaby";
-      else if (Math.hypot(playerX, playerZ - 179.0) < 2.4 && !session.kastil.easterEggs.fountain) contextualAction = "Periksa · Air Mancur";
-      else if (Math.hypot(playerX + 5.5, playerZ - 183.0) < 2.4 && !session.kastil.easterEggs.hayBales) contextualAction = "Periksa · Jerami";
-      else if (Math.hypot(playerX, playerZ - 198.0) < 2.5) contextualAction = "Masuk Great Keep";
+      if (Math.hypot(playerWorldX - 20.0, playerWorldZ - (-55.7)) < 2.5) contextualAction = "Masuk Rumah";
+      else if (Math.hypot(playerWorldX - (-16.0), playerWorldZ - (-1.5)) < 2.8) contextualAction = "Bincang · Pak Montir";
+      else if (Math.hypot(playerWorldX - 21.0, playerWorldZ - 68.0) < 2.8 && !session.workplace.allTasksDone) contextualAction = "Workstation · Coding";
+      else if (Math.hypot(playerWorldX + 3.5, playerWorldZ - 176.0) < 2.4) contextualAction = "Bincang · Jeffrey";
+      else if (Math.hypot(playerWorldX - 3.5, playerWorldZ - 176.0) < 2.4) contextualAction = "Bincang · Vespera";
+      else if (Math.hypot(playerWorldX + 5.0, playerWorldZ - 180.0) < 2.4) contextualAction = "Bincang · Barnaby";
+      else if (Math.hypot(playerWorldX, playerWorldZ - 179.0) < 2.4 && !session.kastil.easterEggs.fountain) contextualAction = "Periksa · Air Mancur";
+      else if (Math.hypot(playerWorldX + 5.5, playerWorldZ - 183.0) < 2.4 && !session.kastil.easterEggs.hayBales) contextualAction = "Periksa · Jerami";
+      else if (Math.hypot(playerWorldX, playerWorldZ - 198.0) < 2.5) contextualAction = "Masuk Great Keep";
     }
   }
 
@@ -869,7 +904,7 @@ export default function ProjectQuatroApp() {
       {session.currentLocation !== "END_SCREEN" && (
         <GameCanvas
           playerMode={playerMode}
-          humanPos={session.humanPosition}
+          humanPos={renderedHumanPos}
           humanHeading={session.humanHeading}
           isHumanMoving={isHumanMoving}
           isInsideEscapeRoom={session.kastil.insideEscapeRoom}
@@ -892,7 +927,7 @@ export default function ProjectQuatroApp() {
           ) : (
             <UnifiedWorld
               playerMode={playerMode}
-              humanPos={session.humanPosition}
+              humanPos={renderedHumanPos}
               humanHeading={session.humanHeading}
               vehicleState={vehicleState}
               dayNumber={session.dayNumber}

@@ -8,34 +8,34 @@ export function SceneLighting() {
 
   return (
     <>
-      {/* Warm ambient base: soft blue-grey dusk sky tone */}
-      <ambientLight color="#8ca5b5" intensity={0.5} />
+      {/* Warm ambient base: soft twilight sky tone */}
+      <ambientLight color="#8ba2be" intensity={0.65} />
 
       {/* Low-angle Golden Hour Directional Sunlight */}
       <directionalLight
         ref={dirLightRef}
-        color="#ffe2a0"
-        intensity={1.8}
-        position={[40, 25, -30]}
+        color="#fed7aa"
+        intensity={1.9}
+        position={[45, 32, -20]}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-near={0.5}
-        shadow-camera-far={120}
-        shadow-camera-left={-25}
-        shadow-camera-right={25}
-        shadow-camera-top={25}
-        shadow-camera-bottom={-25}
-        shadow-bias={-0.0005}
+        shadow-camera-far={220}
+        shadow-camera-left={-40}
+        shadow-camera-right={40}
+        shadow-camera-top={40}
+        shadow-camera-bottom={-40}
+        shadow-bias={-0.0003}
       />
 
-      {/* Gentle upward bounce light simulating warm asphalt/ground radiation */}
+      {/* Gentle upward bounce light simulating warm asphalt / dusk ground radiation */}
       <hemisphereLight
-        args={["#ffe2a0", "#3a261a", 0.4]}
+        args={["#fed7aa", "#1e293b", 0.5]}
       />
 
-      {/* Atmospheric dusk fog */}
-      <fog attach="fog" args={["#242b3b", 30, 95]} />
+      {/* Atmospheric low-cortisol twilight fog (deep expansive horizon) */}
+      <fog attach="fog" args={["#182030", 55, 250]} />
     </>
   );
 }

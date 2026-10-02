@@ -84,6 +84,7 @@ export function QuatroMesh({
   const groupRef = useRef<THREE.Group>(null);
   const chassisRef = useRef<THREE.Group>(null);
   const exhaustFlameRef = useRef<THREE.Group>(null);
+  const driftSmokeRef = useRef<THREE.Group>(null);
 
   const { position, heading, steeringAngle, wheelRotation, speed, driftFactor = 0, lateralSpeed = 0, scaleFactor = 1.0, isHandbraking } = vehicleState;
 
@@ -141,6 +142,17 @@ export function QuatroMesh({
       }
     } else if (exhaustFlameRef.current) {
       exhaustFlameRef.current.visible = false;
+    }
+
+    // ── Drift Tire Smoke & Friction Dynamics ─────────────────────────────────
+    if (driftSmokeRef.current) {
+      if (driftFactor > 0.14 && Math.abs(speed) > 2.2) {
+        driftSmokeRef.current.visible = true;
+        const s = THREE.MathUtils.lerp(0.8, 1.8, driftFactor);
+        driftSmokeRef.current.scale.set(s, s, s);
+      } else {
+        driftSmokeRef.current.visible = false;
+      }
     }
   });
 
@@ -403,6 +415,29 @@ export function QuatroMesh({
       {/* Rear Right Wheel */}
       <group position={[-0.92, 0.32, -1.1]}>
         <RallyWheel rotation={wheelRotation} isLeft={false} />
+      </group>
+
+      {/* ── FR Legends Drift Tire Smoke & Sparks Emitter ── */}
+      <group ref={driftSmokeRef} visible={false}>
+        {[-0.92, 0.92].map((wx, wi) => (
+          <group key={`drift-smoke-${wi}`} position={[wx, 0.14, -1.35]}>
+            {/* White/gray smoke cloud puff */}
+            <mesh scale={[0.45, 0.28, 0.75]}>
+              <sphereGeometry args={[0.35, 8, 8]} />
+              <meshBasicMaterial
+                color="#cbd5e1"
+                transparent
+                opacity={0.35 + driftFactor * 0.3}
+                depthWrite={false}
+              />
+            </mesh>
+            {/* Cyan/amber friction spark */}
+            <mesh position={[0, -0.06, -0.22]}>
+              <sphereGeometry args={[0.07, 6, 6]} />
+              <meshBasicMaterial color={driftFactor > 0.4 ? "#38bdf8" : "#fbbf24"} />
+            </mesh>
+          </group>
+        ))}
       </group>
     </group>
   );

@@ -178,11 +178,11 @@ export class SoundManager {
 
     this.ambientFilter = this.ctx.createBiquadFilter();
     this.ambientFilter.type = "lowpass";
-    this.ambientFilter.frequency.setValueAtTime(540, this.ctx.currentTime);
-    this.ambientFilter.Q.setValueAtTime(1.8, this.ctx.currentTime);
+    this.ambientFilter.frequency.setValueAtTime(620, this.ctx.currentTime);
+    this.ambientFilter.Q.setValueAtTime(2.0, this.ctx.currentTime);
 
     this.ambientGain = this.ctx.createGain();
-    this.ambientGain.gain.setValueAtTime(0.24, this.ctx.currentTime);
+    this.ambientGain.gain.setValueAtTime(0.48, this.ctx.currentTime);
 
     this.ambientFilter.connect(this.ambientGain);
     this.ambientGain.connect(this.compressor);
@@ -205,8 +205,7 @@ export class SoundManager {
     this.currentChordIndex = (this.currentChordIndex + 1) % SoundManager.CHORD_PROGRESSION.length;
 
     const now = this.ctx.currentTime;
-    const fadeDuration = 3.5;
-    const chordDuration = 7.0;
+    const fadeDuration = 3.2;
 
     // Gently ramp down old voices
     this.activeVoices.forEach(({ gain, osc }) => {
@@ -225,22 +224,22 @@ export class SoundManager {
     this.activeVoices = [];
 
     // Filter frequency sweep
-    const targetFilterFreq = this.currentMode === "DRIVING" ? 720 : this.currentMode === "COMBAT" ? 880 : 520;
-    this.ambientFilter.frequency.setTargetAtTime(targetFilterFreq, now, 2.0);
+    const targetFilterFreq = this.currentMode === "DRIVING" ? 780 : this.currentMode === "COMBAT" ? 950 : 620;
+    this.ambientFilter.frequency.setTargetAtTime(targetFilterFreq, now, 1.8);
 
-    // Spawn new chord voices
+    // Spawn new chord voices with warm presence
     chord.forEach((freq, idx) => {
       if (!this.ctx || !this.ambientFilter) return;
 
       const osc = this.ctx.createOscillator();
       // Slight analog detuning for lush stereo chorus feel
-      const detuneCents = (Math.random() - 0.5) * 12;
+      const detuneCents = (Math.random() - 0.5) * 14;
       osc.type = idx === 0 ? "triangle" : "sine";
       osc.frequency.setValueAtTime(freq, now);
       osc.detune.setValueAtTime(detuneCents, now);
 
       const gain = this.ctx.createGain();
-      const targetVol = (0.05 / chord.length) * (idx === 0 ? 1.6 : 1.0);
+      const targetVol = (0.42 / chord.length) * (idx === 0 ? 1.5 : 1.0);
       gain.gain.setValueAtTime(0.0001, now);
       gain.gain.linearRampToValueAtTime(targetVol, now + fadeDuration);
 
@@ -258,14 +257,14 @@ export class SoundManager {
 
     const now = this.ctx.currentTime;
     if (mode === "DRIVING") {
-      this.ambientGain.gain.setTargetAtTime(0.18, now, 0.5);
-      this.ambientFilter.frequency.setTargetAtTime(680, now, 1.0);
+      this.ambientGain.gain.setTargetAtTime(0.44, now, 0.5);
+      this.ambientFilter.frequency.setTargetAtTime(780, now, 1.0);
     } else if (mode === "COMBAT") {
-      this.ambientGain.gain.setTargetAtTime(0.28, now, 0.4);
-      this.ambientFilter.frequency.setTargetAtTime(950, now, 0.5);
+      this.ambientGain.gain.setTargetAtTime(0.56, now, 0.4);
+      this.ambientFilter.frequency.setTargetAtTime(960, now, 0.5);
     } else {
-      this.ambientGain.gain.setTargetAtTime(0.25, now, 0.8);
-      this.ambientFilter.frequency.setTargetAtTime(500, now, 1.2);
+      this.ambientGain.gain.setTargetAtTime(0.48, now, 0.8);
+      this.ambientFilter.frequency.setTargetAtTime(620, now, 1.2);
     }
   }
 
@@ -280,19 +279,19 @@ export class SoundManager {
 
     const absSpeed = Math.abs(speed);
     // Base 36Hz idle up to 140Hz high rev
-    const subFreq = 36 + (absSpeed / 22) * 94;
+    const subFreq = 36 + (absSpeed / 24) * 96;
     const midFreq = subFreq * 2.0;
 
     const now = this.ctx.currentTime;
     this.engineSubOsc.frequency.setTargetAtTime(subFreq, now, 0.08);
     this.engineMidOsc.frequency.setTargetAtTime(midFreq, now, 0.08);
 
-    // Warm volume that scales with speed
-    const engineVol = 0.08 + Math.min(1.0, absSpeed / 18) * 0.14;
+    // Warm, heavy volume that scales with speed
+    const engineVol = 0.14 + Math.min(1.0, absSpeed / 20) * 0.26;
     this.engineGain.gain.setTargetAtTime(this.isCinematic ? 0 : engineVol, now, 0.08);
 
     if (this.engineFilter) {
-      const filterCutoff = 240 + (absSpeed / 22) * 550;
+      const filterCutoff = 260 + (absSpeed / 24) * 620;
       this.engineFilter.frequency.setTargetAtTime(filterCutoff, now, 0.1);
     }
   }
@@ -301,14 +300,14 @@ export class SoundManager {
     if (!this.ctx || !this.tireGain || !this.tireFilter || this.isMuted) return;
 
     const absSpeed = Math.abs(speed);
-    if (driftFactor > 0.15 && absSpeed > 3.0) {
-      const intensity = Math.min(1.0, (driftFactor - 0.15) * 1.6);
-      const tireVol = intensity * 0.16;
-      const targetFreq = 800 + intensity * 600;
+    if (driftFactor > 0.12 && absSpeed > 2.5) {
+      const intensity = Math.min(1.0, (driftFactor - 0.12) * 1.8);
+      const tireVol = intensity * 0.32;
+      const targetFreq = 850 + intensity * 700;
 
       const now = this.ctx.currentTime;
-      this.tireGain.gain.setTargetAtTime(tireVol, now, 0.05);
-      this.tireFilter.frequency.setTargetAtTime(targetFreq, now, 0.05);
+      this.tireGain.gain.setTargetAtTime(tireVol, now, 0.04);
+      this.tireFilter.frequency.setTargetAtTime(targetFreq, now, 0.04);
     } else {
       this.tireGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.08);
     }
@@ -426,7 +425,7 @@ export class SoundManager {
 
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.24, now + 0.04);
+    gain.gain.linearRampToValueAtTime(0.38, now + 0.04);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
     // High crystal blade sheen
@@ -435,7 +434,7 @@ export class SoundManager {
     sheen.type = "sine";
     sheen.frequency.setValueAtTime(1760, now);
     sheen.frequency.exponentialRampToValueAtTime(1046, now + 0.18);
-    sheenGain.gain.setValueAtTime(0.06, now);
+    sheenGain.gain.setValueAtTime(0.16, now);
     sheenGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
     sheen.connect(sheenGain);
@@ -462,7 +461,7 @@ export class SoundManager {
     osc.frequency.setValueAtTime(330, now);
     osc.frequency.exponentialRampToValueAtTime(180, now + 0.24);
 
-    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.setValueAtTime(0.34, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
 
     osc.connect(gain);
@@ -476,7 +475,7 @@ export class SoundManager {
     whistle.type = "sine";
     whistle.frequency.setValueAtTime(880, now);
     whistle.frequency.linearRampToValueAtTime(1400, now + 0.15);
-    whistleGain.gain.setValueAtTime(0.08, now);
+    whistleGain.gain.setValueAtTime(0.16, now);
     whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
 
     whistle.connect(whistleGain);
@@ -499,7 +498,7 @@ export class SoundManager {
       osc.type = "sine";
       osc.frequency.setValueAtTime(freq, now + idx * 0.05);
 
-      gain.gain.setValueAtTime(0.06, now + idx * 0.05);
+      gain.gain.setValueAtTime(0.14, now + idx * 0.05);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.05 + 0.65);
 
       osc.connect(gain);
@@ -524,7 +523,7 @@ export class SoundManager {
       osc.frequency.setValueAtTime(freq, now + i * 0.03);
 
       gain.gain.setValueAtTime(0.001, now + i * 0.03);
-      gain.gain.linearRampToValueAtTime(0.09, now + i * 0.03 + 0.02);
+      gain.gain.linearRampToValueAtTime(0.24, now + i * 0.03 + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.03 + 1.2);
 
       osc.connect(gain);
@@ -549,7 +548,7 @@ export class SoundManager {
       osc.frequency.setValueAtTime(freq, now + i * 0.06);
 
       gain.gain.setValueAtTime(0.001, now + i * 0.06);
-      gain.gain.linearRampToValueAtTime(0.08, now + i * 0.06 + 0.03);
+      gain.gain.linearRampToValueAtTime(0.22, now + i * 0.06 + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.06 + 1.6);
 
       osc.connect(gain);
