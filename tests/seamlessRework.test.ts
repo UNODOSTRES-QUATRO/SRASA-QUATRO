@@ -248,5 +248,53 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     const clampedEastX = Math.min(28.0, Math.max(-28.0, farEastX));
     expect(clampedEastX).toBe(28.0);
   });
+
+  it("verifies shortest-arc angular wrapping keeps diff between -PI and PI", () => {
+    const wrapDiff = (target: number, current: number) => {
+      let diff = target - current;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      return diff;
+    };
+
+    // Turning from 350 deg (6.1 rad) to 10 deg (0.17 rad) should be +20 deg (+0.35 rad), not -340 deg
+    const diff1 = wrapDiff(0.17, 6.1);
+    expect(diff1).toBeGreaterThan(0);
+    expect(Math.abs(diff1)).toBeLessThan(Math.PI);
+
+    // Turning from 10 deg to 350 deg should be -20 deg, not +340 deg
+    const diff2 = wrapDiff(6.1, 0.17);
+    expect(diff2).toBeLessThan(0);
+    expect(Math.abs(diff2)).toBeLessThan(Math.PI);
+  });
+
+  it("verifies guardrail openings allow seamless vehicle driveway traversals", () => {
+    // 1. Home driveway opening is at right side between Z = -60 and Z = -44
+    const homeCar = resolveVehicleWorldPosition(
+      { x: 6.0, y: 0.35, z: -52.0 },
+      { x: 12.0, y: 0.35, z: -52.0 },
+      1.15
+    );
+    expect(homeCar.collided).toBe(false);
+    expect(homeCar.position.x).toBe(12.0);
+
+    // 2. Bengkel garage apron opening is at left side between Z = -14 and Z = 14
+    const bengkelCar = resolveVehicleWorldPosition(
+      { x: -6.0, y: 0.35, z: 0.0 },
+      { x: -12.0, y: 0.35, z: 0.0 },
+      1.15
+    );
+    expect(bengkelCar.collided).toBe(false);
+    expect(bengkelCar.position.x).toBe(-12.0);
+
+    // 3. Workplace office parking opening is at right side between Z = 58 and Z = 82
+    const officeCar = resolveVehicleWorldPosition(
+      { x: 6.0, y: 0.35, z: 70.0 },
+      { x: 11.5, y: 0.35, z: 70.0 },
+      1.15
+    );
+    expect(officeCar.collided).toBe(false);
+    expect(officeCar.position.x).toBe(11.5);
+  });
 });
 
