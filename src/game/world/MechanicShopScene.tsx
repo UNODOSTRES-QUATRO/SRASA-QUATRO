@@ -17,11 +17,14 @@ export function MechanicShopScene({ playerPos }: MechanicShopSceneProps) {
     position: { x: -2.5, y: 0.35, z: 0 },
     heading: 0,
     speed: 0,
+    lateralSpeed: 0,
+    angularVelocity: 0,
     scaleMode: "BIG",
     scaleFactor: 1.0,
     steeringAngle: 0,
     wheelRotation: 0,
     isReversing: false,
+    isHandbraking: false,
     driftFactor: 0,
   };
 

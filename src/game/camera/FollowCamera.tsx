@@ -9,53 +9,68 @@ interface FollowCameraProps {
   vehicleState: VehicleState;
 }
 
+/**
+ * Third-person chase camera with FR Legends style:
+ * - Smooth heading lag (camera swings into drift)
+ * - Side-angle drift pan when sliding
+ * - Speed-based FOV zoom
+ * - Subtle road vibration at high speed
+ */
 export function FollowCamera({ vehicleState }: FollowCameraProps) {
   const currentPos = useRef(new THREE.Vector3(0, 3, -6));
   const currentLookAt = useRef(new THREE.Vector3(0, 0.5, 0));
   const smoothedHeading = useRef(vehicleState.heading);
   const smoothedDrift = useRef(0);
+  const vibrationTime = useRef(0);
   const isInitialized = useRef(false);
 
   useFrame((state, delta) => {
-    const { position, heading, speed, driftFactor, scaleFactor = 1.0 } = vehicleState;
+    const { position, heading, speed, driftFactor, lateralSpeed, scaleFactor = 1.0 } = vehicleState;
     const clampedDelta = Math.min(delta, 0.05);
 
-    // 1. Angular interpolation with shortest wrap-around (prevents 360 spin glitch)
+    // ── 1. Heading lag (angular shortest-arc) ────────────────────────────────
     let angleDiff = heading - smoothedHeading.current;
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-    // FR Legends style: camera heading follows with dynamic lag
-    // Lags slightly more during high drift/turn for dynamic side-angle presentation
-    const headingFollowSpeed = 4.2;
-    smoothedHeading.current += angleDiff * Math.min(1, clampedDelta * headingFollowSpeed);
+    // Faster follow at low drift, more lag during drift for FR side-pan feel
+    const headingLag = driftFactor > 0.25 ? 3.2 : 5.0;
+    smoothedHeading.current += angleDiff * Math.min(1, clampedDelta * headingLag);
 
-    // Smooth drift factor
+    // ── 2. Smooth drift factor ────────────────────────────────────────────────
     smoothedDrift.current = THREE.MathUtils.lerp(
       smoothedDrift.current,
       driftFactor,
-      Math.min(1, clampedDelta * 6.0)
+      Math.min(1, clampedDelta * 5.0)
     );
 
-    // Scale distance & height if in Pocket mode vs Big car mode
     const isPocket = scaleFactor < 0.5;
-    const baseDist = isPocket ? 2.4 : 6.6;
-    const baseHeight = isPocket ? 1.1 : 2.6;
-    const speedRatio = Math.min(1, Math.abs(speed) / 18);
+    const baseDist = isPocket ? 2.4 : 7.0;
+    const baseHeight = isPocket ? 1.1 : 2.8;
+    const speedRatio = Math.min(1, Math.abs(speed) / 22);
 
-    // Dynamic camera distance & height
-    const distance = baseDist + speedRatio * (isPocket ? 0.5 : 1.3);
-    const height = baseHeight + speedRatio * 0.25;
+    // ── 3. Dynamic distance & height ─────────────────────────────────────────
+    const distance = baseDist + speedRatio * (isPocket ? 0.5 : 1.8);
+    const height = baseHeight + speedRatio * 0.3;
 
-    // Calculate ideal target position behind car using smoothed heading
-    const targetX = position.x - Math.sin(smoothedHeading.current) * distance;
+    // ── 4. Drift side-pan offset (camera swings to show car sideways) ─────────
+    // During drift, offset the camera azimuth to show the car from the side
+    const driftSidePan = smoothedDrift.current * Math.sign(lateralSpeed || 0) * 0.45;
+    const panAngle = smoothedHeading.current + driftSidePan;
+
+    // ── 5. Target position behind car ────────────────────────────────────────
+    const targetX = position.x - Math.sin(panAngle) * distance;
     const targetY = position.y + height;
-    const targetZ = position.z - Math.cos(smoothedHeading.current) * distance;
+    const targetZ = position.z - Math.cos(panAngle) * distance;
 
-    // Target look-at: car center + forward projection along movement
-    const lookAheadDist = isPocket ? 0.8 : 2.2;
+    // ── 6. Road vibration at high speed ──────────────────────────────────────
+    vibrationTime.current += clampedDelta;
+    const vibration = speedRatio > 0.7 ? Math.sin(vibrationTime.current * 55) * 0.015 * (speedRatio - 0.7) * 3 : 0;
+
+    // ── 7. Look-ahead ─────────────────────────────────────────────────────────
+    const lookAheadDist = isPocket ? 0.8 : 2.8;
     const targetLookAtX = position.x + Math.sin(heading) * lookAheadDist;
-    const targetLookAtY = position.y + (isPocket ? 0.15 : 0.6);
+    const targetLookAtY = position.y + (isPocket ? 0.15 : 0.7);
     const targetLookAtZ = position.z + Math.cos(heading) * lookAheadDist;
 
     if (!isInitialized.current) {
@@ -67,20 +82,20 @@ export function FollowCamera({ vehicleState }: FollowCameraProps) {
       return;
     }
 
-    // Smooth dampening for position & lookAt
-    const posLerp = Math.min(1, clampedDelta * 7.0);
-    const lookLerp = Math.min(1, clampedDelta * 8.5);
+    // ── 8. Smooth position ────────────────────────────────────────────────────
+    const posLerp = Math.min(1, clampedDelta * 6.5);
+    const lookLerp = Math.min(1, clampedDelta * 9.0);
 
-    currentPos.current.lerp(new THREE.Vector3(targetX, targetY, targetZ), posLerp);
+    currentPos.current.lerp(new THREE.Vector3(targetX, targetY + vibration, targetZ), posLerp);
     currentLookAt.current.lerp(
       new THREE.Vector3(targetLookAtX, targetLookAtY, targetLookAtZ),
       lookLerp
     );
 
-    // Dynamic FOV (FR Legends speed sensation)
+    // ── 9. Speed FOV ──────────────────────────────────────────────────────────
     const perspCamera = state.camera as THREE.PerspectiveCamera;
     if (perspCamera.isPerspectiveCamera) {
-      const targetFov = 48 + speedRatio * 7;
+      const targetFov = 46 + speedRatio * 10 + smoothedDrift.current * 5;
       perspCamera.fov = THREE.MathUtils.lerp(perspCamera.fov, targetFov, clampedDelta * 4);
       perspCamera.updateProjectionMatrix();
     }
@@ -91,4 +106,3 @@ export function FollowCamera({ vehicleState }: FollowCameraProps) {
 
   return null;
 }
-

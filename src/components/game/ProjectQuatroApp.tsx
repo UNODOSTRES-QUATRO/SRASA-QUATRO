@@ -18,6 +18,8 @@ import { CastleLoreDialogueModal } from "@/components/ui/CastleLoreDialogueModal
 import { CastleEscapeRoomModal } from "@/components/ui/CastleEscapeRoomModal";
 import { EndCreditsScene } from "@/components/ui/EndCreditsScene";
 import { PauseOverlay } from "@/components/ui/PauseOverlay";
+import { DrivingHUD } from "@/components/ui/DrivingHUD";
+import { WeaponHUD } from "@/components/ui/WeaponHUD";
 
 import {
   createInitialSessionState,
@@ -42,8 +44,10 @@ import {
 import { soundManager } from "@/game/audio/SoundManager";
 import { resolvePlayerPosition } from "@/game/core/playerCollision";
 import { createInitialVehicleState, updateVehiclePhysics } from "@/game/vehicle/vehiclePhysics";
-import { VehicleState } from "@/game/vehicle/vehicleTypes";
+import { VehicleState, CameraMode } from "@/game/vehicle/vehicleTypes";
 import { useGameRealtime } from "@/game/realtime/useGameRealtime";
+import { useWeaponSystem } from "@/game/weapons/WeaponSystem";
+import { WEAPON_ORDER } from "@/game/weapons/weaponTypes";
 
 function getSharedSpaceId(session: GameSessionState) {
   if (session.currentLocation === "DIMENSI_LAIN") return "void:road";
@@ -57,6 +61,12 @@ export default function ProjectQuatroApp() {
   const [session, setSession] = useState<GameSessionState>(createInitialSessionState);
   const [isHumanMoving, setIsHumanMoving] = useState(false);
   const [vehicleState, setVehicleState] = useState<VehicleState>(createInitialVehicleState);
+  const [cameraMode, setCameraMode] = useState<CameraMode>("CHASE");
+  // Weapon system
+  const weaponSystem = useWeaponSystem();
+  const [weaponHUDTick, setWeaponHUDTick] = useState(0); // trigger re-render for HUD
+  const isAttackingRef = useRef(false);
+  const isChargingRef = useRef(false);
   const sessionRef = useRef(session);
   const isHumanMovingRef = useRef(false);
   const vehicleStateRef = useRef(vehicleState);
@@ -175,6 +185,61 @@ export default function ProjectQuatroApp() {
       }
 
       const isRoad = currentSession.currentLocation === "JALAN" || currentSession.currentLocation === "DIMENSI_LAIN";
+      const isWalkable = ["RUMAH", "TEMPAT_KERJA", "BENGKEL", "KASTIL"].includes(currentSession.currentLocation);
+
+      // [C] — toggle camera mode when driving
+      if (e.code === "KeyC" && isRoad && !e.repeat) {
+        setCameraMode((prev) => (prev === "CHASE" ? "COCKPIT" : "CHASE"));
+        return;
+      }
+
+      // Weapon controls — only in walkable scenes, no modal open
+      if (isWalkable && !e.repeat) {
+        // [F] — attack
+        if (e.code === "KeyF") {
+          const { startAttack } = weaponSystem;
+          const pos = sessionRef.current.humanPosition;
+          isAttackingRef.current = true;
+          const def = weaponSystem.stateRef.current;
+          if (def.activeAttack?.isCharging) {
+            // Already charging — nothing to start, just tracking hold
+          } else {
+            startAttack(pos, sessionRef.current.humanHeading);
+            setWeaponHUDTick((t) => t + 1);
+          }
+          return;
+        }
+
+        // [Q] — previous weapon
+        if (e.code === "KeyQ") {
+          weaponSystem.prevWeapon();
+          setWeaponHUDTick((t) => t + 1);
+          return;
+        }
+
+        // [E] interaction — handled below, but [E] alone means interact not weapon
+        // (weapon cycle is Q, so E is still interaction)
+
+        // Number keys [1-5] — select weapon by index
+        const numMap: Record<string, number> = {
+          Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4,
+        };
+        if (e.code in numMap) {
+          const idx = numMap[e.code];
+          // Directly set weapon
+          const ws = weaponSystem.stateRef.current;
+          weaponSystem.stateRef.current = {
+            ...ws,
+            activeWeaponIndex: idx,
+            activeWeaponId: WEAPON_ORDER[idx],
+            activeAttack: null,
+            chargeLevel: 0,
+          };
+          setWeaponHUDTick((t) => t + 1);
+          return;
+        }
+      }
+
       if (e.code === "Space" && isRoad) {
         inputRef.current.brake = true;
         return;
@@ -212,6 +277,18 @@ export default function ProjectQuatroApp() {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      // Release attack key — fire charge weapons on release
+      if (e.code === "KeyF") {
+        isAttackingRef.current = false;
+        const currentSession = sessionRef.current;
+        const isWalkable = ["RUMAH", "TEMPAT_KERJA", "BENGKEL", "KASTIL"].includes(currentSession.currentLocation);
+        if (isWalkable && weaponSystem.stateRef.current.activeAttack?.isCharging) {
+          weaponSystem.releaseAttack(currentSession.humanPosition, currentSession.humanHeading);
+          setWeaponHUDTick((t) => t + 1);
+        }
+        return;
+      }
+
       switch (e.code) {
         case "KeyW":
         case "ArrowUp":
@@ -817,6 +894,11 @@ export default function ProjectQuatroApp() {
           isHumanMoving={isHumanMoving}
           isInsideEscapeRoom={session.kastil.insideEscapeRoom}
           remotePlayers={realtime.remotePlayers}
+          vehicleState={isRoadLocation ? vehicleState : undefined}
+          cameraMode={cameraMode}
+          weaponSystemStateRef={isWalkableLocation ? weaponSystem.stateRef : undefined}
+          isAttackingRef={isAttackingRef}
+          isChargingRef={isChargingRef}
         >
           {/* Location 1: RUMAH */}
           {session.currentLocation === "RUMAH" && (
@@ -869,6 +951,27 @@ export default function ProjectQuatroApp() {
             </>
           )}
         </GameCanvas>
+      )}
+
+      {/* Driving HUD — shown when on road */}
+      {isRoadLocation && session.currentLocation !== "END_SCREEN" && !isVoidCutsceneOpen && (
+        <DrivingHUD
+          vehicleState={vehicleState}
+          cameraMode={cameraMode}
+          onToggleCamera={() => setCameraMode((prev) => (prev === "CHASE" ? "COCKPIT" : "CHASE"))}
+          isVoidHighway={session.currentLocation === "DIMENSI_LAIN"}
+        />
+      )}
+
+      {/* Weapon HUD — shown in walkable scenes */}
+      {isWalkableLocation && session.currentLocation !== "END_SCREEN" && !session.isPaused && (
+        <WeaponHUD
+          activeWeaponId={weaponSystem.stateRef.current.activeWeaponId}
+          chargeLevel={weaponSystem.stateRef.current.chargeLevel}
+          isAttacking={isAttackingRef.current}
+          onNextWeapon={() => { weaponSystem.nextWeapon(); setWeaponHUDTick((t) => t + 1); }}
+          onPrevWeapon={() => { weaponSystem.prevWeapon(); setWeaponHUDTick((t) => t + 1); }}
+        />
       )}
 
       {/* Global Quest Banner */}

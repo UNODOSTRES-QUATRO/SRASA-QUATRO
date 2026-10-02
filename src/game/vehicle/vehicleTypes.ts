@@ -23,16 +23,25 @@ export interface VehicleConfig {
   steerSpeed: number;
   steerReturnSpeed: number;
   wheelbase: number;
+  // Drift physics
+  gripFactor: number;       // 0..1, how much lateral grip (1 = no slip)
+  handbrakeGrip: number;    // 0..1, reduced grip during handbrake
+  driftAngularMomentum: number; // rotational inertia coefficient
 }
 
 export interface VehicleState {
   position: Vector3D;
   heading: number; // yaw angle in radians
-  speed: number;   // units per second
+  speed: number;   // units per second (forward/back)
+  lateralSpeed: number; // sideways sliding speed (units/s)
+  angularVelocity: number; // yaw rate (rad/s), for momentum drift
   steeringAngle: number; // current front wheel turn angle
   wheelRotation: number; // spinning wheel angle
   isReversing: boolean;
-  driftFactor: number;
+  driftFactor: number;    // 0..1 visual drift intensity
+  isHandbraking: boolean;
   scaleMode: "BIG" | "POCKET";
   scaleFactor: number; // 1.0 for BIG, 0.22 for POCKET
 }
+
+export type CameraMode = "CHASE" | "COCKPIT";
