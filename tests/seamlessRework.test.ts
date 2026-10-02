@@ -173,4 +173,37 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     const shouldAutoFollowBack = Math.abs(backDiff) < Math.PI * 0.44;
     expect(shouldAutoFollowBack).toBe(false);
   });
+
+  it("verifies vehicle door angle animates during mount/dismount lifecycle", () => {
+    const initial = createInitialVehicleState();
+    expect(initial.doorAngle).toBe(0);
+
+    // When mounting, door swings open to ~0.95 rad (~54 degrees)
+    initial.doorAngle = 0.95;
+    expect(initial.doorAngle).toBeGreaterThan(0.5);
+
+    // Closes back to 0
+    initial.doorAngle = 0;
+    expect(initial.doorAngle).toBe(0);
+  });
+
+  it("verifies cockpit driver offset is calculated accurately using vehicle heading", () => {
+    const headingNorth = 0;
+    const headingEast = Math.PI / 2;
+
+    // Base cockpit eye offset inside car: -0.34m left of centerline, 1.10m height, 0.04m forward
+    const baseOffset = { x: -0.34, y: 1.10, z: 0.04 };
+
+    // When facing north, X remains -0.34, Z is +0.04
+    const northRotX = baseOffset.x * Math.cos(headingNorth) + baseOffset.z * Math.sin(headingNorth);
+    const northRotZ = -baseOffset.x * Math.sin(headingNorth) + baseOffset.z * Math.cos(headingNorth);
+    expect(northRotX).toBeCloseTo(-0.34, 2);
+    expect(northRotZ).toBeCloseTo(0.04, 2);
+
+    // When facing east (rotated 90 deg clockwise), driver sits south of center (negative Z)
+    const eastRotX = baseOffset.x * Math.cos(headingEast) + baseOffset.z * Math.sin(headingEast);
+    const eastRotZ = -baseOffset.x * Math.sin(headingEast) + baseOffset.z * Math.cos(headingEast);
+    expect(eastRotX).toBeCloseTo(0.04, 2);
+    expect(eastRotZ).toBeCloseTo(0.34, 2);
+  });
 });

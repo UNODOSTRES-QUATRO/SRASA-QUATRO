@@ -26,6 +26,7 @@ export function TrafficCar({
   isVoidHighway = false,
 }: TrafficCarProps) {
   const groupRef = useRef<THREE.Group>(null);
+  const wheelsRef = useRef<(THREE.Group | null)[]>([]);
   const zRef = useRef(startZ);
   const wheelRef = useRef(0);
   const currentLane = useRef(laneX);
@@ -37,6 +38,11 @@ export function TrafficCar({
     // Move along continuous highway in specified direction
     zRef.current += speed * direction * dt;
     wheelRef.current += (speed / 0.32) * dt;
+
+    // Direct wheel roll rotation for active movement
+    wheelsRef.current.forEach((w) => {
+      if (w) w.rotation.x = wheelRef.current;
+    });
 
     // Loop within continuous road boundaries (Z = -82 to 118)
     if (direction === -1 && zRef.current < -82) {
@@ -109,15 +115,19 @@ export function TrafficCar({
         [-0.79, 0.28, -0.95],
       ] as [number, number, number][]).map(([wx, wy, wz], i) => (
         <group key={i} position={[wx, wy, wz]}>
-          <mesh rotation={[wheelRef.current, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.28, 0.28, 0.22, 14]} />
-            <meshStandardMaterial color={wheelColor} roughness={0.9} />
-          </mesh>
-          {/* Rim */}
-          <mesh rotation={[wheelRef.current, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.18, 0.17, 0.24, 8]} />
-            <meshStandardMaterial color="#c0c0c8" metalness={0.75} roughness={0.35} />
-          </mesh>
+          <group ref={(el) => { wheelsRef.current[i] = el; }}>
+            <group rotation={[0, 0, Math.PI / 2]}>
+              <mesh>
+                <cylinderGeometry args={[0.28, 0.28, 0.22, 14]} />
+                <meshStandardMaterial color={wheelColor} roughness={0.9} />
+              </mesh>
+              {/* Rim */}
+              <mesh>
+                <cylinderGeometry args={[0.18, 0.17, 0.24, 8]} />
+                <meshStandardMaterial color="#c0c0c8" metalness={0.75} roughness={0.35} />
+              </mesh>
+            </group>
+          </group>
         </group>
       ))}
     </group>

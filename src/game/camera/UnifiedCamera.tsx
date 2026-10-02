@@ -257,7 +257,7 @@ export function UnifiedCamera({
         1.10 + bob + gPitch,
         0.04
       );
-      const rotMatrix = new THREE.Matrix4().makeRotationY(smoothedHeading.current);
+      const rotMatrix = new THREE.Matrix4().makeRotationY(liveVehicle.heading);
       cockpitOffset.applyMatrix4(rotMatrix);
 
       desiredPos.set(
@@ -388,13 +388,10 @@ export function UnifiedCamera({
     const lookAlpha = 1.0 - Math.exp(-lookLambda * dt);
 
     if (mode === "DRIVING_COCKPIT") {
-      // Pin cockpit camera tightly to interior cabin with zero lag, smooth glide only during mode transition
-      if (transitionProgress.current <= 0.02) {
-        currentPos.current.copy(desiredPos);
-      } else {
-        const cockpitPosAlpha = 1.0 - Math.exp(-14.0 * dt);
-        currentPos.current.lerp(desiredPos, cockpitPosAlpha);
-      }
+      // Pin cockpit camera tightly to interior cabin with smooth exponential damping (1 - exp(-lambda * dt))
+      const cockpitLambda = THREE.MathUtils.lerp(36.0, 9.0, transitionProgress.current);
+      const cockpitPosAlpha = 1.0 - Math.exp(-cockpitLambda * dt);
+      currentPos.current.lerp(desiredPos, cockpitPosAlpha);
     } else {
       currentPos.current.lerp(desiredPos, posAlpha);
     }

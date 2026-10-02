@@ -583,7 +583,25 @@ export default function ProjectQuatroApp() {
 
   // ── Context-Sensitive Interaction Logic for [E] / Click ──
   const handleContextInteraction = useCallback(() => {
-    const [hx, , hz] = session.humanPosition;
+    // 0. VEHICLE MOUNT / DISMOUNT VIA CONTEXT BUTTON OR SPACE
+    if (playerModeRef.current === "DRIVING") {
+      handleDismountVehicle();
+      return;
+    }
+
+    const [hx, , hz] = [
+      humanPosRef.current?.x ?? session.humanPosition[0],
+      session.humanPosition[1],
+      humanPosRef.current?.z ?? session.humanPosition[2],
+    ];
+
+    // Proximity to vehicle on foot
+    const car = vehicleStateRef.current;
+    const distToCar = Math.hypot(hx - car.position.x, hz - car.position.z);
+    if (distToCar < 3.5) {
+      handleMountVehicle();
+      return;
+    }
 
     // 1. RUMAH INTERACTIONS (all in continuous world coords)
     const distToBed = Math.hypot(hx - 17.6, hz - (-63.2));
@@ -637,6 +655,24 @@ export default function ProjectQuatroApp() {
       if (session.rumah.canSleepEvening) {
         soundManager.playPurr();
         const next = advanceDay(session);
+        // Reset player ref and vehicle to driveway for fresh morning
+        humanPosRef.current = {
+          x: next.humanPosition[0],
+          y: 0,
+          z: next.humanPosition[2],
+          heading: next.humanHeading,
+        };
+        humanVelocityRef.current = { vx: 0, vz: 0 };
+        setVehicleState((prev) => ({
+          ...prev,
+          position: { x: 20, y: 0.35, z: -48 },
+          heading: 0,
+          speed: 0,
+          lateralSpeed: 0,
+          angularVelocity: 0,
+          driftFactor: 0,
+          doorAngle: 0,
+        }));
         setSession(next);
         return;
       } else {
@@ -780,7 +816,7 @@ export default function ProjectQuatroApp() {
         return;
       }
     }
-  }, [session]);
+  }, [session, handleMountVehicle, handleDismountVehicle]);
 
   interactionHandlerRef.current = handleContextInteraction;
 
