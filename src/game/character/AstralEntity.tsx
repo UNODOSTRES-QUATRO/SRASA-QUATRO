@@ -38,22 +38,46 @@ export function AstralMonsterSystem({
   // Peaceful wandering astral entities along outskirts, cyber alley, and fields
   const [monsters, setMonsters] = useState<AstralMonsterData[]>([
     {
+      id: "astral-meadow-1",
+      name: "Meadow Wisp",
+      basePosition: [-14, 1.3, 28],
+      wanderRadius: 3.5,
+      color: "#38bdf8",
+      accentColor: "#7dd3fc",
+      maxHp: 50,
+      hp: 50,
+      isDefeated: false,
+      respawnTime: 0,
+    },
+    {
+      id: "astral-office-alley",
+      name: "Cyber Alley Phantom",
+      basePosition: [23, 1.4, 85],
+      wanderRadius: 4.0,
+      color: "#a855f7",
+      accentColor: "#c084fc",
+      maxHp: 65,
+      hp: 65,
+      isDefeated: false,
+      respawnTime: 0,
+    },
+    {
       id: "astral-0",
       name: "Torii Gatekeeper Spirit",
-      basePosition: [12, 1.4, 125],
-      wanderRadius: 4.0,
+      basePosition: [11, 1.5, 122],
+      wanderRadius: 4.2,
       color: "#6366f1",
       accentColor: "#a5b4fc",
-      maxHp: 70,
-      hp: 70,
+      maxHp: 75,
+      hp: 75,
       isDefeated: false,
       respawnTime: 0,
     },
     {
       id: "astral-1",
       name: "Astral Scribe",
-      basePosition: [-9, 1.3, 138],
-      wanderRadius: 5.0,
+      basePosition: [-11, 1.4, 142],
+      wanderRadius: 4.8,
       color: "#818cf8",
       accentColor: "#c084fc",
       maxHp: 80,
@@ -64,9 +88,9 @@ export function AstralMonsterSystem({
     {
       id: "astral-2",
       name: "Ethereal Wisp",
-      basePosition: [11, 1.6, 158],
-      wanderRadius: 5.5,
-      color: "#38bdf8",
+      basePosition: [12, 1.6, 162],
+      wanderRadius: 5.0,
+      color: "#06b6d4",
       accentColor: "#67e8f9",
       maxHp: 60,
       hp: 60,
@@ -75,25 +99,37 @@ export function AstralMonsterSystem({
     },
     {
       id: "astral-3",
-      name: "Void Guardian Wisp",
+      name: "Void Guardian Shade",
       basePosition: [-13, 1.7, 182],
-      wanderRadius: 6.0,
+      wanderRadius: 5.5,
       color: "#c084fc",
       accentColor: "#f472b6",
-      maxHp: 100,
-      hp: 100,
+      maxHp: 95,
+      hp: 95,
       isDefeated: false,
       respawnTime: 0,
     },
     {
       id: "astral-4",
       name: "Celestial Sentinel",
-      basePosition: [9, 1.5, 200],
+      basePosition: [10, 1.5, 202],
       wanderRadius: 4.5,
       color: "#fbbf24",
       accentColor: "#fde047",
       maxHp: 85,
       hp: 85,
+      isDefeated: false,
+      respawnTime: 0,
+    },
+    {
+      id: "astral-ruins",
+      name: "Starlight Drifter",
+      basePosition: [-14, 1.6, 214],
+      wanderRadius: 4.0,
+      color: "#34d399",
+      accentColor: "#6ee7b7",
+      maxHp: 70,
+      hp: 70,
       isDefeated: false,
       respawnTime: 0,
     },
@@ -111,7 +147,7 @@ export function AstralMonsterSystem({
     soundManager.playHarmonicChime();
 
     const usedWeapon = specificWeapon || weaponType;
-    const damage = usedWeapon === "RPG" ? 75 : usedWeapon === "SCYTHE" ? 50 : usedWeapon === "BOW" ? 40 : usedWeapon === "HEAVENLY_PEN" ? 45 : 35;
+    const damage = usedWeapon === "RPG" ? 75 : usedWeapon === "SCYTHE" ? 55 : usedWeapon === "BOW" ? 45 : usedWeapon === "HEAVENLY_PEN" ? 50 : 38;
 
     setMonsters((prev) =>
       prev.map((m) => {
@@ -210,6 +246,12 @@ function SingleAstralEntity({
   const coreRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Group>(null);
   const defeatBloomRef = useRef<THREE.Group>(null);
+  const rippleRingRef = useRef<THREE.Mesh>(null);
+
+  const prevHpRef = useRef(data.hp);
+  const hitShudderRef = useRef(0);
+  const rippleScaleRef = useRef(0);
+  const defeatProgressRef = useRef(0);
 
   const currentPos = useRef(new THREE.Vector3(...data.basePosition));
 
@@ -217,17 +259,45 @@ function SingleAstralEntity({
     const dt = Math.min(delta, 0.05);
     const t = clock.getElapsedTime();
 
+    // Check hit trigger for harmonic shudder
+    if (data.hp < prevHpRef.current && !data.isDefeated) {
+      hitShudderRef.current = 0.22;
+      rippleScaleRef.current = 0.1;
+    }
+    prevHpRef.current = data.hp;
+
+    if (hitShudderRef.current > 0) {
+      hitShudderRef.current -= dt;
+    }
+
+    if (rippleScaleRef.current > 0) {
+      rippleScaleRef.current += dt * 5.0;
+      if (rippleRingRef.current) {
+        rippleRingRef.current.scale.set(rippleScaleRef.current, rippleScaleRef.current, rippleScaleRef.current);
+        (rippleRingRef.current.material as THREE.MeshBasicMaterial).opacity = Math.max(
+          0,
+          0.8 - rippleScaleRef.current * 0.4
+        );
+      }
+      if (rippleScaleRef.current > 2.0) {
+        rippleScaleRef.current = 0;
+      }
+    }
+
     if (data.isDefeated) {
+      defeatProgressRef.current += dt;
       if (defeatBloomRef.current) {
         defeatBloomRef.current.visible = true;
-        defeatBloomRef.current.scale.addScalar(dt * 1.5);
-        defeatBloomRef.current.position.y += dt * 0.8;
+        defeatBloomRef.current.scale.addScalar(dt * 1.8);
+        defeatBloomRef.current.position.y += dt * 1.2;
+        defeatBloomRef.current.rotation.y += dt * 1.4;
       }
       if (coreRef.current) coreRef.current.visible = false;
       if (ringRef.current) ringRef.current.visible = false;
       return;
     }
 
+    defeatProgressRef.current = 0;
     if (coreRef.current) coreRef.current.visible = true;
     if (ringRef.current) ringRef.current.visible = true;
     if (defeatBloomRef.current) {
@@ -241,7 +311,11 @@ function SingleAstralEntity({
     const wanderZ = data.basePosition[2] + Math.cos(t * 0.28 + Number(data.id.slice(-1))) * (data.wanderRadius * 0.75);
     const hoverY = data.basePosition[1] + Math.sin(t * 1.6) * 0.24;
 
-    currentPos.current.set(wanderX, hoverY, wanderZ);
+    // Add subtle hit shudder offset
+    const shudderX = hitShudderRef.current > 0 ? (Math.random() - 0.5) * 0.08 : 0;
+    const shudderY = hitShudderRef.current > 0 ? (Math.random() - 0.5) * 0.08 : 0;
+
+    currentPos.current.set(wanderX + shudderX, hoverY + shudderY, wanderZ);
 
     if (rootRef.current) {
       // Soft orientation towards player if nearby
@@ -249,7 +323,7 @@ function SingleAstralEntity({
       const dz = playerPos[2] - wanderZ;
       const distToPlayer = Math.hypot(dx, dz);
 
-      if (distToPlayer < 12) {
+      if (distToPlayer < 14) {
         const lookAngle = Math.atan2(dx, dz);
         rootRef.current.rotation.y = THREE.MathUtils.damp(rootRef.current.rotation.y, lookAngle, 3.5, dt);
       } else {
@@ -265,10 +339,14 @@ function SingleAstralEntity({
       ringRef.current.rotation.y = t * 1.1;
     }
 
-    // Pulsing core breathing
+    // Pulsing core breathing with hit flash
     if (coreRef.current) {
-      const breathe = 1.0 + Math.sin(t * 3.0) * 0.08;
+      const breathe = (1.0 + Math.sin(t * 3.0) * 0.08) * (hitShudderRef.current > 0 ? 1.2 : 1.0);
       coreRef.current.scale.setScalar(breathe);
+      const mat = coreRef.current.material as THREE.MeshStandardMaterial;
+      if (mat) {
+        mat.emissiveIntensity = hitShudderRef.current > 0 ? 4.5 : 2.8;
+      }
     }
 
     // 1. Check melee hit if player is actively attacking
@@ -301,7 +379,7 @@ function SingleAstralEntity({
         <meshBasicMaterial
           color={data.accentColor}
           transparent
-          opacity={0.25}
+          opacity={0.28}
           depthWrite={false}
         />
       </mesh>
@@ -344,26 +422,33 @@ function SingleAstralEntity({
         ))}
       </group>
 
-      {/* Defeat Harmonic Crystallization Bloom (Reward Effect) */}
+      {/* Harmonic Resonance Ripple Ring (Triggered on Hit) */}
+      <mesh ref={rippleRingRef} rotation={[-Math.PI / 2, 0, 0]} scale={[0.1, 0.1, 0.1]}>
+        <ringGeometry args={[0.8, 0.95, 24]} />
+        <meshBasicMaterial color="#38bdf8" transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
+
+      {/* Defeat Harmonic Crystallization Bloom (Ascending Stars Effect) */}
       <group ref={defeatBloomRef} visible={false}>
-        {[0, 1, 2, 3, 4, 5].map((i) => (
+        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => (
           <mesh
             key={`crystal-bloom-${i}`}
             position={[
-              Math.cos((i * Math.PI * 2) / 6) * 0.6,
-              Math.sin((i * Math.PI * 2) / 6) * 0.6,
-              0,
+              Math.cos((i * Math.PI * 2) / 12) * 0.65,
+              Math.sin((i * Math.PI * 2) / 12) * 0.45 + (i % 3) * 0.2,
+              Math.sin((i * Math.PI * 2) / 6) * 0.3,
             ]}
+            rotation={[i * 0.5, i * 0.8, i * 0.3]}
           >
-            <tetrahedronGeometry args={[0.12]} />
-            <meshBasicMaterial color={data.accentColor} transparent opacity={0.7} />
+            <tetrahedronGeometry args={[0.11]} />
+            <meshBasicMaterial color={data.accentColor} transparent opacity={0.8} />
           </mesh>
         ))}
-        <pointLight color={data.accentColor} intensity={3.5} distance={8} decay={2} />
+        <pointLight color={data.accentColor} intensity={4.5} distance={10} decay={2} />
       </group>
 
       {/* Atmospheric Point Light cast on surroundings */}
-      <pointLight color={data.accentColor} intensity={2.4} distance={7} decay={2} />
+      <pointLight color={data.accentColor} intensity={2.6} distance={8} decay={2} />
 
       {/* Soothing Harmonic Health Ring above head */}
       {data.hp < data.maxHp && (

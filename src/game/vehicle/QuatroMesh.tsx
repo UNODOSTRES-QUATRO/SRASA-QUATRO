@@ -119,19 +119,19 @@ export function QuatroMesh({
     prevSpeed.current = live.speed;
 
     // Squat on throttle, nose dive on brake
-    const targetPitch = THREE.MathUtils.clamp(-accel * 0.005, -0.06, 0.06);
-    chassisPitch.current = THREE.MathUtils.damp(chassisPitch.current, targetPitch, 8, dt);
+    const targetPitch = THREE.MathUtils.clamp(-accel * 0.007, -0.09, 0.09);
+    chassisPitch.current = THREE.MathUtils.damp(chassisPitch.current, targetPitch, 9, dt);
 
     // Body roll in cornering & drift counter-lean
     const targetRoll = THREE.MathUtils.clamp(
-      (lateralSpeed * 0.02) + (steeringAngle * -0.03),
-      -0.08,
-      0.08
+      (lateralSpeed * 0.026) + (steeringAngle * -0.038),
+      -0.11,
+      0.11
     );
-    chassisRoll.current = THREE.MathUtils.damp(chassisRoll.current, targetRoll, 7, dt);
+    chassisRoll.current = THREE.MathUtils.damp(chassisRoll.current, targetRoll, 8.5, dt);
 
     // Subtle road surface bounce
-    const bounce = Math.sin(state.clock.getElapsedTime() * 22) * Math.min(0.012, Math.abs(speed) * 0.0008);
+    const bounce = Math.sin(state.clock.getElapsedTime() * 24) * Math.min(0.015, Math.abs(speed) * 0.0009);
 
     if (chassisRef.current) {
       chassisRef.current.rotation.x = chassisPitch.current;
@@ -140,8 +140,8 @@ export function QuatroMesh({
     }
 
     // ── Exhaust Pops on Deceleration ────────────────────────────────────────
-    if (accel < -6.0 && Math.abs(speed) > 5 && Math.random() < 0.14) {
-      exhaustTimer.current = 0.16;
+    if (accel < -5.5 && Math.abs(speed) > 4 && Math.random() < 0.18) {
+      exhaustTimer.current = 0.18;
       soundManager.playExhaustPop();
     }
     if (exhaustTimer.current > 0) {
@@ -155,9 +155,9 @@ export function QuatroMesh({
 
     // ── Drift Tire Smoke & Friction Dynamics ─────────────────────────────────
     if (driftSmokeRef.current) {
-      if (driftFactor > 0.14 && Math.abs(speed) > 2.2) {
+      if (driftFactor > 0.10 && Math.abs(speed) > 2.0) {
         driftSmokeRef.current.visible = true;
-        const s = THREE.MathUtils.lerp(0.8, 1.8, driftFactor);
+        const s = THREE.MathUtils.lerp(0.85, 2.0, driftFactor);
         driftSmokeRef.current.scale.set(s, s, s);
       } else {
         driftSmokeRef.current.visible = false;
@@ -183,11 +183,11 @@ export function QuatroMesh({
         <meshBasicMaterial
           color="#38bdf8"
           transparent
-          opacity={0.35 + driftFactor * 0.3}
+          opacity={0.42 + driftFactor * 0.38}
           depthWrite={false}
         />
       </mesh>
-      <pointLight position={[0, 0.15, 0]} color="#38bdf8" intensity={1.8 + driftFactor * 1.5} distance={3.8} />
+      <pointLight position={[0, 0.15, 0]} color="#38bdf8" intensity={2.2 + driftFactor * 2.0} distance={4.5} />
 
       {/* ========================================================
           DYNAMIC SUSPENSION CHASSIS GROUP
@@ -211,14 +211,23 @@ export function QuatroMesh({
           <meshStandardMaterial color={bodyColor} roughness={0.38} metalness={0.25} />
         </mesh>
 
-        {/* Side Aero Skirts with neon accent line */}
+        {/* Side Aero Skirts with Cyber Neon Light Strip */}
         <mesh position={[0.84, 0.28, 0]}>
           <boxGeometry args={[0.06, 0.1, 1.3]} />
           <meshStandardMaterial color={trimColor} roughness={0.8} />
         </mesh>
+        <mesh position={[0.87, 0.28, 0]}>
+          <boxGeometry args={[0.015, 0.03, 1.25]} />
+          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={2.5} />
+        </mesh>
+
         <mesh position={[-0.84, 0.28, 0]}>
           <boxGeometry args={[0.06, 0.1, 1.3]} />
           <meshStandardMaterial color={trimColor} roughness={0.8} />
+        </mesh>
+        <mesh position={[-0.87, 0.28, 0]}>
+          <boxGeometry args={[0.015, 0.03, 1.25]} />
+          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={2.5} />
         </mesh>
 
         {/* 2. FRONT END & CYBER LIGHTBAR */}
@@ -242,10 +251,16 @@ export function QuatroMesh({
           <meshStandardMaterial color="#12141a" roughness={0.9} />
         </mesh>
 
+        {/* Illuminated Quattro Badge on Grille */}
+        <mesh position={[0, 0.44, 1.8]}>
+          <boxGeometry args={[0.22, 0.045, 0.02]} />
+          <meshStandardMaterial color="#ef4444" emissive="#dc2626" emissiveIntensity={2.8} />
+        </mesh>
+
         {/* Cyber Center LED Lightbar */}
         <mesh position={[0, 0.54, 1.79]}>
-          <boxGeometry args={[0.7, 0.03, 0.02]} />
-          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={2.5} />
+          <boxGeometry args={[0.75, 0.035, 0.02]} />
+          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={3.2} />
         </mesh>
 
         {/* Quad Projector Headlights (Outer + Inner) */}

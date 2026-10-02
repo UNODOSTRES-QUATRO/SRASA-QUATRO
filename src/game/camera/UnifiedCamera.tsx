@@ -15,6 +15,7 @@ interface UnifiedCameraProps {
   vehicleStateRef?: React.MutableRefObject<VehicleState>;
   humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
   isInsideEscapeRoom?: boolean;
+  isMoving?: boolean;
 }
 
 export function UnifiedCamera({
@@ -25,6 +26,7 @@ export function UnifiedCamera({
   vehicleStateRef,
   humanPosRef,
   isInsideEscapeRoom = false,
+  isMoving = false,
 }: UnifiedCameraProps) {
   const { camera, gl } = useThree();
 
@@ -266,10 +268,11 @@ export function UnifiedCamera({
             0.22,
             Math.PI / 2 - 0.08
           );
-          const decay = Math.exp(-7.0 * dt);
+          const decay = Math.exp(-8.0 * dt);
           pointerVel.current.x *= decay;
           pointerVel.current.y *= decay;
-        } else {
+        } else if (isMoving) {
+          // Gentle auto-follow only when actively walking
           let diff = liveHeading - orbitAzimuth.current;
           while (diff < -Math.PI) diff += Math.PI * 2;
           while (diff > Math.PI) diff -= Math.PI * 2;

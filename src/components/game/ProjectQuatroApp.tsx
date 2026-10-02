@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 import { GameCanvas } from "./GameCanvas";
 import { UnifiedWorld } from "@/game/world/UnifiedWorld";
-import { CastleEscapeRoomScene } from "@/game/world/CastleEscapeRoomScene";
 
 import { HomeRoutineOverlay } from "@/components/ui/HomeRoutineOverlay";
 import { OfficeWorkstationModal } from "@/components/ui/OfficeWorkstationModal";
@@ -498,19 +497,9 @@ export default function ProjectQuatroApp() {
                 return;
               }
             } else if (currentSession.currentLocation === "KASTIL" && currentSession.kastil.insideEscapeRoom) {
-              // Escape Room interior bounds
-              nextX = Math.max(-5.5, Math.min(5.5, nextX));
-              nextZ = Math.max(-5.8, Math.min(5.8, nextZ));
-              const [rx, , rz] = resolvePlayerPosition(
-                currentSession.humanPosition,
-                [nextX, 0, nextZ],
-                "KASTIL",
-                true,
-                0.32,
-                currentSession.kastil.escapeRoom.doorUnlocked
-              );
-              nextX = rx;
-              nextZ = rz;
+              // Escape Room interior bounds physically inside the Keep at Z = 205
+              nextX = THREE.MathUtils.clamp(nextX, -5.5, 5.5);
+              nextZ = THREE.MathUtils.clamp(nextZ, 199.5, 210.8);
             } else {
               // Continuous Open World Map bounds
               nextX = THREE.MathUtils.clamp(nextX, -28.0, 28.0);
@@ -524,6 +513,14 @@ export default function ProjectQuatroApp() {
                 Math.hypot(nextX - 18.0, nextZ - 75.8) < 2.0
               ) {
                 soundManager.playPortalWhoosh();
+                setVehicleState((prev) => ({
+                  ...prev,
+                  position: { x: 0, y: 0.35, z: 118 },
+                  heading: 0,
+                  speed: 0,
+                }));
+                humanVelocityRef.current = { vx: 0, vz: 0 };
+                humanPosRef.current = { x: 0, y: 0, z: 125, heading: 0 };
                 setSession((prev) => enterAlternateDimension(prev));
                 setIsVoidCutsceneOpen(true);
                 return;
@@ -532,10 +529,13 @@ export default function ProjectQuatroApp() {
               // Check walking into Keep Doorway in Castle Courtyard
               if (Math.hypot(nextX - 0, nextZ - 198.0) < 2.2) {
                 soundManager.playDoorSlam();
+                humanVelocityRef.current = { vx: 0, vz: 0 };
+                humanPosRef.current = { x: 0, y: 0, z: 201.0, heading: 0 };
                 setSession((prev) => ({
                   ...prev,
                   currentLocation: "KASTIL",
-                  humanPosition: [0, 0, 4.5],
+                  humanPosition: [0, 0, 201.0],
+                  humanHeading: 0,
                   kastil: {
                     ...prev.kastil,
                     insideEscapeRoom: true,
@@ -800,10 +800,13 @@ export default function ProjectQuatroApp() {
       // Keep Doorway Entry
       if (distToKeepDoor < 2.5) {
         soundManager.playDoorSlam();
+        humanVelocityRef.current = { vx: 0, vz: 0 };
+        humanPosRef.current = { x: 0, y: 0, z: 201.0, heading: 0 };
         setSession((prev) => ({
           ...prev,
           currentLocation: "KASTIL",
-          humanPosition: [0, 0, 4.5],
+          humanPosition: [0, 0, 201.0],
+          humanHeading: 0,
           kastil: { ...prev.kastil, insideEscapeRoom: true },
           activePrompt:
             "✦ PINTU TERBANTING MENUTUP! Kamu terkunci di aula kastil! Cari cara keluar (Escape Room).",
@@ -812,25 +815,25 @@ export default function ProjectQuatroApp() {
       }
     }
 
-    // 3. INSIDE ESCAPE ROOM INTERACTIONS
+    // 3. INSIDE ESCAPE ROOM INTERACTIONS (physically inside Keep at Z = 205)
     if (session.currentLocation === "KASTIL" && session.kastil.insideEscapeRoom) {
-      const distToCabinet = Math.hypot(hx - (-5.2), hz - 0);
-      const distToStove = Math.hypot(hx - 5.2, hz - 0);
-      const distToSecretWall = Math.hypot(hx - (-1.4), hz - (-5.8));
-      const distToExitDoor = Math.hypot(hx - 2.0, hz - (-5.8));
+      const distToCabinet = Math.hypot(hx - 5.5, hz - 205.0);
+      const distToStove = Math.hypot(hx - (-5.5), hz - 205.0);
+      const distToSecretWall = Math.hypot(hx - 1.4, hz - 210.8);
+      const distToExitDoor = Math.hypot(hx - (-2.0), hz - 210.8);
 
-      if (distToCabinet < 2.0) {
+      if (distToCabinet < 2.4) {
         soundManager.playClick();
         setEscapeInspectTarget("CABINET");
         return;
       }
-      if (distToStove < 2.0 && session.kastil.escapeRoom.cabinetSearched) {
+      if (distToStove < 2.4 && session.kastil.escapeRoom.cabinetSearched) {
         soundManager.playClick();
         setEscapeInspectTarget("STOVE");
         return;
       }
       if (
-        distToSecretWall < 2.0 &&
+        distToSecretWall < 2.4 &&
         session.kastil.escapeRoom.cabinetSearched &&
         session.kastil.escapeRoom.stoveChecked
       ) {
@@ -838,7 +841,7 @@ export default function ProjectQuatroApp() {
         setEscapeInspectTarget("SECRET_WALL");
         return;
       }
-      if (distToExitDoor < 2.0) {
+      if (distToExitDoor < 2.4) {
         soundManager.playClick();
         setEscapeInspectTarget("EXIT_DOOR");
         return;
@@ -922,10 +925,10 @@ export default function ProjectQuatroApp() {
         contextualAction = "Keluar ke Halaman";
       }
     } else if (session.currentLocation === "KASTIL" && session.kastil.insideEscapeRoom) {
-      if (Math.hypot(playerLocalX + 5.2, playerLocalZ) < 2) contextualAction = "Periksa Lemari";
-      else if (session.kastil.escapeRoom.cabinetSearched && Math.hypot(playerLocalX - 5.2, playerLocalZ) < 2) contextualAction = "Periksa Perapian";
-      else if (session.kastil.escapeRoom.cabinetSearched && session.kastil.escapeRoom.stoveChecked && Math.hypot(playerLocalX + 1.4, playerLocalZ + 5.8) < 2) contextualAction = "Periksa Batu Longgar";
-      else if (Math.hypot(playerLocalX - 2.0, playerLocalZ + 5.8) < 2) contextualAction = "Periksa Pintu Keluar";
+      if (Math.hypot(playerWorldX - 5.5, playerWorldZ - 205.0) < 2.5) contextualAction = "Periksa Lemari";
+      else if (session.kastil.escapeRoom.cabinetSearched && Math.hypot(playerWorldX - (-5.5), playerWorldZ - 205.0) < 2.5) contextualAction = "Periksa Perapian";
+      else if (session.kastil.escapeRoom.cabinetSearched && session.kastil.escapeRoom.stoveChecked && Math.hypot(playerWorldX - 1.4, playerWorldZ - 210.8) < 2.5) contextualAction = "Periksa Batu Longgar";
+      else if (Math.hypot(playerWorldX - (-2.0), playerWorldZ - 210.8) < 2.5) contextualAction = "Periksa Pintu Keluar";
     } else {
       // In Continuous World
       if (Math.hypot(playerWorldX - 20.0, playerWorldZ - (-55.7)) < 2.5) contextualAction = "Masuk Rumah";
@@ -963,28 +966,21 @@ export default function ProjectQuatroApp() {
           attackProgress={weaponSystem.stateRef.current.activeAttack?.progress ?? 0}
           isAttacking={isAttackingRef.current}
         >
-          {session.currentLocation === "KASTIL" && session.kastil.insideEscapeRoom ? (
-            <CastleEscapeRoomScene
-              escapeRoomState={session.kastil.escapeRoom}
-              playerPos={session.humanPosition}
-            />
-          ) : (
-            <UnifiedWorld
-              playerMode={playerMode}
-              humanPos={renderedHumanPos}
-              humanHeading={session.humanHeading}
-              vehicleState={vehicleState}
-              vehicleStateRef={vehicleStateRef}
-              dayNumber={session.dayNumber}
-              rumahState={session.rumah}
-              workplaceState={session.workplace}
-              kastilState={session.kastil}
-              isEvening={session.phase === "EVENING_ROUTINE"}
-              isAttacking={isAttackingRef.current}
-              activeWeaponId={weaponSystem.stateRef.current.activeWeaponId}
-              weaponStateRef={weaponSystem.stateRef}
-            />
-          )}
+          <UnifiedWorld
+            playerMode={playerMode}
+            humanPos={renderedHumanPos}
+            humanHeading={session.humanHeading}
+            vehicleState={vehicleState}
+            vehicleStateRef={vehicleStateRef}
+            dayNumber={session.dayNumber}
+            rumahState={session.rumah}
+            workplaceState={session.workplace}
+            kastilState={session.kastil}
+            isEvening={session.phase === "EVENING_ROUTINE"}
+            isAttacking={isAttackingRef.current}
+            activeWeaponId={weaponSystem.stateRef.current.activeWeaponId}
+            weaponStateRef={weaponSystem.stateRef}
+          />
         </GameCanvas>
       )}
 

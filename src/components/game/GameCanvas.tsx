@@ -97,6 +97,7 @@ export function GameCanvas({
         vehicleStateRef={vehicleStateRef}
         humanPosRef={humanPosRef}
         isInsideEscapeRoom={isInsideEscapeRoom}
+        isMoving={isHumanMoving}
       />
 
       {/* ── Human Player Character (Shown on foot, socketed with weapon) ── */}
