@@ -18,6 +18,7 @@ import { WeaponHUD } from "@/components/ui/WeaponHUD";
 import {
   createInitialSessionState,
   advanceDay,
+  arriveHomeForEvening,
   completeWorkday,
   cookBreakfast,
   eatBreakfast,
@@ -167,11 +168,20 @@ export default function ProjectQuatroApp() {
     soundManager.setMode("DRIVING");
     humanVelocityRef.current = { vx: 0, vz: 0 };
     setPlayerMode("DRIVING");
-    setSession((prev) => ({
-      ...prev,
-      currentLocation: "JALAN",
-      activePrompt: "✦ Di dalam Quattro. [WASD] Kemudikan, [Space] Drift FR, [C] Ganti Kamera, [E] Turun.",
-    }));
+    setSession((prev) => {
+      let nextPhase = prev.phase;
+      if (prev.phase === "MORNING_ROUTINE") {
+        nextPhase = "COMMUTE_TO_WORK";
+      } else if (prev.phase === "AT_WORK" && prev.workplace.allTasksDone && prev.dayNumber < 3) {
+        nextPhase = "COMMUTE_HOME";
+      }
+      return {
+        ...prev,
+        currentLocation: "JALAN",
+        phase: nextPhase,
+        activePrompt: "✦ Di dalam Quattro. [WASD] Kemudikan, [Space] Drift FR, [C] Ganti Kamera, [E] Turun.",
+      };
+    });
 
     // Door closes after entry
     setTimeout(() => {
@@ -469,12 +479,70 @@ export default function ProjectQuatroApp() {
 
     if (playerModeRef.current === "ON_FOOT") {
       setIsHumanMoving(isMoving);
-      setSession((prev) => ({
-        ...prev,
-        humanPosition: [x, 0, z],
-        humanHeading: heading,
-      }));
+      setSession((prev) => {
+        let updated: GameSessionState = {
+          ...prev,
+          humanPosition: [x, 0, z],
+          humanHeading: heading,
+        };
+
+        // Zone 1: Entered Office Building
+        if (
+          (updated.phase === "COMMUTE_TO_WORK" || updated.phase === "AT_WORK") &&
+          x >= 11 && x <= 25 && z >= 63 && z <= 77
+        ) {
+          if (updated.currentLocation !== "TEMPAT_KERJA") {
+            updated = {
+              ...updated,
+              currentLocation: "TEMPAT_KERJA",
+              phase: "AT_WORK",
+              activePrompt: updated.workplace.allTasksDone
+                ? "✦ Tugas selesai. Kembali ke mobil untuk pulang."
+                : "✦ Masuk kantor. Tekan [E] di workstation PC untuk mulai coding.",
+            };
+          }
+        }
+
+        // Zone 2: Returned Home
+        if (
+          updated.phase === "COMMUTE_HOME" &&
+          x >= 16 && x <= 24 && z >= -64 && z <= -56
+        ) {
+          if (updated.currentLocation !== "RUMAH") {
+            const arrived = arriveHomeForEvening(updated);
+            updated = {
+              ...arrived,
+              humanPosition: [x, 0, z],
+              humanHeading: heading,
+            };
+          }
+        }
+
+        // Zone 3: Left Home onto Driveway
+        if (
+          updated.phase === "MORNING_ROUTINE" &&
+          updated.rumah.canExitHouse &&
+          (x < 15.5 || z > -55.5)
+        ) {
+          if (updated.currentLocation !== "JALAN") {
+            updated = {
+              ...updated,
+              currentLocation: "JALAN",
+              phase: "COMMUTE_TO_WORK",
+              activePrompt: "✦ Menuju mobil Quattro di halaman depan.",
+            };
+          }
+        }
+
+        return updated;
+      });
     } else if (vehicle) {
+      if (humanPosRef.current) {
+        humanPosRef.current.x = vehicle.position.x;
+        humanPosRef.current.y = vehicle.position.y;
+        humanPosRef.current.z = vehicle.position.z;
+        humanPosRef.current.heading = vehicle.heading;
+      }
       setVehicleState({ ...vehicle });
     }
   }, []);
@@ -548,6 +616,18 @@ export default function ProjectQuatroApp() {
         }));
         return;
       }
+    }
+
+    // Exit front door onto porch/driveway
+    if (distToDoor < 2.2 && session.phase === "MORNING_ROUTINE" && session.rumah.canExitHouse) {
+      soundManager.playClick();
+      setSession((prev) => ({
+        ...prev,
+        currentLocation: "JALAN",
+        phase: "COMMUTE_TO_WORK",
+        activePrompt: "✦ Menuju mobil Quattro di halaman depan.",
+      }));
+      return;
     }
 
     // 2. CONTINUOUS WORLD INTERACTIONS

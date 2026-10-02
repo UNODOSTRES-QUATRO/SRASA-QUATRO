@@ -197,11 +197,14 @@ export function HumanPlayer({
       weaponSocketRef.current.rotation.set(weaponSocketRot.current.x, weaponSocketRot.current.y, weaponSocketRot.current.z);
     }
 
-    // ── 5. Slash Energy Ribbon ──
+    // ── 5. Dynamic Slash Energy Ribbon ──
     if (slashRibbonRef.current) {
       if (liveIsAttacking && liveWeaponId === "BLUE_SHARD_SWORD" && liveProgress > 0.05 && liveProgress < 0.88) {
         slashRibbonRef.current.visible = true;
-        (slashRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = Math.sin(liveProgress * Math.PI) * 0.85;
+        const slashPhase = liveProgress;
+        slashRibbonRef.current.rotation.set(0.35 + slashPhase * 0.4, -slashPhase * 0.85, -0.6 + slashPhase * 1.3);
+        slashRibbonRef.current.scale.set(0.85 + slashPhase * 0.4, 0.85 + slashPhase * 0.4, 1.0);
+        (slashRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = Math.sin(liveProgress * Math.PI) * 0.92;
       } else {
         slashRibbonRef.current.visible = false;
       }
@@ -213,6 +216,7 @@ export function HumanPlayer({
         inkRibbonRef.current.visible = true;
         (inkRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = Math.sin(liveProgress * Math.PI) * 0.9;
         inkRibbonRef.current.rotation.z = liveProgress * Math.PI * 2;
+        inkRibbonRef.current.scale.setScalar(0.7 + liveProgress * 0.6);
       } else {
         inkRibbonRef.current.visible = false;
       }
@@ -227,7 +231,7 @@ export function HumanPlayer({
       nockedArrowRef.current.visible = isDrawing;
       nockedArrowRef.current.position.x = -0.18 + liveCharge * 0.15;
     }
-  });
+  }, 1);
 
   const currentWeaponId = (weaponSystemStateRef?.current?.activeWeaponId ?? activeWeaponId) as WeaponId;
 

@@ -189,7 +189,7 @@ export function QuatroMesh({
         driftSmokeRef.current.visible = false;
       }
     }
-  });
+  }, 1);
 
   const accentColor = "#f8f4eb"; // Heritage warm off-white
   const trimColor = "#1a1c22"; // Dark matte aero trim
@@ -346,6 +346,15 @@ export function QuatroMesh({
           <boxGeometry args={[0.24, 0.03, 0.4]} />
           <meshStandardMaterial color={trimColor} roughness={0.9} />
         </mesh>
+        {/* Cyber Neon Accents on Hood Creases */}
+        <mesh position={[0.38, 0.69, 0.95]} rotation={[-0.08, 0, 0]}>
+          <boxGeometry args={[0.015, 0.02, 1.15]} />
+          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={2.5} />
+        </mesh>
+        <mesh position={[-0.38, 0.69, 0.95]} rotation={[-0.08, 0, 0]}>
+          <boxGeometry args={[0.015, 0.02, 1.15]} />
+          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={2.5} />
+        </mesh>
 
         {/* 4. CABIN & ROOF */}
         <mesh position={[0, 1.05, -0.22]} castShadow receiveShadow>
@@ -437,6 +446,43 @@ export function QuatroMesh({
           <boxGeometry args={[0.22, 0.12, 0.02]} />
           <meshStandardMaterial color="#d97706" emissive="#f59e0b" emissiveIntensity={2.4} />
         </mesh>
+
+        {/* Driver Racing Bucket Seat & Stylized Driver */}
+        <group position={[-0.34, 0.58, -0.05]}>
+          {/* Bucket Seat Base & High Backrest */}
+          <mesh position={[0, 0.05, 0]} castShadow>
+            <boxGeometry args={[0.38, 0.12, 0.42]} />
+            <meshStandardMaterial color="#1e293b" roughness={0.8} />
+          </mesh>
+          <mesh position={[0, 0.32, -0.18]} rotation={[0.18, 0, 0]} castShadow>
+            <boxGeometry args={[0.36, 0.52, 0.12]} />
+            <meshStandardMaterial color="#0f172a" roughness={0.8} />
+          </mesh>
+
+          {/* Driver Silhouette (Visible through windows) */}
+          <mesh position={[0, 0.28, -0.02]} rotation={[0.15, 0, 0]} castShadow>
+            <boxGeometry args={[0.32, 0.4, 0.2]} />
+            <meshStandardMaterial color="#319795" roughness={0.7} />
+          </mesh>
+          <mesh position={[0, 0.56, 0.02]} castShadow>
+            <sphereGeometry args={[0.12, 12, 12]} />
+            <meshStandardMaterial color="#fbd38d" roughness={0.6} />
+          </mesh>
+          <mesh position={[0, 0.6, 0.02]} castShadow>
+            <boxGeometry args={[0.22, 0.1, 0.22]} />
+            <meshStandardMaterial color="#4a2c11" roughness={0.9} />
+          </mesh>
+          {/* Hands holding steering wheel */}
+          <mesh position={[-0.12, 0.26, 0.16]} rotation={[0.45, 0.2, 0]}>
+            <boxGeometry args={[0.07, 0.07, 0.26]} />
+            <meshStandardMaterial color="#2c7a7b" roughness={0.7} />
+          </mesh>
+          <mesh position={[0.12, 0.26, 0.16]} rotation={[0.45, -0.2, 0]}>
+            <boxGeometry args={[0.07, 0.07, 0.26]} />
+            <meshStandardMaterial color="#2c7a7b" roughness={0.7} />
+          </mesh>
+        </group>
+
         <SemicolonCat position={[0.35, 0.64, -0.1]} isAlert={isCatAlert} />
 
         {/* 6. REAR SPOILER & OLED TAILLIGHT BAR */}

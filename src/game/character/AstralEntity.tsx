@@ -237,7 +237,7 @@ export function AstralMonsterSystem({
         })
       );
     }
-  });
+  }, 1);
 
   return (
     <group>
@@ -342,7 +342,14 @@ function SingleAstralEntity({
     const idHash = data.id.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 20;
     const wanderX = data.basePosition[0] + Math.sin(t * 0.35 + idHash) * data.wanderRadius;
     const wanderZ = data.basePosition[2] + Math.cos(t * 0.28 + idHash * 1.3) * (data.wanderRadius * 0.75);
-    const hoverY = data.basePosition[1] + Math.sin(t * 1.6 + idHash) * 0.24;
+    const px = humanPosRef?.current?.x ?? playerPos[0];
+    const pz = humanPosRef?.current?.z ?? playerPos[2];
+    const dx = px - wanderX;
+    const dz = pz - wanderZ;
+    const distToPlayer = Math.hypot(dx, dz);
+
+    const proximityLift = distToPlayer < 6 ? (1 - distToPlayer / 6) * 0.38 : 0;
+    const hoverY = data.basePosition[1] + Math.sin(t * 1.6 + idHash) * 0.24 + proximityLift;
 
     // Add subtle hit shudder offset
     const shudderX = hitShudderRef.current > 0 ? (Math.random() - 0.5) * 0.08 : 0;
@@ -352,12 +359,6 @@ function SingleAstralEntity({
 
     if (rootRef.current) {
       // Soft orientation towards player if nearby (60+ FPS real-time tracking)
-      const px = humanPosRef?.current?.x ?? playerPos[0];
-      const pz = humanPosRef?.current?.z ?? playerPos[2];
-      const dx = px - wanderX;
-      const dz = pz - wanderZ;
-      const distToPlayer = Math.hypot(dx, dz);
-
       if (distToPlayer < 14) {
         const lookAngle = Math.atan2(dx, dz);
         rootRef.current.rotation.y = THREE.MathUtils.damp(rootRef.current.rotation.y, lookAngle, 3.5, dt);
@@ -411,7 +412,7 @@ function SingleAstralEntity({
         }
       }
     }
-  });
+  }, 1);
 
   return (
     <group ref={rootRef} position={data.basePosition}>

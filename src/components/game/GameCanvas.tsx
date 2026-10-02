@@ -142,6 +142,14 @@ function ContinuousWorldPhysics({
 
       vehicleStateRef.current = nextVehicle;
 
+      // Keep humanPosRef in lockstep with vehicle position so all world proximity queries are always accurate
+      if (humanPosRef?.current) {
+        humanPosRef.current.x = nextVehicle.position.x;
+        humanPosRef.current.y = nextVehicle.position.y;
+        humanPosRef.current.z = nextVehicle.position.z;
+        humanPosRef.current.heading = nextVehicle.heading;
+      }
+
       soundManager.updateEngine(nextVehicle.speed, true);
       soundManager.updateTireDrift(nextVehicle.driftFactor, nextVehicle.speed);
 
@@ -151,7 +159,7 @@ function ContinuousWorldPhysics({
         lastSyncTime.current = now;
       }
     }
-  });
+  }, 0);
 
   return null;
 }

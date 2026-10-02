@@ -459,44 +459,69 @@ function CarHeadlights({
   vehicleStateRef?: React.MutableRefObject<VehicleState>;
   playerMode: "ON_FOOT" | "DRIVING";
 }) {
-  const lightRef = useRef<THREE.SpotLight>(null);
-  const targetRef = useRef<THREE.Object3D>(null);
+  const leftLightRef = useRef<THREE.SpotLight>(null);
+  const rightLightRef = useRef<THREE.SpotLight>(null);
+  const leftTargetRef = useRef<THREE.Object3D>(null);
+  const rightTargetRef = useRef<THREE.Object3D>(null);
 
   useFrame(() => {
     const live = vehicleStateRef?.current ?? vehicleState;
-    if (lightRef.current) {
-      lightRef.current.position.set(
-        live.position.x,
-        live.position.y + 0.65,
-        live.position.z + Math.cos(live.heading) * 1.8
-      );
+    const sinH = Math.sin(live.heading);
+    const cosH = Math.cos(live.heading);
+
+    // Front bumper forward offset (1.8m)
+    const forwardX = live.position.x + sinH * 1.8;
+    const forwardZ = live.position.z + cosH * 1.8;
+
+    // Perpendicular vector for left/right lateral offset (0.52m)
+    const lateralX = cosH * 0.52;
+    const lateralZ = -sinH * 0.52;
+
+    const leftX = forwardX - lateralX;
+    const leftZ = forwardZ - lateralZ;
+    const rightX = forwardX + lateralX;
+    const rightZ = forwardZ + lateralZ;
+
+    if (leftLightRef.current) {
+      leftLightRef.current.position.set(leftX, live.position.y + 0.52, leftZ);
     }
-    if (targetRef.current) {
-      targetRef.current.position.set(
-        live.position.x + Math.sin(live.heading) * 35,
-        0,
-        live.position.z + Math.cos(live.heading) * 35
-      );
-      targetRef.current.updateMatrixWorld();
+    if (rightLightRef.current) {
+      rightLightRef.current.position.set(rightX, live.position.y + 0.52, rightZ);
     }
-  });
+
+    if (leftTargetRef.current) {
+      leftTargetRef.current.position.set(leftX + sinH * 38, 0, leftZ + cosH * 38);
+      leftTargetRef.current.updateMatrixWorld();
+    }
+    if (rightTargetRef.current) {
+      rightTargetRef.current.position.set(rightX + sinH * 38, 0, rightZ + cosH * 38);
+      rightTargetRef.current.updateMatrixWorld();
+    }
+  }, 1);
+
+  const intensity = playerMode === "DRIVING" ? 6.5 : 2.5;
 
   return (
     <>
-      <object3D ref={targetRef} position={[vehicleState.position.x, 0, vehicleState.position.z + 35]} />
+      <object3D ref={leftTargetRef} position={[vehicleState.position.x - 0.5, 0, vehicleState.position.z + 35]} />
+      <object3D ref={rightTargetRef} position={[vehicleState.position.x + 0.5, 0, vehicleState.position.z + 35]} />
       <spotLight
-        ref={lightRef}
-        target={targetRef.current ?? undefined}
-        position={[
-          vehicleState.position.x,
-          vehicleState.position.y + 0.65,
-          vehicleState.position.z + Math.cos(vehicleState.heading) * 1.8,
-        ]}
+        ref={leftLightRef}
+        target={leftTargetRef.current ?? undefined}
         color="#fffbeb"
-        intensity={playerMode === "DRIVING" ? 8.5 : 2.5}
-        angle={0.44}
-        penumbra={0.65}
-        distance={65}
+        intensity={intensity}
+        angle={0.42}
+        penumbra={0.6}
+        distance={60}
+      />
+      <spotLight
+        ref={rightLightRef}
+        target={rightTargetRef.current ?? undefined}
+        color="#fffbeb"
+        intensity={intensity}
+        angle={0.42}
+        penumbra={0.6}
+        distance={60}
       />
     </>
   );

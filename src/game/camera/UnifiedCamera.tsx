@@ -270,11 +270,31 @@ export function UnifiedCamera({
 
     } else {
       // ── MODE: ON_FOOT (Smooth Over-The-Shoulder / Isometric Orbit) ─────────
+      // Detect if player is inside an interior (Home, Workplace, or Great Keep)
+      const isInsideHome =
+        liveTargetPos[0] > 15.5 &&
+        liveTargetPos[0] < 24.5 &&
+        liveTargetPos[2] > -64.5 &&
+        liveTargetPos[2] < -55.5;
+
+      const isInsideWorkplace =
+        liveTargetPos[0] > 11.0 &&
+        liveTargetPos[0] < 25.0 &&
+        liveTargetPos[2] > 63.0 &&
+        liveTargetPos[2] < 77.0;
+
+      const isInterior = isInsideEscapeRoom || isInsideHome || isInsideWorkplace || liveTargetPos[2] > 198.0;
+
+      // Smart interior distance clamping to prevent clipping through exterior walls/roofs
+      const effectiveTargetDistance = isInterior
+        ? THREE.MathUtils.clamp(targetOrbitDistance.current, 2.8, 4.2)
+        : targetOrbitDistance.current;
+
       // Smooth orbit distance damping
-      const distAlpha = 1.0 - Math.exp(-6.0 * dt);
+      const distAlpha = 1.0 - Math.exp(-6.5 * dt);
       orbitDistance.current = THREE.MathUtils.lerp(
         orbitDistance.current,
-        targetOrbitDistance.current,
+        effectiveTargetDistance,
         distAlpha
       );
 
@@ -284,8 +304,8 @@ export function UnifiedCamera({
           orbitAzimuth.current -= pointerVel.current.x * dt;
           orbitPolar.current = THREE.MathUtils.clamp(
             orbitPolar.current + pointerVel.current.y * dt,
-            0.22,
-            Math.PI / 2 - 0.08
+            isInterior ? 0.35 : 0.22,
+            isInterior ? 1.25 : Math.PI / 2 - 0.08
           );
           const decay = Math.exp(-8.0 * dt);
           pointerVel.current.x *= decay;
@@ -302,19 +322,24 @@ export function UnifiedCamera({
       const hDist = orbitDistance.current * Math.sin(orbitPolar.current);
       const vDist = orbitDistance.current * Math.cos(orbitPolar.current);
 
+      const calculatedCamY = liveTargetPos[1] + vDist + (isInterior ? 0.35 : 0.85);
+      const clampedCamY = isInterior
+        ? Math.min(2.85, Math.max(0.65, calculatedCamY))
+        : Math.max(0.55, calculatedCamY);
+
       desiredPos.set(
         liveTargetPos[0] - Math.sin(orbitAzimuth.current) * hDist,
-        Math.max(0.45, liveTargetPos[1] + vDist + (isInsideEscapeRoom ? 0.4 : 0.8)),
+        clampedCamY,
         liveTargetPos[2] - Math.cos(orbitAzimuth.current) * hDist
       );
 
       desiredLookAt.set(
         liveTargetPos[0],
-        liveTargetPos[1] + (isInsideEscapeRoom ? 1.0 : 1.15),
+        liveTargetPos[1] + (isInterior ? 1.0 : 1.15),
         liveTargetPos[2]
       );
 
-      targetFov = 48;
+      targetFov = isInterior ? 52 : 48;
     }
 
     // ── First Frame Initializer ──────────────────────────────────────────────
@@ -329,11 +354,11 @@ export function UnifiedCamera({
 
     // ── Exponential Smoothing (1 - exp(-lambda * dt)) ────────────────────────
     // Softer lambda during transitions for a cinematic crane glide, tight lambda during gameplay
-    const basePosLambda = mode === "DRIVING_COCKPIT" ? 20.0 : mode === "DRIVING_CHASE" ? 8.2 : 7.0;
-    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 20.0 : mode === "DRIVING_CHASE" ? 9.5 : 7.5;
+    const basePosLambda = mode === "DRIVING_COCKPIT" ? 22.0 : mode === "DRIVING_CHASE" ? 8.5 : 7.5;
+    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 22.0 : mode === "DRIVING_CHASE" ? 9.8 : 8.0;
 
-    const posLambda = THREE.MathUtils.lerp(basePosLambda, 4.8, transitionProgress.current);
-    const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 5.2, transitionProgress.current);
+    const posLambda = THREE.MathUtils.lerp(basePosLambda, 5.0, transitionProgress.current);
+    const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 5.5, transitionProgress.current);
 
     const posAlpha = 1.0 - Math.exp(-posLambda * dt);
     const lookAlpha = 1.0 - Math.exp(-lookLambda * dt);
@@ -347,11 +372,11 @@ export function UnifiedCamera({
     // Dynamic FOV smoothing
     const perspCamera = camera as THREE.PerspectiveCamera;
     if (perspCamera.isPerspectiveCamera) {
-      const fovAlpha = 1.0 - Math.exp(-4.5 * dt);
+      const fovAlpha = 1.0 - Math.exp(-5.0 * dt);
       perspCamera.fov = THREE.MathUtils.lerp(perspCamera.fov, targetFov, fovAlpha);
       perspCamera.updateProjectionMatrix();
     }
-  }, 1);
+  }, 2);
 
   return null;
 }
