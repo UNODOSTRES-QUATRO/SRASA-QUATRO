@@ -13,6 +13,7 @@ interface HumanPlayerProps {
   chargeLevel?: number;
   attackProgress?: number;
   isAttacking?: boolean;
+  humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
 }
 
 export function HumanPlayer({
@@ -23,6 +24,7 @@ export function HumanPlayer({
   chargeLevel = 0,
   attackProgress = 0,
   isAttacking = false,
+  humanPosRef,
 }: HumanPlayerProps) {
   const rootRef = useRef<THREE.Group>(null);
   const leftLegRef = useRef<THREE.Mesh>(null);
@@ -38,8 +40,17 @@ export function HumanPlayer({
     const timeSec = clock.getElapsedTime();
 
     if (rootRef.current) {
-      rootRef.current.position.set(position[0], position[1], position[2]);
-      rootRef.current.rotation.y = heading;
+      if (humanPosRef?.current) {
+        rootRef.current.position.set(
+          humanPosRef.current.x,
+          humanPosRef.current.y,
+          humanPosRef.current.z
+        );
+        rootRef.current.rotation.y = humanPosRef.current.heading;
+      } else {
+        rootRef.current.position.set(position[0], position[1], position[2]);
+        rootRef.current.rotation.y = heading;
+      }
     }
 
     // Walking animation

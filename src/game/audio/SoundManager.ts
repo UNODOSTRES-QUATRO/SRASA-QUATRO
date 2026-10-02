@@ -29,8 +29,22 @@ export class SoundManager {
   private isCinematic = false;
   private currentMode: "DRIVING" | "WALKING" | "COMBAT" = "WALKING";
 
+  public ensureAudioContext() {
+    if (!this.isInitialized) {
+      this.init();
+    }
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
   public init() {
-    if (this.isInitialized) return;
+    if (this.isInitialized) {
+      if (this.ctx && this.ctx.state === "suspended") {
+        this.ctx.resume().catch(() => {});
+      }
+      return;
+    }
 
     try {
       const AudioCtx =
@@ -39,13 +53,17 @@ export class SoundManager {
           .webkitAudioContext;
       this.ctx = new AudioCtx();
 
+      if (this.ctx.state === "suspended") {
+        this.ctx.resume().catch(() => {});
+      }
+
       // Master Compressor & Gain for loud, clear, non-clipping audio
       this.compressor = this.ctx.createDynamicsCompressor();
-      this.compressor.threshold.setValueAtTime(-18, this.ctx.currentTime);
-      this.compressor.knee.setValueAtTime(12, this.ctx.currentTime);
-      this.compressor.ratio.setValueAtTime(5, this.ctx.currentTime);
+      this.compressor.threshold.setValueAtTime(-14, this.ctx.currentTime);
+      this.compressor.knee.setValueAtTime(10, this.ctx.currentTime);
+      this.compressor.ratio.setValueAtTime(4.5, this.ctx.currentTime);
       this.compressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
-      this.compressor.release.setValueAtTime(0.2, this.ctx.currentTime);
+      this.compressor.release.setValueAtTime(0.18, this.ctx.currentTime);
 
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
@@ -184,7 +202,7 @@ export class SoundManager {
     this.ambientFilter.Q.setValueAtTime(2.2, this.ctx.currentTime);
 
     this.ambientGain = this.ctx.createGain();
-    this.ambientGain.gain.setValueAtTime(0.58, this.ctx.currentTime);
+    this.ambientGain.gain.setValueAtTime(0.72, this.ctx.currentTime);
 
     this.ambientFilter.connect(this.ambientGain);
     this.ambientGain.connect(this.compressor);
@@ -201,6 +219,7 @@ export class SoundManager {
   }
 
   private playNextPadChord() {
+    this.ensureAudioContext();
     if (!this.ctx || !this.ambientFilter || this.isMuted) return;
 
     const chord = SoundManager.CHORD_PROGRESSION[this.currentChordIndex];
@@ -226,7 +245,7 @@ export class SoundManager {
     this.activeVoices = [];
 
     // Filter frequency sweep
-    const targetFilterFreq = this.currentMode === "DRIVING" ? 850 : this.currentMode === "COMBAT" ? 1100 : 720;
+    const targetFilterFreq = this.currentMode === "DRIVING" ? 880 : this.currentMode === "COMBAT" ? 1150 : 740;
     this.ambientFilter.frequency.setTargetAtTime(targetFilterFreq, now, 1.8);
 
     // Spawn new chord voices with warm presence
@@ -241,7 +260,7 @@ export class SoundManager {
       osc.detune.setValueAtTime(detuneCents, now);
 
       const gain = this.ctx.createGain();
-      const targetVol = (0.52 / chord.length) * (idx === 0 ? 1.6 : 1.0);
+      const targetVol = (0.68 / chord.length) * (idx === 0 ? 1.6 : 1.0);
       gain.gain.setValueAtTime(0.0001, now);
       gain.gain.linearRampToValueAtTime(targetVol, now + fadeDuration);
 
@@ -254,24 +273,26 @@ export class SoundManager {
   }
 
   public setMode(mode: "DRIVING" | "WALKING" | "COMBAT") {
+    this.ensureAudioContext();
     this.currentMode = mode;
     if (!this.ctx || !this.ambientFilter || !this.ambientGain) return;
 
     const now = this.ctx.currentTime;
     if (mode === "DRIVING") {
-      this.ambientGain.gain.setTargetAtTime(0.52, now, 0.5);
-      this.ambientFilter.frequency.setTargetAtTime(850, now, 1.0);
+      this.ambientGain.gain.setTargetAtTime(0.66, now, 0.5);
+      this.ambientFilter.frequency.setTargetAtTime(880, now, 1.0);
     } else if (mode === "COMBAT") {
-      this.ambientGain.gain.setTargetAtTime(0.65, now, 0.4);
-      this.ambientFilter.frequency.setTargetAtTime(1100, now, 0.5);
+      this.ambientGain.gain.setTargetAtTime(0.80, now, 0.4);
+      this.ambientFilter.frequency.setTargetAtTime(1150, now, 0.5);
     } else {
-      this.ambientGain.gain.setTargetAtTime(0.58, now, 0.8);
-      this.ambientFilter.frequency.setTargetAtTime(720, now, 1.2);
+      this.ambientGain.gain.setTargetAtTime(0.72, now, 0.8);
+      this.ambientFilter.frequency.setTargetAtTime(740, now, 1.2);
     }
   }
 
   // ── Engine & Drift Physics Updates ─────────────────────────────────────────
   public updateEngine(speed: number, isDriving: boolean = true) {
+    this.ensureAudioContext();
     if (!this.ctx || !this.engineSubOsc || !this.engineMidOsc || !this.engineGain || this.isMuted) return;
 
     if (!isDriving) {
@@ -289,7 +310,7 @@ export class SoundManager {
     this.engineMidOsc.frequency.setTargetAtTime(midFreq, now, 0.06);
 
     // Warm, heavy bass volume that scales with speed
-    const engineVol = 0.22 + Math.min(1.0, absSpeed / 22) * 0.38;
+    const engineVol = 0.28 + Math.min(1.0, absSpeed / 22) * 0.46;
     this.engineGain.gain.setTargetAtTime(this.isCinematic ? 0 : engineVol, now, 0.06);
 
     if (this.engineFilter) {
@@ -299,12 +320,13 @@ export class SoundManager {
   }
 
   public updateTireDrift(driftFactor: number, speed: number) {
+    this.ensureAudioContext();
     if (!this.ctx || !this.tireGain || !this.tireFilter || this.isMuted) return;
 
     const absSpeed = Math.abs(speed);
     if (driftFactor > 0.10 && absSpeed > 2.2) {
       const intensity = Math.min(1.0, (driftFactor - 0.10) * 1.9);
-      const tireVol = intensity * 0.45;
+      const tireVol = intensity * 0.55;
       const targetFreq = 900 + intensity * 850;
 
       const now = this.ctx.currentTime;
@@ -347,6 +369,7 @@ export class SoundManager {
 
   // ── Vehicle Mount & Dismount SFX ───────────────────────────────────────────
   public playVehicleMount() {
+    this.ensureAudioContext();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
@@ -384,6 +407,7 @@ export class SoundManager {
   }
 
   public playVehicleDismount() {
+    this.ensureAudioContext();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
@@ -406,6 +430,7 @@ export class SoundManager {
   // ── Weapon SFX: Crisp & Low-Cortisol ───────────────────────────────────────
   // Katana Whoosh (smooth resonant aerodynamic sweep)
   public playSwordSlash() {
+    this.ensureAudioContext();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
@@ -453,6 +478,7 @@ export class SoundManager {
 
   // Bow String Draw & Release
   public playBowRelease() {
+    this.ensureAudioContext();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
@@ -488,6 +514,7 @@ export class SoundManager {
 
   // Void Pen Calligraphy Stroke
   public playInkStroke() {
+    this.ensureAudioContext();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
@@ -512,6 +539,7 @@ export class SoundManager {
 
   // Harmonic Resonance Chime (on astral monster hit)
   public playHarmonicChime() {
+    this.ensureAudioContext();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
@@ -537,6 +565,7 @@ export class SoundManager {
 
   // Harmonic Crystallization Dissolve (on astral monster defeat)
   public playCrystalShatter() {
+    this.ensureAudioContext();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 

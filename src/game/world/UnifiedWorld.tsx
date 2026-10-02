@@ -18,6 +18,7 @@ interface UnifiedWorldProps {
   humanPos: [number, number, number];
   humanHeading: number;
   vehicleState: VehicleState;
+  vehicleStateRef?: React.MutableRefObject<VehicleState>;
   dayNumber: number;
   rumahState: RumahState;
   workplaceState: WorkplaceState;
@@ -33,6 +34,7 @@ export function UnifiedWorld({
   humanPos,
   humanHeading,
   vehicleState,
+  vehicleStateRef,
   dayNumber,
   rumahState,
   workplaceState,
@@ -431,6 +433,7 @@ export function UnifiedWorld({
       {/* Render the car at its actual world coordinate */}
       <QuatroMesh
         vehicleState={vehicleState}
+        vehicleStateRef={vehicleStateRef}
         isCatAlert={dayNumber >= 2}
       />
 

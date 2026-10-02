@@ -9,6 +9,7 @@ import { soundManager } from "../audio/SoundManager";
 
 interface QuatroMeshProps {
   vehicleState: VehicleState;
+  vehicleStateRef?: React.MutableRefObject<VehicleState>;
   isCatAlert?: boolean;
   bodyColor?: string;
 }
@@ -78,6 +79,7 @@ function RallyWheel({
 
 export function QuatroMesh({
   vehicleState,
+  vehicleStateRef,
   isCatAlert = false,
   bodyColor = "#d65d28",
 }: QuatroMeshProps) {
@@ -86,7 +88,8 @@ export function QuatroMesh({
   const exhaustFlameRef = useRef<THREE.Group>(null);
   const driftSmokeRef = useRef<THREE.Group>(null);
 
-  const { position, heading, steeringAngle, wheelRotation, speed, driftFactor = 0, lateralSpeed = 0, scaleFactor = 1.0, isHandbraking } = vehicleState;
+  const liveState = vehicleStateRef?.current ?? vehicleState;
+  const { position, heading, steeringAngle, wheelRotation, speed, driftFactor = 0, lateralSpeed = 0, scaleFactor = 1.0, isHandbraking } = liveState;
 
   // Suspension & dynamics state
   const prevSpeed = useRef(speed);
@@ -97,17 +100,23 @@ export function QuatroMesh({
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
+    const live = vehicleStateRef?.current ?? vehicleState;
+
+    if (groupRef.current) {
+      groupRef.current.position.set(live.position.x, live.position.y, live.position.z);
+      groupRef.current.rotation.y = live.heading;
+    }
 
     // Scale lerp
-    const targetScale = scaleFactor || 1.0;
+    const targetScale = live.scaleFactor || 1.0;
     currentScale.current = THREE.MathUtils.lerp(currentScale.current, targetScale, 1.0 - Math.exp(-8 * dt));
     if (groupRef.current) {
       groupRef.current.scale.setScalar(currentScale.current);
     }
 
     // ── Suspension Dynamics (Pitch on Accel/Brake, Roll on Turn/Drift) ──────
-    const accel = (speed - prevSpeed.current) / dt;
-    prevSpeed.current = speed;
+    const accel = (live.speed - prevSpeed.current) / dt;
+    prevSpeed.current = live.speed;
 
     // Squat on throttle, nose dive on brake
     const targetPitch = THREE.MathUtils.clamp(-accel * 0.005, -0.06, 0.06);

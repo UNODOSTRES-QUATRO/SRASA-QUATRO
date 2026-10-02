@@ -20,6 +20,8 @@ interface GameCanvasProps {
   isInsideEscapeRoom?: boolean;
   remotePlayers?: RemotePlayer[];
   vehicleState?: VehicleState;
+  vehicleStateRef?: React.MutableRefObject<VehicleState>;
+  humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
   cameraMode?: CameraMode;
   // Weapons
   weaponSystemStateRef?: React.MutableRefObject<WeaponSystemState>;
@@ -40,6 +42,8 @@ export function GameCanvas({
   isInsideEscapeRoom = false,
   remotePlayers = [],
   vehicleState,
+  vehicleStateRef,
+  humanPosRef,
   cameraMode = "CHASE",
   weaponSystemStateRef,
   isAttackingRef,
@@ -90,6 +94,8 @@ export function GameCanvas({
         targetPos={cameraTargetPos}
         targetHeading={cameraTargetHeading}
         vehicleState={vehicleState}
+        vehicleStateRef={vehicleStateRef}
+        humanPosRef={humanPosRef}
         isInsideEscapeRoom={isInsideEscapeRoom}
       />
 
@@ -103,6 +109,7 @@ export function GameCanvas({
           chargeLevel={chargeLevel}
           attackProgress={attackProgress}
           isAttacking={isAttacking}
+          humanPosRef={humanPosRef}
         />
       )}
 

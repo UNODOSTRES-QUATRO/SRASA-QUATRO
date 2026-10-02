@@ -69,6 +69,19 @@ export default function ProjectQuatroApp() {
   const isHumanMovingRef = useRef(false);
   const vehicleStateRef = useRef(vehicleState);
   const humanVelocityRef = useRef({ vx: 0, vz: 0 });
+  const lastStateSyncTime = useRef(0);
+
+  const initialWorldPos: [number, number, number] =
+    session.currentLocation === "RUMAH"
+      ? [20 + session.humanPosition[0], session.humanPosition[1], -60 + session.humanPosition[2]]
+      : session.humanPosition;
+
+  const humanPosRef = useRef({
+    x: initialWorldPos[0],
+    y: initialWorldPos[1],
+    z: initialWorldPos[2],
+    heading: session.humanHeading,
+  });
 
   sessionRef.current = session;
   playerModeRef.current = playerMode;
@@ -173,8 +186,16 @@ export default function ProjectQuatroApp() {
     humanVelocityRef.current = { vx: 0, vz: 0 };
 
     // Dismount left of driver door safely within world bounds
-    const dismountX = THREE.MathUtils.clamp(car.position.x - Math.cos(car.heading) * 1.6, -26, 26);
-    const dismountZ = THREE.MathUtils.clamp(car.position.z + Math.sin(car.heading) * 1.6, -80, 220);
+    const dismountX = THREE.MathUtils.clamp(car.position.x - Math.cos(car.heading) * 1.8, -26, 26);
+    const dismountZ = THREE.MathUtils.clamp(car.position.z + Math.sin(car.heading) * 1.8, -80, 220);
+    const dismountHeading = car.heading - Math.PI / 2;
+
+    humanPosRef.current = {
+      x: dismountX,
+      y: 0,
+      z: dismountZ,
+      heading: dismountHeading,
+    };
 
     setVehicleState((prev) => ({
       ...prev,
@@ -186,7 +207,7 @@ export default function ProjectQuatroApp() {
     setSession((prev) => ({
       ...prev,
       humanPosition: [dismountX, 0, dismountZ],
-      humanHeading: car.heading - Math.PI / 2,
+      humanHeading: dismountHeading,
       activePrompt: "✦ Jalan kaki. [WASD] Gerak, [F] Serang, [Q] Ganti Senjata, [E] Masuk Mobil.",
     }));
     setPlayerMode("ON_FOOT");
@@ -465,6 +486,7 @@ export default function ProjectQuatroApp() {
               if (currentSession.rumah.canExitHouse && Math.hypot(nextX - 0, nextZ - 4.0) < 1.1) {
                 soundManager.playDoorOpen();
                 humanVelocityRef.current = { vx: 0, vz: 0 };
+                humanPosRef.current = { x: 20.0, y: 0, z: -54.0, heading: 0 };
                 setSession((prev) => ({
                   ...prev,
                   currentLocation: "JALAN",
@@ -525,17 +547,30 @@ export default function ProjectQuatroApp() {
               }
             }
 
+            // Continuous sub-frame positioning in humanPosRef
+            const worldX = currentSession.currentLocation === "RUMAH" ? 20 + nextX : nextX;
+            const worldZ = currentSession.currentLocation === "RUMAH" ? -60 + nextZ : nextZ;
+            humanPosRef.current.x = worldX;
+            humanPosRef.current.y = 0;
+            humanPosRef.current.z = worldZ;
+            humanPosRef.current.heading = nextHeading;
+            sessionRef.current.humanPosition = [nextX, 0, nextZ];
+            sessionRef.current.humanHeading = nextHeading;
+
             // Audio footstep throttle
             if (currentTime - lastFootstepTime.current > 300) {
               soundManager.playFootstep();
               lastFootstepTime.current = currentTime;
             }
 
-            setSession((prev) => ({
-              ...prev,
-              humanPosition: [nextX, 0, nextZ],
-              humanHeading: nextHeading,
-            }));
+            if (currentTime - lastStateSyncTime.current > 40) {
+              lastStateSyncTime.current = currentTime;
+              setSession((prev) => ({
+                ...prev,
+                humanPosition: [nextX, 0, nextZ],
+                humanHeading: nextHeading,
+              }));
+            }
           }
         } else if (currentMode === "DRIVING") {
           // DRIVING IN CONTINUOUS WORLD
@@ -557,7 +592,10 @@ export default function ProjectQuatroApp() {
           nextVehicle.position.z = THREE.MathUtils.clamp(nextVehicle.position.z, -85.0, 225.0);
 
           vehicleStateRef.current = nextVehicle;
-          setVehicleState(nextVehicle);
+          if (currentTime - lastStateSyncTime.current > 40) {
+            lastStateSyncTime.current = currentTime;
+            setVehicleState(nextVehicle);
+          }
 
           // Update audio
           soundManager.updateEngine(nextVehicle.speed, true);
@@ -675,18 +713,22 @@ export default function ProjectQuatroApp() {
       const distToHomeDoor = Math.hypot(hx - 20.0, hz - (-55.7));
       if (distToHomeDoor < 2.5) {
         soundManager.playDoorOpen();
-        setSession((prev) => ({
-          ...prev,
-          currentLocation: "RUMAH",
-          humanPosition: [0, 0, 3.6],
-          humanHeading: Math.PI,
-        }));
+        if (session.phase === "COMMUTE_HOME") {
+          setSession((prev) => arriveHomeForEvening(prev));
+        } else {
+          setSession((prev) => ({
+            ...prev,
+            currentLocation: "RUMAH",
+            humanPosition: [0, 0, 3.6],
+            humanHeading: Math.PI,
+          }));
+        }
         return;
       }
 
-      // Proximity to Mechanic Pak Montir at [-16.0, 0, -1.5]
-      const distToMontir = Math.hypot(hx - (-16.0), hz - (-1.5));
-      if (distToMontir < 3.0) {
+      // Proximity to Mechanic Pak Montir at [-19.5, 0, -2.0]
+      const distToMontir = Math.hypot(hx - (-19.5), hz - (-2.0));
+      if (distToMontir < 3.2) {
         soundManager.playPurr();
         setActiveNpcId("mechanic");
         return;
@@ -887,7 +929,7 @@ export default function ProjectQuatroApp() {
     } else {
       // In Continuous World
       if (Math.hypot(playerWorldX - 20.0, playerWorldZ - (-55.7)) < 2.5) contextualAction = "Masuk Rumah";
-      else if (Math.hypot(playerWorldX - (-16.0), playerWorldZ - (-1.5)) < 2.8) contextualAction = "Bincang · Pak Montir";
+      else if (Math.hypot(playerWorldX - (-19.5), playerWorldZ - (-2.0)) < 3.0) contextualAction = "Bincang · Pak Montir";
       else if (Math.hypot(playerWorldX - 21.0, playerWorldZ - 68.0) < 2.8 && !session.workplace.allTasksDone) contextualAction = "Workstation · Coding";
       else if (Math.hypot(playerWorldX + 3.5, playerWorldZ - 176.0) < 2.4) contextualAction = "Bincang · Jeffrey";
       else if (Math.hypot(playerWorldX - 3.5, playerWorldZ - 176.0) < 2.4) contextualAction = "Bincang · Vespera";
@@ -910,6 +952,8 @@ export default function ProjectQuatroApp() {
           isInsideEscapeRoom={session.kastil.insideEscapeRoom}
           remotePlayers={realtime.remotePlayers}
           vehicleState={vehicleState}
+          vehicleStateRef={vehicleStateRef}
+          humanPosRef={humanPosRef}
           cameraMode={cameraMode}
           weaponSystemStateRef={weaponSystem.stateRef}
           isAttackingRef={isAttackingRef}
@@ -930,6 +974,7 @@ export default function ProjectQuatroApp() {
               humanPos={renderedHumanPos}
               humanHeading={session.humanHeading}
               vehicleState={vehicleState}
+              vehicleStateRef={vehicleStateRef}
               dayNumber={session.dayNumber}
               rumahState={session.rumah}
               workplaceState={session.workplace}

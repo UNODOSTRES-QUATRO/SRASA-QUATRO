@@ -426,7 +426,10 @@ export function arriveAtWork(current: GameSessionState): GameSessionState {
 }
 
 export function completeWorkday(current: GameSessionState): GameSessionState {
-  if (current.currentLocation !== "TEMPAT_KERJA" || current.phase !== "AT_WORK") {
+  if (
+    (current.currentLocation !== "TEMPAT_KERJA" && current.currentLocation !== "JALAN") ||
+    (current.phase !== "AT_WORK" && current.phase !== "COMMUTE_TO_WORK")
+  ) {
     return current;
   }
 
@@ -440,17 +443,18 @@ export function completeWorkday(current: GameSessionState): GameSessionState {
       codeTyped: true,
       bugsCaught: current.workplace.bugsTarget,
       repoPushed: true,
+      portalSpawned: current.dayNumber === 3,
     },
     activePrompt:
       current.dayNumber === 3
-        ? "Portal Semicolon terbuka di pintu kantor."
-        : "Tugas selesai. Keluar kantor untuk pulang.",
+        ? "✦ Portal Semicolon terbuka di pintu kantor."
+        : "✦ Tugas selesai. Keluar kantor dan kembali ke mobil untuk pulang.",
   };
 }
 
 export function beginCommuteHome(current: GameSessionState): GameSessionState {
   if (
-    current.currentLocation !== "TEMPAT_KERJA" ||
+    (current.currentLocation !== "TEMPAT_KERJA" && current.currentLocation !== "JALAN") ||
     current.dayNumber === 3 ||
     current.phase !== "AT_WORK" ||
     !current.workplace.allTasksDone
@@ -463,12 +467,15 @@ export function beginCommuteHome(current: GameSessionState): GameSessionState {
     currentLocation: "JALAN",
     phase: "COMMUTE_HOME",
     humanPosition: [0, 0, 0],
-    activePrompt: "Tujuan: rumah",
+    activePrompt: "✦ Tujuan: kembali ke rumah.",
   };
 }
 
 export function arriveHomeForEvening(current: GameSessionState): GameSessionState {
-  if (current.currentLocation !== "JALAN" || current.phase !== "COMMUTE_HOME") {
+  if (
+    (current.currentLocation !== "JALAN" && current.currentLocation !== "RUMAH") ||
+    current.phase !== "COMMUTE_HOME"
+  ) {
     return current;
   }
 
@@ -478,13 +485,13 @@ export function arriveHomeForEvening(current: GameSessionState): GameSessionStat
     phase: "EVENING_ROUTINE",
     homeReached: true,
     humanPosition: [0, 0, 3.4],
-    activePrompt: "",
+    activePrompt: "✦ Sampai di rumah. Mandi malam dan siapkan makan malam.",
   };
 }
 
 export function enterAlternateDimension(current: GameSessionState): GameSessionState {
   if (
-    current.currentLocation !== "TEMPAT_KERJA" ||
+    (current.currentLocation !== "TEMPAT_KERJA" && current.currentLocation !== "JALAN") ||
     current.dayNumber !== 3 ||
     current.phase !== "PORTAL_APPROACH" ||
     !current.workplace.allTasksDone
@@ -495,10 +502,10 @@ export function enterAlternateDimension(current: GameSessionState): GameSessionS
   return {
     ...current,
     currentLocation: "DIMENSI_LAIN",
-    humanPosition: [0, 0, 0],
+    humanPosition: [0, 0, 125],
     phase: "CASTLE_EXPLORATION",
     portalEntered: true,
-    activePrompt: "",
+    activePrompt: "✦ Masuki Alam Astral & Kompleks Kastil Semicolon.",
   };
 }
 

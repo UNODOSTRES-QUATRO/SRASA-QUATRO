@@ -12,6 +12,8 @@ interface UnifiedCameraProps {
   targetPos: [number, number, number]; // [x, y, z] of player or car
   targetHeading: number; // in radians
   vehicleState?: VehicleState;
+  vehicleStateRef?: React.MutableRefObject<VehicleState>;
+  humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
   isInsideEscapeRoom?: boolean;
 }
 
@@ -20,6 +22,8 @@ export function UnifiedCamera({
   targetPos,
   targetHeading,
   vehicleState,
+  vehicleStateRef,
+  humanPosRef,
   isInsideEscapeRoom = false,
 }: UnifiedCameraProps) {
   const { camera, gl } = useThree();
@@ -149,20 +153,29 @@ export function UnifiedCamera({
     let desiredLookAt = new THREE.Vector3();
     let targetFov = 50;
 
+    const liveVehicle = vehicleStateRef?.current ?? vehicleState;
+    const liveTargetPos: [number, number, number] = mode === "ON_FOOT"
+      ? (humanPosRef?.current ? [humanPosRef.current.x, humanPosRef.current.y, humanPosRef.current.z] : targetPos)
+      : (liveVehicle ? [liveVehicle.position.x, liveVehicle.position.y, liveVehicle.position.z] : targetPos);
+
+    const liveHeading = mode === "ON_FOOT"
+      ? (humanPosRef?.current ? humanPosRef.current.heading : targetHeading)
+      : (liveVehicle ? liveVehicle.heading : targetHeading);
+
     // ── 1. Heading Shortest-Arc Smoothing (Exponential decay) ────────────────
-    let angleDiff = targetHeading - smoothedHeading.current;
+    let angleDiff = liveHeading - smoothedHeading.current;
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
     const headingLambda = mode === "DRIVING_CHASE"
-      ? (vehicleState?.driftFactor && vehicleState.driftFactor > 0.2 ? 4.5 : 6.5)
+      ? (liveVehicle?.driftFactor && liveVehicle.driftFactor > 0.2 ? 4.5 : 6.5)
       : 8.0;
     const headingAlpha = 1.0 - Math.exp(-headingLambda * dt);
     smoothedHeading.current += angleDiff * headingAlpha;
 
-    if (mode === "DRIVING_CHASE" && vehicleState) {
+    if (mode === "DRIVING_CHASE" && liveVehicle) {
       // ── MODE: DRIVING CHASE (FR Legends Flow) ──────────────────────────────
-      const { speed, driftFactor = 0, lateralSpeed = 0, scaleFactor = 1.0 } = vehicleState;
+      const { speed, driftFactor = 0, lateralSpeed = 0, scaleFactor = 1.0 } = liveVehicle;
       const speedRatio = Math.min(1, Math.abs(speed) / 24);
 
       // Smooth drift factor with exponential damping
@@ -176,37 +189,37 @@ export function UnifiedCamera({
       const distance = baseDist + speedRatio * 1.8;
       const height = baseHeight + speedRatio * 0.3;
 
-      // Side-angle drift pan offset (swings camera outward to showcase car's slip angle)
-      const driftSidePan = smoothedDrift.current * Math.sign(lateralSpeed || 0) * 0.45;
+      // Side-angle drift pan offset (smoothly swings camera outward with car's slip angle, zero jitter)
+      const driftSidePan = THREE.MathUtils.clamp((lateralSpeed || 0) * 0.06, -0.45, 0.45) * smoothedDrift.current;
       const panAngle = smoothedHeading.current + driftSidePan;
 
       desiredPos.set(
-        targetPos[0] - Math.sin(panAngle) * distance,
-        targetPos[1] + height,
-        targetPos[2] - Math.cos(panAngle) * distance
+        liveTargetPos[0] - Math.sin(panAngle) * distance,
+        liveTargetPos[1] + height,
+        liveTargetPos[2] - Math.cos(panAngle) * distance
       );
 
       const lookAheadDist = isPocket ? 0.8 : 2.8;
       desiredLookAt.set(
-        targetPos[0] + Math.sin(smoothedHeading.current) * lookAheadDist,
-        targetPos[1] + 0.65,
-        targetPos[2] + Math.cos(smoothedHeading.current) * lookAheadDist
+        liveTargetPos[0] + Math.sin(smoothedHeading.current) * lookAheadDist,
+        liveTargetPos[1] + 0.65,
+        liveTargetPos[2] + Math.cos(smoothedHeading.current) * lookAheadDist
       );
 
       // Speed FOV: breathing expansion sensation without motion sickness
       targetFov = 48 + speedRatio * 9 + smoothedDrift.current * 4.0;
 
-    } else if (mode === "DRIVING_COCKPIT" && vehicleState) {
+    } else if (mode === "DRIVING_COCKPIT" && liveVehicle) {
       // ── MODE: DRIVING COCKPIT (First-Person Interior) ──────────────────────
-      const { speed, steeringAngle = 0, lateralSpeed = 0 } = vehicleState;
+      const { speed, steeringAngle = 0, lateralSpeed = 0 } = liveVehicle;
       const speedRatio = Math.min(1, Math.abs(speed) / 24);
 
       // Head bob & G-Force
       bobTime.current += dt * Math.abs(speed) * 0.8;
       const bob = Math.sin(bobTime.current * 2.2) * 0.01 * Math.min(1, Math.abs(speed) / 6);
-      const accelDelta = speed - prevSpeed.current;
+      const accelDelta = (speed - prevSpeed.current) / Math.max(0.001, dt);
       prevSpeed.current = speed;
-      const gPitch = THREE.MathUtils.clamp(accelDelta * 0.22, -0.045, 0.045);
+      const gPitch = THREE.MathUtils.clamp(accelDelta * 0.006, -0.045, 0.045);
       const lateralSway = THREE.MathUtils.clamp(lateralSpeed * 0.032, -0.09, 0.09);
       const steerSway = steeringAngle * -0.045;
 
@@ -220,16 +233,16 @@ export function UnifiedCamera({
       cockpitOffset.applyMatrix4(rotMatrix);
 
       desiredPos.set(
-        targetPos[0] + cockpitOffset.x,
-        targetPos[1] + cockpitOffset.y,
-        targetPos[2] + cockpitOffset.z
+        liveTargetPos[0] + cockpitOffset.x,
+        liveTargetPos[1] + cockpitOffset.y,
+        liveTargetPos[2] + cockpitOffset.z
       );
 
       const lookDist = 18;
       desiredLookAt.set(
-        targetPos[0] + Math.sin(smoothedHeading.current) * lookDist + steerSway * 3,
-        targetPos[1] + 0.9,
-        targetPos[2] + Math.cos(smoothedHeading.current) * lookDist
+        liveTargetPos[0] + Math.sin(smoothedHeading.current) * lookDist + steerSway * 3,
+        liveTargetPos[1] + 0.9,
+        liveTargetPos[2] + Math.cos(smoothedHeading.current) * lookDist
       );
 
       targetFov = 62 + speedRatio * 7;
@@ -257,7 +270,7 @@ export function UnifiedCamera({
           pointerVel.current.x *= decay;
           pointerVel.current.y *= decay;
         } else {
-          let diff = targetHeading - orbitAzimuth.current;
+          let diff = liveHeading - orbitAzimuth.current;
           while (diff < -Math.PI) diff += Math.PI * 2;
           while (diff > Math.PI) diff -= Math.PI * 2;
           orbitAzimuth.current += diff * (1.0 - Math.exp(-2.2 * dt));
@@ -268,15 +281,15 @@ export function UnifiedCamera({
       const vDist = orbitDistance.current * Math.cos(orbitPolar.current);
 
       desiredPos.set(
-        targetPos[0] - Math.sin(orbitAzimuth.current) * hDist,
-        targetPos[1] + vDist + (isInsideEscapeRoom ? 0.4 : 0.8),
-        targetPos[2] - Math.cos(orbitAzimuth.current) * hDist
+        liveTargetPos[0] - Math.sin(orbitAzimuth.current) * hDist,
+        liveTargetPos[1] + vDist + (isInsideEscapeRoom ? 0.4 : 0.8),
+        liveTargetPos[2] - Math.cos(orbitAzimuth.current) * hDist
       );
 
       desiredLookAt.set(
-        targetPos[0],
-        targetPos[1] + (isInsideEscapeRoom ? 1.0 : 1.15),
-        targetPos[2]
+        liveTargetPos[0],
+        liveTargetPos[1] + (isInsideEscapeRoom ? 1.0 : 1.15),
+        liveTargetPos[2]
       );
 
       targetFov = 48;
