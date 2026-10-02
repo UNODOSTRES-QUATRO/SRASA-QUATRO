@@ -214,12 +214,23 @@ export function AstralMonsterSystem({
     const px = humanPosRef?.current?.x ?? playerPos[0];
     const py = humanPosRef?.current?.y ?? playerPos[1];
     const pz = humanPosRef?.current?.z ?? playerPos[2];
+    const heading = humanPosRef?.current?.heading ?? 0;
     const playerVec = new THREE.Vector3(px, py + 1.0, pz);
     const dist = monsterPos.distanceTo(playerVec);
 
-    // Melee range
-    if (dist < 3.2) {
-      handleHit(monsterId, monsterPos);
+    // Melee range with directional arc
+    if (dist < 3.5) {
+      const toMonsterX = monsterPos.x - px;
+      const toMonsterZ = monsterPos.z - pz;
+      const fwdX = Math.sin(heading);
+      const fwdZ = Math.cos(heading);
+      const dot = (toMonsterX * fwdX + toMonsterZ * fwdZ) / Math.max(0.001, dist);
+
+      // Scythe has wide 270-degree sweep; sword and others have generous 180-degree front arc
+      const minDot = weaponType === "SCYTHE" ? -0.5 : -0.15;
+      if (dot >= minDot || dist < 1.4) {
+        handleHit(monsterId, monsterPos);
+      }
     }
   };
 

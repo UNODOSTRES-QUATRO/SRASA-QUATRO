@@ -288,7 +288,13 @@ export function UnifiedCamera({
         liveTargetPos[2] > 63.0 &&
         liveTargetPos[2] < 77.0;
 
-      const isInterior = isInsideEscapeRoom || isInsideHome || isInsideWorkplace || liveTargetPos[2] > 198.0;
+      const isInsideBengkel =
+        liveTargetPos[0] > -24.5 &&
+        liveTargetPos[0] < -11.5 &&
+        liveTargetPos[2] > -6.5 &&
+        liveTargetPos[2] < 6.5;
+
+      const isInterior = isInsideEscapeRoom || isInsideHome || isInsideWorkplace || isInsideBengkel || liveTargetPos[2] > 198.0;
 
       // Smart interior distance clamping to prevent clipping through exterior walls/roofs
       const effectiveTargetDistance = isInterior
@@ -359,8 +365,8 @@ export function UnifiedCamera({
 
     // ── Exponential Smoothing (1 - exp(-lambda * dt)) ────────────────────────
     // Softer lambda during transitions for a cinematic crane glide, tight lambda during gameplay
-    const basePosLambda = mode === "DRIVING_COCKPIT" ? 48.0 : mode === "DRIVING_CHASE" ? 9.5 : 8.5;
-    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 44.0 : mode === "DRIVING_CHASE" ? 10.5 : 9.0;
+    const basePosLambda = mode === "DRIVING_COCKPIT" ? 28.0 : mode === "DRIVING_CHASE" ? 9.5 : 8.5;
+    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 26.0 : mode === "DRIVING_CHASE" ? 10.5 : 9.0;
 
     const posLambda = THREE.MathUtils.lerp(basePosLambda, 5.0, transitionProgress.current);
     const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 5.5, transitionProgress.current);

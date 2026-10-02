@@ -92,4 +92,48 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     expect(() => soundManager.setMuted(true)).not.toThrow();
     expect(() => soundManager.setMuted(false)).not.toThrow();
   });
+
+  it("handles audio SFX calls safely without throw in headless runtime", () => {
+    expect(() => soundManager.playSwordSlash()).not.toThrow();
+    expect(() => soundManager.playBowRelease()).not.toThrow();
+    expect(() => soundManager.playInkStroke()).not.toThrow();
+    expect(() => soundManager.playHarmonicChime()).not.toThrow();
+    expect(() => soundManager.playCrystalShatter()).not.toThrow();
+    expect(() => soundManager.playVehicleMount()).not.toThrow();
+    expect(() => soundManager.playVehicleDismount()).not.toThrow();
+    expect(() => soundManager.playExhaustPop()).not.toThrow();
+    expect(() => soundManager.updateEngine(12.5, true)).not.toThrow();
+    expect(() => soundManager.updateTireDrift(0.65, 14.0)).not.toThrow();
+  });
+
+  it("prevents vehicle from driving into the solid walls of the mechanic shop", () => {
+    // Car tries to drive through the west solid wall of the mechanic shop at X=-24.5, Z=0
+    const resolved = resolveVehicleWorldPosition(
+      { x: -22.0, y: 0.35, z: 0 },
+      { x: -25.0, y: 0.35, z: 0 },
+      1.15
+    );
+
+    expect(resolved.collided).toBe(true);
+    expect(resolved.position.x).toBe(-22.0); // Held at current X
+  });
+
+  it("verifies exponential damping calculation (1 - exp(-lambda * dt)) is smooth and frame-rate independent", () => {
+    const lambda = 8.5;
+    const dt60fps = 0.0166;
+    const dt30fps = 0.0333;
+
+    const alpha60 = 1.0 - Math.exp(-lambda * dt60fps);
+    const alpha30 = 1.0 - Math.exp(-lambda * dt30fps);
+
+    // Alpha is strictly between 0 and 1 (no overshoot/oscillations)
+    expect(alpha60).toBeGreaterThan(0);
+    expect(alpha60).toBeLessThan(1);
+    expect(alpha30).toBeGreaterThan(alpha60);
+
+    // After 2 frames at 60fps, remaining distance is close to 1 frame at 30fps
+    const remain2x60 = (1 - alpha60) * (1 - alpha60);
+    const remain1x30 = 1 - alpha30;
+    expect(remain2x60).toBeCloseTo(remain1x30, 2);
+  });
 });
