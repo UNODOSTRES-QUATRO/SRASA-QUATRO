@@ -3,36 +3,37 @@
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { SceneLighting } from "./SceneLighting";
-import { LocationCamera } from "@/game/camera/LocationCamera";
-import { FollowCamera } from "@/game/camera/FollowCamera";
-import { CockpitCamera } from "@/game/camera/CockpitCamera";
+import { UnifiedCamera, UnifiedCameraMode } from "@/game/camera/UnifiedCamera";
 import { HumanPlayer } from "@/game/character/HumanPlayer";
-import { LocationType } from "@/game/core/gameStore";
 import { RemoteVehicle } from "@/game/vehicle/RemoteVehicle";
 import { RemotePlayer } from "@/game/realtime/useGameRealtime";
 import { VehicleState, CameraMode } from "@/game/vehicle/vehicleTypes";
 import { WeaponSystem3D } from "@/game/weapons/WeaponSystem";
 import type { WeaponSystemState } from "@/game/weapons/WeaponSystem";
+import { WeaponId } from "@/game/weapons/weaponTypes";
 
 interface GameCanvasProps {
-  location: LocationType;
+  playerMode: "ON_FOOT" | "DRIVING";
   humanPos: [number, number, number];
   humanHeading: number;
   isHumanMoving: boolean;
   isInsideEscapeRoom?: boolean;
   remotePlayers?: RemotePlayer[];
-  // Driving
   vehicleState?: VehicleState;
   cameraMode?: CameraMode;
-  // Weapons (walkable scenes only)
+  // Weapons
   weaponSystemStateRef?: React.MutableRefObject<WeaponSystemState>;
   isAttackingRef?: React.MutableRefObject<boolean>;
   isChargingRef?: React.MutableRefObject<boolean>;
+  activeWeaponId?: WeaponId;
+  chargeLevel?: number;
+  attackProgress?: number;
+  isAttacking?: boolean;
   children?: React.ReactNode;
 }
 
 export function GameCanvas({
-  location,
+  playerMode,
   humanPos,
   humanHeading,
   isHumanMoving,
@@ -43,55 +44,68 @@ export function GameCanvas({
   weaponSystemStateRef,
   isAttackingRef,
   isChargingRef,
+  activeWeaponId = "BLUE_SHARD_SWORD",
+  chargeLevel = 0,
+  attackProgress = 0,
+  isAttacking = false,
   children,
 }: GameCanvasProps) {
-  const isWalkable =
-    location === "RUMAH" ||
-    location === "TEMPAT_KERJA" ||
-    location === "BENGKEL" ||
-    location === "KASTIL";
+  // Determine camera mode:
+  // If DRIVING -> DRIVING_CHASE or DRIVING_COCKPIT
+  // If ON_FOOT -> ON_FOOT
+  const unifiedMode: UnifiedCameraMode =
+    playerMode === "DRIVING"
+      ? cameraMode === "COCKPIT"
+        ? "DRIVING_COCKPIT"
+        : "DRIVING_CHASE"
+      : "ON_FOOT";
 
-  const isRoad = location === "JALAN" || location === "DIMENSI_LAIN";
+  const cameraTargetPos: [number, number, number] =
+    playerMode === "DRIVING" && vehicleState
+      ? [vehicleState.position.x, vehicleState.position.y, vehicleState.position.z]
+      : humanPos;
+
+  const cameraTargetHeading =
+    playerMode === "DRIVING" && vehicleState ? vehicleState.heading : humanHeading;
 
   return (
     <Canvas
       shadows
-      camera={{ position: [-6, 4, 6], fov: 48, near: 0.1, far: 300 }}
+      camera={{ position: [-6, 6, 12], fov: 48, near: 0.1, far: 400 }}
       gl={{
         antialias: true,
         toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.15,
+        toneMappingExposure: 1.18,
+        powerPreference: "high-performance",
       }}
       className="w-full h-full"
     >
       <SceneLighting />
 
-      {/* ── Camera Selection ── */}
-      {isRoad && vehicleState ? (
-        cameraMode === "COCKPIT" ? (
-          <CockpitCamera vehicleState={vehicleState} />
-        ) : (
-          <FollowCamera vehicleState={vehicleState} />
-        )
-      ) : (
-        <LocationCamera
-          location={location}
-          humanPos={humanPos}
-          isInsideEscapeRoom={isInsideEscapeRoom}
-        />
-      )}
+      {/* ── Buttery-Smooth Unified Camera Controller (No Jitter, No Snapping) ── */}
+      <UnifiedCamera
+        mode={unifiedMode}
+        targetPos={cameraTargetPos}
+        targetHeading={cameraTargetHeading}
+        vehicleState={vehicleState}
+        isInsideEscapeRoom={isInsideEscapeRoom}
+      />
 
-      {/* ── Human Player in Walkable Environments ── */}
-      {isWalkable && (
+      {/* ── Human Player Character (Shown on foot, socketed with weapon) ── */}
+      {playerMode === "ON_FOOT" && (
         <HumanPlayer
           position={humanPos}
           heading={humanHeading}
           isMoving={isHumanMoving}
+          activeWeaponId={activeWeaponId}
+          chargeLevel={chargeLevel}
+          attackProgress={attackProgress}
+          isAttacking={isAttacking}
         />
       )}
 
-      {/* ── Weapon System 3D (walkable scenes) ── */}
-      {isWalkable && weaponSystemStateRef && isAttackingRef && isChargingRef && (
+      {/* ── Weapon Projectiles & Particle Effects in Flight ── */}
+      {weaponSystemStateRef && isAttackingRef && isChargingRef && (
         <WeaponSystem3D
           playerPos={humanPos}
           playerHeading={humanHeading}

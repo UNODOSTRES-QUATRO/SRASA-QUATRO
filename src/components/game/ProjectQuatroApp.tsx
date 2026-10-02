@@ -3,15 +3,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
 import { GameCanvas } from "./GameCanvas";
-import { HouseInterior } from "@/game/world/HouseInterior";
-import { HighwayDriveScene } from "@/game/world/HighwayDriveScene";
-import { WorkplaceInterior } from "@/game/world/WorkplaceInterior";
-import { MechanicShopScene } from "@/game/world/MechanicShopScene";
-import { CastleExteriorScene } from "@/game/world/CastleExteriorScene";
+import { UnifiedWorld } from "@/game/world/UnifiedWorld";
 import { CastleEscapeRoomScene } from "@/game/world/CastleEscapeRoomScene";
 
 import { HomeRoutineOverlay } from "@/components/ui/HomeRoutineOverlay";
-import { RoadNavigationModal } from "@/components/ui/RoadNavigationModal";
 import { OfficeWorkstationModal } from "@/components/ui/OfficeWorkstationModal";
 import { VoidLoreCutsceneModal } from "@/components/ui/VoidLoreCutsceneModal";
 import { CastleLoreDialogueModal } from "@/components/ui/CastleLoreDialogueModal";
@@ -36,7 +31,6 @@ import {
   enterCastle,
   getCurrentObjective,
   GameSessionState,
-  LocationType,
   takeEveningShower,
   takeMorningShower,
   wakeUp,
@@ -49,52 +43,54 @@ import { useGameRealtime } from "@/game/realtime/useGameRealtime";
 import { useWeaponSystem } from "@/game/weapons/WeaponSystem";
 import { WEAPON_ORDER } from "@/game/weapons/weaponTypes";
 
-function getSharedSpaceId(session: GameSessionState) {
-  if (session.currentLocation === "DIMENSI_LAIN") return "void:road";
-  if (session.currentLocation === "KASTIL") {
-    return session.kastil.insideEscapeRoom ? "castle:escape-room" : "castle:courtyard";
-  }
-  return `overworld:${session.currentLocation.toLowerCase()}`;
-}
+export type PlayerMode = "ON_FOOT" | "DRIVING";
 
 export default function ProjectQuatroApp() {
   const [session, setSession] = useState<GameSessionState>(createInitialSessionState);
+  const [playerMode, setPlayerMode] = useState<PlayerMode>("ON_FOOT");
   const [isHumanMoving, setIsHumanMoving] = useState(false);
-  const [vehicleState, setVehicleState] = useState<VehicleState>(createInitialVehicleState);
+
+  // Initial vehicle parked outside Home in driveway
+  const [vehicleState, setVehicleState] = useState<VehicleState>(() => ({
+    ...createInitialVehicleState(),
+    position: { x: 20, y: 0.35, z: -48 },
+    heading: 0,
+  }));
   const [cameraMode, setCameraMode] = useState<CameraMode>("CHASE");
+
   // Weapon system
   const weaponSystem = useWeaponSystem();
-  const [weaponHUDTick, setWeaponHUDTick] = useState(0); // trigger re-render for HUD
+  const [weaponHUDTick, setWeaponHUDTick] = useState(0);
   const isAttackingRef = useRef(false);
   const isChargingRef = useRef(false);
+
   const sessionRef = useRef(session);
+  const playerModeRef = useRef(playerMode);
   const isHumanMovingRef = useRef(false);
   const vehicleStateRef = useRef(vehicleState);
+
   sessionRef.current = session;
+  playerModeRef.current = playerMode;
   vehicleStateRef.current = vehicleState;
-  const isWalkableLocation = ["RUMAH", "TEMPAT_KERJA", "BENGKEL", "KASTIL"].includes(session.currentLocation);
-  const isRoadLocation = session.currentLocation === "JALAN" || session.currentLocation === "DIMENSI_LAIN";
+
+  // Realtime multiplayer
   const realtime = useGameRealtime({
     vehicleState: {
-      ...(isRoadLocation ? vehicleState : createInitialVehicleState()),
-      position: isRoadLocation
-        ? { x: vehicleState.position.x, y: vehicleState.position.y, z: 0 }
-        : {
-            x: session.humanPosition[0],
-            y: 0,
-            z: session.humanPosition[2],
-          },
-      heading: isRoadLocation ? vehicleState.heading : session.humanHeading,
-      speed: isRoadLocation ? vehicleState.speed : isHumanMoving ? 1.5 : 0,
+      ...vehicleState,
+      position: playerMode === "DRIVING"
+        ? vehicleState.position
+        : { x: session.humanPosition[0], y: 0, z: session.humanPosition[2] },
+      heading: playerMode === "DRIVING" ? vehicleState.heading : session.humanHeading,
+      speed: playerMode === "DRIVING" ? vehicleState.speed : isHumanMoving ? 2.5 : 0,
     },
     playerName: "Traveler",
     isEnabled: session.currentLocation !== "END_SCREEN",
     playerState: {
-      spaceId: getSharedSpaceId(session),
+      spaceId: "srasa-open-world",
       location: session.currentLocation,
       day: session.dayNumber,
       phase: session.phase,
-      status: isWalkableLocation ? isHumanMoving ? "WALKING" : "ON_FOOT" : "DRIVING",
+      status: playerMode === "DRIVING" ? "DRIVING" : isHumanMoving ? "WALKING" : "ON_FOOT",
     },
   });
 
@@ -106,6 +102,7 @@ export default function ProjectQuatroApp() {
   const [escapeInspectTarget, setEscapeInspectTarget] = useState<
     "CABINET" | "STOVE" | "SECRET_WALL" | "EXIT_DOOR" | null
   >(null);
+
   const keyboardStateRef = useRef({
     isWorkModalOpen,
     isVoidCutsceneOpen,
@@ -122,7 +119,7 @@ export default function ProjectQuatroApp() {
     escapeInspectTarget,
   };
 
-  // Keyboard input state
+  // Keyboard inputs
   const inputRef = useRef({
     forward: false,
     backward: false,
@@ -132,12 +129,12 @@ export default function ProjectQuatroApp() {
   });
 
   const lastFootstepTime = useRef(0);
-  const isInteracting = useRef(false);
 
   // Sound Engine initialization on first user interaction
   useEffect(() => {
     const handleFirstInteraction = () => {
       soundManager.init();
+      soundManager.setMode(playerModeRef.current === "DRIVING" ? "DRIVING" : "WALKING");
       window.removeEventListener("keydown", handleFirstInteraction);
       window.removeEventListener("click", handleFirstInteraction);
     };
@@ -153,11 +150,51 @@ export default function ProjectQuatroApp() {
     soundManager.setMuted(session.isAudioMuted);
   }, [session.isAudioMuted]);
 
-  // Keyboard listeners for WASD / Arrows / E / Space / Escape
+  // Mount / Dismount helper functions
+  const handleMountVehicle = useCallback(() => {
+    soundManager.playVehicleMount();
+    soundManager.setMode("DRIVING");
+    setPlayerMode("DRIVING");
+    setSession((prev) => ({
+      ...prev,
+      currentLocation: "JALAN",
+      activePrompt: "Di dalam Quattro. [WASD] Kemudikan, [Space] Drift, [C] Kamera, [E] Turun.",
+    }));
+  }, []);
+
+  const handleDismountVehicle = useCallback(() => {
+    const car = vehicleStateRef.current;
+    soundManager.playVehicleDismount();
+    soundManager.setMode("WALKING");
+    soundManager.updateEngine(0, false);
+    soundManager.updateTireDrift(0, 0);
+
+    // Dismount left of driver door
+    const dismountX = car.position.x - Math.cos(car.heading) * 1.6;
+    const dismountZ = car.position.z + Math.sin(car.heading) * 1.6;
+
+    setVehicleState((prev) => ({
+      ...prev,
+      speed: 0,
+      lateralSpeed: 0,
+      angularVelocity: 0,
+      driftFactor: 0,
+    }));
+    setSession((prev) => ({
+      ...prev,
+      humanPosition: [dismountX, 0, dismountZ],
+      humanHeading: car.heading - Math.PI / 2,
+      activePrompt: "Jalan kaki. [WASD] Gerak, [F] Serang, [Q] Ganti Senjata, [E] Masuk Mobil.",
+    }));
+    setPlayerMode("ON_FOOT");
+  }, []);
+
+  // Keyboard listeners for WASD / Arrows / E / Space / Escape / C / F / Q
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const keyboardState = keyboardStateRef.current;
       const currentSession = sessionRef.current;
+      const currentMode = playerModeRef.current;
 
       if (e.code === "Escape") {
         if (e.repeat) return;
@@ -184,29 +221,42 @@ export default function ProjectQuatroApp() {
         return;
       }
 
-      const isRoad = currentSession.currentLocation === "JALAN" || currentSession.currentLocation === "DIMENSI_LAIN";
-      const isWalkable = ["RUMAH", "TEMPAT_KERJA", "BENGKEL", "KASTIL"].includes(currentSession.currentLocation);
-
       // [C] — toggle camera mode when driving
-      if (e.code === "KeyC" && isRoad && !e.repeat) {
+      if (e.code === "KeyC" && currentMode === "DRIVING" && !e.repeat) {
         setCameraMode((prev) => (prev === "CHASE" ? "COCKPIT" : "CHASE"));
         return;
       }
 
-      // Weapon controls — only in walkable scenes, no modal open
-      if (isWalkable && !e.repeat) {
+      // [E] Seamless Mount / Dismount or Context Interaction
+      if (e.code === "KeyE") {
+        if (e.repeat) return;
+        if (currentMode === "DRIVING") {
+          handleDismountVehicle();
+          return;
+        } else {
+          // Check proximity to car
+          const [hx, , hz] = currentSession.humanPosition;
+          const car = vehicleStateRef.current;
+          const distToCar = Math.hypot(hx - car.position.x, hz - car.position.z);
+          if (distToCar < 3.2) {
+            handleMountVehicle();
+            return;
+          }
+          // Contextual interaction
+          interactionHandlerRef.current();
+          return;
+        }
+      }
+
+      // Weapon controls when on foot
+      if (currentMode === "ON_FOOT" && !e.repeat) {
         // [F] — attack
         if (e.code === "KeyF") {
           const { startAttack } = weaponSystem;
-          const pos = sessionRef.current.humanPosition;
+          const pos = currentSession.humanPosition;
           isAttackingRef.current = true;
-          const def = weaponSystem.stateRef.current;
-          if (def.activeAttack?.isCharging) {
-            // Already charging — nothing to start, just tracking hold
-          } else {
-            startAttack(pos, sessionRef.current.humanHeading);
-            setWeaponHUDTick((t) => t + 1);
-          }
+          startAttack(pos, currentSession.humanHeading);
+          setWeaponHUDTick((t) => t + 1);
           return;
         }
 
@@ -217,16 +267,12 @@ export default function ProjectQuatroApp() {
           return;
         }
 
-        // [E] interaction — handled below, but [E] alone means interact not weapon
-        // (weapon cycle is Q, so E is still interaction)
-
         // Number keys [1-5] — select weapon by index
         const numMap: Record<string, number> = {
           Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4,
         };
         if (e.code in numMap) {
           const idx = numMap[e.code];
-          // Directly set weapon
           const ws = weaponSystem.stateRef.current;
           weaponSystem.stateRef.current = {
             ...ws,
@@ -240,16 +286,16 @@ export default function ProjectQuatroApp() {
         }
       }
 
-      if (e.code === "Space" && isRoad) {
-        inputRef.current.brake = true;
-        return;
-      }
-
-      // Interaction trigger with [E] or [Space]
-      if (e.code === "KeyE" || e.code === "Space") {
-        if (e.repeat) return;
-        interactionHandlerRef.current();
-        return;
+      if (e.code === "Space") {
+        if (currentMode === "DRIVING") {
+          inputRef.current.brake = true;
+          return;
+        } else {
+          // Space also triggers context interaction when on foot
+          if (e.repeat) return;
+          interactionHandlerRef.current();
+          return;
+        }
       }
 
       switch (e.code) {
@@ -281,8 +327,7 @@ export default function ProjectQuatroApp() {
       if (e.code === "KeyF") {
         isAttackingRef.current = false;
         const currentSession = sessionRef.current;
-        const isWalkable = ["RUMAH", "TEMPAT_KERJA", "BENGKEL", "KASTIL"].includes(currentSession.currentLocation);
-        if (isWalkable && weaponSystem.stateRef.current.activeAttack?.isCharging) {
+        if (playerModeRef.current === "ON_FOOT" && weaponSystem.stateRef.current.activeAttack?.isCharging) {
           weaponSystem.releaseAttack(currentSession.humanPosition, currentSession.humanHeading);
           setWeaponHUDTick((t) => t + 1);
         }
@@ -328,98 +373,120 @@ export default function ProjectQuatroApp() {
       window.removeEventListener("blur", clearMovement);
       document.removeEventListener("visibilitychange", clearMovement);
     };
-  }, []);
+  }, [handleMountVehicle, handleDismountVehicle, weaponSystem]);
 
-  // Main 60FPS Movement and Proximity loop
+  // Main Butter-Smooth 60FPS Movement, Driving & Proximity Loop
   useEffect(() => {
     let animId: number;
     let lastTime = performance.now();
 
     const loop = (currentTime: number) => {
-      if (currentTime - lastTime < 1000 / 30) {
-        animId = requestAnimationFrame(loop);
-        return;
-      }
       const dt = Math.min((currentTime - lastTime) / 1000, 0.05);
       lastTime = currentTime;
-      const currentSession = sessionRef.current;
 
-      const isWalkable =
-        currentSession.currentLocation === "RUMAH" ||
-        currentSession.currentLocation === "TEMPAT_KERJA" ||
-        currentSession.currentLocation === "BENGKEL" ||
-        currentSession.currentLocation === "KASTIL";
+      const currentSession = sessionRef.current;
+      const currentMode = playerModeRef.current;
 
       if (
-        isWalkable &&
         !currentSession.isPaused &&
         !isWorkModalOpen &&
         !isVoidCutsceneOpen &&
         !activeNpcId &&
         !easterEggAlert &&
-        !escapeInspectTarget
+        !escapeInspectTarget &&
+        currentSession.currentLocation !== "END_SCREEN"
       ) {
-        let moveX = 0;
-        let moveZ = 0;
+        if (currentMode === "ON_FOOT") {
+          let moveX = 0;
+          let moveZ = 0;
 
-        if (inputRef.current.forward) moveZ -= 1;
-        if (inputRef.current.backward) moveZ += 1;
-        if (inputRef.current.left) moveX -= 1;
-        if (inputRef.current.right) moveX += 1;
+          if (inputRef.current.forward) moveZ -= 1;
+          if (inputRef.current.backward) moveZ += 1;
+          if (inputRef.current.left) moveX -= 1;
+          if (inputRef.current.right) moveX += 1;
 
-        const isMoving = moveX !== 0 || moveZ !== 0;
-        if (isHumanMovingRef.current !== isMoving) {
-          isHumanMovingRef.current = isMoving;
-          setIsHumanMoving(isMoving);
-        }
+          const isMoving = moveX !== 0 || moveZ !== 0;
+          if (isHumanMovingRef.current !== isMoving) {
+            isHumanMovingRef.current = isMoving;
+            setIsHumanMoving(isMoving);
+          }
 
-        if (isMoving) {
-          const moveLen = Math.hypot(moveX, moveZ);
-          const normX = moveX / moveLen;
-          const normZ = moveZ / moveLen;
+          if (isMoving) {
+            const moveLen = Math.hypot(moveX, moveZ);
+            const normX = moveX / moveLen;
+            const normZ = moveZ / moveLen;
 
-          const walkSpeed = 4.2;
-          let nextX = currentSession.humanPosition[0] + normX * walkSpeed * dt;
-          let nextZ = currentSession.humanPosition[2] + normZ * walkSpeed * dt;
-          const nextHeading = Math.atan2(normX, normZ);
+            const walkSpeed = 4.4;
+            let nextX = currentSession.humanPosition[0] + normX * walkSpeed * dt;
+            let nextZ = currentSession.humanPosition[2] + normZ * walkSpeed * dt;
+            const nextHeading = Math.atan2(normX, normZ);
 
-          // Boundaries per room
-          if (currentSession.currentLocation === "RUMAH") {
-            nextX = Math.max(-3.8, Math.min(3.8, nextX));
-            nextZ = Math.max(-3.8, Math.min(4.1, nextZ));
+            if (currentSession.currentLocation === "RUMAH") {
+              nextX = Math.max(-3.8, Math.min(3.8, nextX));
+              nextZ = Math.max(-3.8, Math.min(4.1, nextZ));
 
-          } else if (currentSession.currentLocation === "TEMPAT_KERJA") {
-            nextX = Math.max(-6.2, Math.min(6.2, nextX));
-            nextZ = Math.max(-6.2, Math.min(6.5, nextZ));
+              // Resolve bedroom/kitchen/bathroom walls
+              const [rx, , rz] = resolvePlayerPosition(
+                currentSession.humanPosition,
+                [nextX, 0, nextZ],
+                "RUMAH",
+                false,
+                0.32
+              );
+              nextX = rx;
+              nextZ = rz;
 
-            // Check if walking into Day 3 Semicolon portal at exit door
-            if (
-              currentSession.dayNumber === 3 &&
-              currentSession.phase === "PORTAL_APPROACH" &&
-              currentSession.workplace.allTasksDone &&
-              Math.hypot(nextX - 0, nextZ - 5.8) < 1.4
-            ) {
-              soundManager.playPortalWhoosh();
-              setSession((prev) => enterAlternateDimension(prev));
-              setIsVoidCutsceneOpen(true);
-              return;
-            }
-          } else if (currentSession.currentLocation === "BENGKEL") {
-            nextX = Math.max(-5.2, Math.min(5.2, nextX));
-            nextZ = Math.max(-5.2, Math.min(5.2, nextZ));
-          } else if (currentSession.currentLocation === "KASTIL") {
-            if (currentSession.kastil.insideEscapeRoom) {
+              // Walking out front door onto driveway
+              if (currentSession.rumah.canExitHouse && Math.hypot(nextX - 0, nextZ - 4.0) < 1.0) {
+                soundManager.playDoorOpen();
+                setSession((prev) => ({
+                  ...prev,
+                  currentLocation: "JALAN",
+                  phase: "COMMUTE_TO_WORK",
+                  humanPosition: [20.0, 0, -54.0],
+                  humanHeading: 0,
+                  activePrompt: "Pagi yang cerah. Mobil Quattro terparkir di depan [E].",
+                }));
+                return;
+              }
+            } else if (currentSession.currentLocation === "KASTIL" && currentSession.kastil.insideEscapeRoom) {
+              // Escape Room interior bounds
               nextX = Math.max(-5.5, Math.min(5.5, nextX));
               nextZ = Math.max(-5.8, Math.min(5.8, nextZ));
+              const [rx, , rz] = resolvePlayerPosition(
+                currentSession.humanPosition,
+                [nextX, 0, nextZ],
+                "KASTIL",
+                true,
+                0.32,
+                currentSession.kastil.escapeRoom.doorUnlocked
+              );
+              nextX = rx;
+              nextZ = rz;
             } else {
-              nextX = Math.max(-10.0, Math.min(10.0, nextX));
-              nextZ = Math.max(-9.0, Math.min(10.5, nextZ));
+              // Continuous Open World Map bounds
+              nextX = Math.max(-28.0, Math.min(28.0, nextX));
+              nextZ = Math.max(-85.0, Math.min(225.0, nextZ));
 
-              // Auto-doorway trigger: walking into Great Keep entrance
-              if (Math.hypot(nextX - 0, nextZ - (-8.0)) < 1.6) {
+              // Check walking into Day 3 Semicolon Portal at Office entrance
+              if (
+                currentSession.dayNumber === 3 &&
+                currentSession.phase === "PORTAL_APPROACH" &&
+                currentSession.workplace.allTasksDone &&
+                Math.hypot(nextX - 18.0, nextZ - 75.8) < 2.0
+              ) {
+                soundManager.playPortalWhoosh();
+                setSession((prev) => enterAlternateDimension(prev));
+                setIsVoidCutsceneOpen(true);
+                return;
+              }
+
+              // Check walking into Keep Doorway in Castle Courtyard
+              if (Math.hypot(nextX - 0, nextZ - 198.0) < 2.0) {
                 soundManager.playDoorSlam();
                 setSession((prev) => ({
                   ...prev,
+                  currentLocation: "KASTIL",
                   humanPosition: [0, 0, 4.5],
                   kastil: {
                     ...prev.kastil,
@@ -431,57 +498,49 @@ export default function ProjectQuatroApp() {
                 return;
               }
             }
-          }
 
-          const [resolvedX, , resolvedZ] = resolvePlayerPosition(
-            currentSession.humanPosition,
-            [nextX, 0, nextZ],
-            currentSession.currentLocation,
-            currentSession.kastil.insideEscapeRoom,
-            0.32,
-            currentSession.kastil.escapeRoom.doorUnlocked
+            // Audio footstep throttle
+            if (currentTime - lastFootstepTime.current > 310) {
+              soundManager.playFootstep();
+              lastFootstepTime.current = currentTime;
+            }
+
+            setSession((prev) => ({
+              ...prev,
+              humanPosition: [nextX, 0, nextZ],
+              humanHeading: nextHeading,
+            }));
+          }
+        } else if (currentMode === "DRIVING") {
+          // DRIVING IN CONTINUOUS WORLD
+          const input = inputRef.current;
+          const nextVehicle = updateVehiclePhysics(
+            vehicleStateRef.current,
+            {
+              forward: input.forward,
+              backward: input.backward,
+              left: input.left,
+              right: input.right,
+              brake: input.brake,
+            },
+            dt
           );
-          nextX = resolvedX;
-          nextZ = resolvedZ;
 
-          // Sound footstep throttle
-          if (currentTime - lastFootstepTime.current > 320) {
-            soundManager.playFootstep();
-            lastFootstepTime.current = currentTime;
+          // World boundaries for car
+          nextVehicle.position.x = THREE.MathUtils.clamp(nextVehicle.position.x, -28.0, 28.0);
+          nextVehicle.position.z = THREE.MathUtils.clamp(nextVehicle.position.z, -85.0, 225.0);
+
+          vehicleStateRef.current = nextVehicle;
+          setVehicleState(nextVehicle);
+
+          // Update audio
+          soundManager.updateEngine(nextVehicle.speed, true);
+          soundManager.updateTireDrift(nextVehicle.driftFactor, nextVehicle.speed);
+
+          if (isHumanMovingRef.current) {
+            isHumanMovingRef.current = false;
+            setIsHumanMoving(false);
           }
-
-          setSession((prev) => ({
-            ...prev,
-            humanPosition: [nextX, 0, nextZ],
-            humanHeading: nextHeading,
-          }));
-        }
-      } else if (
-        (currentSession.currentLocation === "JALAN" || currentSession.currentLocation === "DIMENSI_LAIN") &&
-        !currentSession.isPaused &&
-        !isVoidCutsceneOpen
-      ) {
-        const input = inputRef.current;
-        const nextVehicle = updateVehiclePhysics(
-          vehicleStateRef.current,
-          {
-            forward: input.forward,
-            backward: input.backward,
-            left: input.left,
-            right: input.right,
-            brake: input.brake,
-          },
-          dt
-        );
-        nextVehicle.position.x = THREE.MathUtils.clamp(nextVehicle.position.x, -3.8, 3.8);
-        nextVehicle.position.z = 0;
-        nextVehicle.heading = THREE.MathUtils.clamp(nextVehicle.heading, -0.8, 0.8);
-        vehicleStateRef.current = nextVehicle;
-        setVehicleState(nextVehicle);
-        soundManager.updateEngine(nextVehicle.speed);
-        if (isHumanMovingRef.current) {
-          isHumanMovingRef.current = false;
-          setIsHumanMoving(false);
         }
       } else if (isHumanMovingRef.current) {
         isHumanMovingRef.current = false;
@@ -494,8 +553,6 @@ export default function ProjectQuatroApp() {
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
   }, [
-    session.currentLocation,
-    session.isPaused,
     isWorkModalOpen,
     isVoidCutsceneOpen,
     activeNpcId,
@@ -516,23 +573,14 @@ export default function ProjectQuatroApp() {
       const distToDoor = Math.hypot(hx - 0, hz - 4.0);
 
       // Morning wake up
-      if (
-        distToBed < 2.0 &&
-        session.phase === "MORNING_ROUTINE" &&
-        !session.rumah.wokenUp
-      ) {
+      if (distToBed < 2.0 && session.phase === "MORNING_ROUTINE" && !session.rumah.wokenUp) {
         soundManager.playClick();
         setSession((prev) => wakeUp(prev));
         return;
       }
 
       // Cook at stove
-      if (
-        distToStove < 1.8 &&
-        session.phase === "MORNING_ROUTINE" &&
-        session.rumah.wokenUp &&
-        !session.rumah.hasCooked
-      ) {
+      if (distToStove < 1.8 && session.phase === "MORNING_ROUTINE" && session.rumah.wokenUp && !session.rumah.hasCooked) {
         soundManager.playCook();
         setSession((prev) => cookBreakfast(prev));
         return;
@@ -540,21 +588,11 @@ export default function ProjectQuatroApp() {
 
       // Eat at dining table
       if (distToTable < 1.8) {
-        if (
-          session.phase === "EVENING_ROUTINE" &&
-          session.rumah.hasShoweredEvening &&
-          !session.rumah.hasEatenEvening
-        ) {
-          // Evening dinner
+        if (session.phase === "EVENING_ROUTINE" && session.rumah.hasShoweredEvening && !session.rumah.hasEatenEvening) {
           soundManager.playEat();
           setSession((prev) => eatDinner(prev));
           return;
-        } else if (
-          session.phase === "MORNING_ROUTINE" &&
-          session.rumah.hasCooked &&
-          !session.rumah.hasEaten
-        ) {
-          // Morning breakfast
+        } else if (session.phase === "MORNING_ROUTINE" && session.rumah.hasCooked && !session.rumah.hasEaten) {
           soundManager.playEat();
           setSession((prev) => eatBreakfast(prev));
           return;
@@ -564,33 +602,33 @@ export default function ProjectQuatroApp() {
       // Shower in bathroom
       if (distToShower < 2.0) {
         if (session.phase === "EVENING_ROUTINE" && !session.rumah.hasShoweredEvening) {
-          // Evening shower
           soundManager.playWater();
           setSession((prev) => takeEveningShower(prev));
           return;
-        } else if (
-          session.phase === "MORNING_ROUTINE" &&
-          session.rumah.hasEaten &&
-          !session.rumah.hasShowered
-        ) {
-          // Morning shower
+        } else if (session.phase === "MORNING_ROUTINE" && session.rumah.hasEaten && !session.rumah.hasShowered) {
           soundManager.playWater();
           setSession((prev) => takeMorningShower(prev));
           return;
         }
       }
 
-      // Front Door Exit to Jalan
+      // Front Door Exit to Driveway
       if (distToDoor < 1.8 && session.phase === "MORNING_ROUTINE" && session.rumah.canExitHouse) {
         soundManager.playDoorOpen();
-        setVehicleState(createInitialVehicleState());
-        setSession((prev) => beginCommuteToWork(prev));
+        setSession((prev) => ({
+          ...prev,
+          currentLocation: "JALAN",
+          phase: "COMMUTE_TO_WORK",
+          humanPosition: [20.0, 0, -54.0],
+          humanHeading: 0,
+          activePrompt: "Pagi yang cerah. Mobil Quattro terparkir di depan [E].",
+        }));
         return;
       }
 
       // Evening sleep in bed
       if (distToBed < 2.0 && session.phase === "EVENING_ROUTINE") {
-        if (session.rumah.canSleepEvening && session.currentLocation === "RUMAH") {
+        if (session.rumah.canSleepEvening) {
           soundManager.playPurr();
           const next = advanceDay(session);
           setSession(next);
@@ -605,188 +643,142 @@ export default function ProjectQuatroApp() {
       }
     }
 
-    // 2. TEMPAT KERJA INTERACTIONS
-    if (session.currentLocation === "TEMPAT_KERJA") {
-      const distToPC = Math.hypot(hx - 3.0, hz - (-1.4));
-      const distToExit = Math.hypot(hx - 0, hz - 6.2);
-
-      // Workstation PC
-      if (distToPC < 2.0 && !session.workplace.allTasksDone) {
-        soundManager.playClick();
-        setIsWorkModalOpen(true);
+    // 2. CONTINUOUS OPEN WORLD INTERACTIONS
+    if (session.currentLocation !== "RUMAH" && (!session.kastil.insideEscapeRoom || session.currentLocation !== "KASTIL")) {
+      // Proximity to Home Front Door -> Step back inside
+      const distToHomeDoor = Math.hypot(hx - 20.0, hz - (-55.7));
+      if (distToHomeDoor < 2.5) {
+        soundManager.playDoorOpen();
+        setSession((prev) => ({
+          ...prev,
+          currentLocation: "RUMAH",
+          humanPosition: [0, 0, 3.6],
+          humanHeading: Math.PI,
+        }));
         return;
       }
 
-      // Exit Doorway
-      if (distToExit < 2.0 && session.workplace.allTasksDone) {
-        if (session.dayNumber === 3 && session.phase === "PORTAL_APPROACH") {
-          // Enter Portal
-          soundManager.playPortalWhoosh();
-          setSession((prev) => enterAlternateDimension(prev));
-          setIsVoidCutsceneOpen(true);
-        } else if (session.dayNumber < 3 && session.phase === "AT_WORK") {
-          // Return to Jalan (Evening Commute Home)
-          soundManager.playDoorOpen();
-          setVehicleState(createInitialVehicleState());
-          setSession((prev) => beginCommuteHome(prev));
-        }
-        return;
-      }
-    }
-
-    // 3. BENGKEL INTERACTIONS
-    if (session.currentLocation === "BENGKEL") {
-      const distToMontir = Math.hypot(hx - 2.0, hz - (-1.5));
-      const distToExit = Math.hypot(hx - 0, hz - 5.0);
-
-      if (distToMontir < 2.0) {
+      // Proximity to Mechanic Pak Montir at [-16.0, 0, -1.5]
+      const distToMontir = Math.hypot(hx - (-16.0), hz - (-1.5));
+      if (distToMontir < 3.0) {
         soundManager.playPurr();
         setActiveNpcId("mechanic");
         return;
       }
 
-      if (distToExit < 2.0) {
-        soundManager.playDoorOpen();
-        setVehicleState(createInitialVehicleState());
+      // Proximity to Workplace PC Workstation at [21.0, 0, 68.0]
+      const distToPC = Math.hypot(hx - 21.0, hz - 68.0);
+      if (distToPC < 3.0 && !session.workplace.allTasksDone) {
+        soundManager.playClick();
+        setIsWorkModalOpen(true);
+        return;
+      }
+
+      // Proximity to Castle NPCs
+      const distToJeffrey = Math.hypot(hx - (-3.5), hz - 176.0);
+      const distToVespera = Math.hypot(hx - 3.5, hz - 176.0);
+      const distToBarnaby = Math.hypot(hx - (-5.0), hz - 180.0);
+      const distToFountain = Math.hypot(hx - 0, hz - 179.0);
+      const distToHay = Math.hypot(hx - (-5.5), hz - 183.0);
+      const distToKeepDoor = Math.hypot(hx - 0, hz - 198.0);
+
+      if (distToJeffrey < 2.4) {
+        soundManager.playClick();
+        setActiveNpcId("jeffrey");
+        return;
+      }
+      if (distToVespera < 2.4) {
+        soundManager.playClick();
+        setActiveNpcId("vespera");
+        return;
+      }
+      if (distToBarnaby < 2.4) {
+        soundManager.playClick();
+        setActiveNpcId("barnaby");
+        return;
+      }
+
+      // Easter Eggs
+      if (distToFountain < 2.5 && !session.kastil.easterEggs.fountain) {
+        soundManager.playPurr();
         setSession((prev) => ({
           ...prev,
-          currentLocation: "JALAN",
-          activePrompt: "Keluar dari bengkel. Berkendara di jalan raya.",
+          kastil: {
+            ...prev.kastil,
+            easterEggs: { ...prev.kastil.easterEggs, fountain: true },
+            easterEggCount: prev.kastil.easterEggCount + 1,
+          },
+          stats: { ...prev.stats, easterEggsFound: prev.stats.easterEggsFound + 1 },
+        }));
+        setEasterEggAlert("Kamu menemukan Easter Egg Semicolon di dalam air mancur kuno!");
+        return;
+      }
+
+      if (distToHay < 2.5 && !session.kastil.easterEggs.hayBales) {
+        soundManager.playPurr();
+        setSession((prev) => ({
+          ...prev,
+          kastil: {
+            ...prev.kastil,
+            easterEggs: { ...prev.kastil.easterEggs, hayBales: true },
+            easterEggCount: prev.kastil.easterEggCount + 1,
+          },
+          stats: { ...prev.stats, easterEggsFound: prev.stats.easterEggsFound + 1 },
+        }));
+        setEasterEggAlert("Kamu menemukan Easter Egg Semicolon tersembunyi di balik tumpukan jerami!");
+        return;
+      }
+
+      // Keep Doorway Entry
+      if (distToKeepDoor < 2.5) {
+        soundManager.playDoorSlam();
+        setSession((prev) => ({
+          ...prev,
+          currentLocation: "KASTIL",
+          humanPosition: [0, 0, 4.5],
+          kastil: { ...prev.kastil, insideEscapeRoom: true },
+          activePrompt:
+            "✦ PINTU TERBANTING MENUTUP! Kamu terkunci di aula kastil! Cari cara keluar (Escape Room).",
         }));
         return;
       }
     }
 
-    // 4. KASTIL INTERACTIONS
-    if (session.currentLocation === "KASTIL") {
-      if (!session.kastil.insideEscapeRoom) {
-        // Courtyard: NPCs & Easter Eggs
-        const distToJeffrey = Math.hypot(hx - (-3.5), hz - (-4.0));
-        const distToVespera = Math.hypot(hx - 3.5, hz - (-4.0));
-        const distToBarnaby = Math.hypot(hx - (-5.0), hz - 0);
+    // 3. INSIDE ESCAPE ROOM INTERACTIONS
+    if (session.currentLocation === "KASTIL" && session.kastil.insideEscapeRoom) {
+      const distToCabinet = Math.hypot(hx - (-5.2), hz - 0);
+      const distToStove = Math.hypot(hx - 5.2, hz - 0);
+      const distToSecretWall = Math.hypot(hx - (-1.4), hz - (-5.8));
+      const distToExitDoor = Math.hypot(hx - 2.0, hz - (-5.8));
 
-        const distToFountain = Math.hypot(hx - 0, hz - 1.0);
-        const distToHay = Math.hypot(hx - 5.5, hz - 3.0);
-        const distToKeepDoor = Math.hypot(hx - 0, hz - (-8.0));
-
-        if (distToJeffrey < 2.0) {
-          soundManager.playClick();
-          setActiveNpcId("jeffrey");
-          return;
-        }
-        if (distToVespera < 2.0) {
-          soundManager.playClick();
-          setActiveNpcId("vespera");
-          return;
-        }
-        if (distToBarnaby < 2.0) {
-          soundManager.playClick();
-          setActiveNpcId("barnaby");
-          return;
-        }
-
-        // Easter Egg 1: Fountain
-        if (distToFountain < 2.2 && !session.kastil.easterEggs.fountain) {
-          soundManager.playPurr();
-          setSession((prev) => ({
-            ...prev,
-            kastil: {
-              ...prev.kastil,
-              easterEggs: { ...prev.kastil.easterEggs, fountain: true },
-              easterEggCount: prev.kastil.easterEggCount + 1,
-            },
-            stats: { ...prev.stats, easterEggsFound: prev.stats.easterEggsFound + 1 },
-          }));
-          setEasterEggAlert("Kamu menemukan Easter Egg Semicolon di dalam air mancur kuno!");
-          return;
-        }
-
-        // Easter Egg 2: Hay Bales
-        if (distToHay < 2.2 && !session.kastil.easterEggs.hayBales) {
-          soundManager.playPurr();
-          setSession((prev) => ({
-            ...prev,
-            kastil: {
-              ...prev.kastil,
-              easterEggs: { ...prev.kastil.easterEggs, hayBales: true },
-              easterEggCount: prev.kastil.easterEggCount + 1,
-            },
-            stats: { ...prev.stats, easterEggsFound: prev.stats.easterEggsFound + 1 },
-          }));
-          setEasterEggAlert("Kamu menemukan Easter Egg Semicolon tersembunyi di balik tumpukan jerami!");
-          return;
-        }
-
-        // Enter Keep Door
-        if (distToKeepDoor < 2.2) {
-          soundManager.playDoorSlam();
-          setSession((prev) => ({
-            ...prev,
-            humanPosition: [0, 0, 4.5],
-            kastil: { ...prev.kastil, insideEscapeRoom: true },
-            activePrompt:
-              "✦ PINTU TERBANTING MENUTUP! Kamu terkunci di aula kastil! Cari cara keluar (Escape Room).",
-          }));
-          return;
-        }
-      } else {
-        // Inside Escape Room
-        const distToCabinet = Math.hypot(hx - (-5.2), hz - 0);
-        const distToStove = Math.hypot(hx - 5.2, hz - 0);
-        const distToSecretWall = Math.hypot(hx - (-1.4), hz - (-5.8));
-        const distToExitDoor = Math.hypot(hx - 2.0, hz - (-5.8));
-
-        if (distToCabinet < 2.0) {
-          soundManager.playClick();
-          setEscapeInspectTarget("CABINET");
-          return;
-        }
-        if (distToStove < 2.0 && session.kastil.escapeRoom.cabinetSearched) {
-          soundManager.playClick();
-          setEscapeInspectTarget("STOVE");
-          return;
-        }
-        if (
-          distToSecretWall < 2.0 &&
-          session.kastil.escapeRoom.cabinetSearched &&
-          session.kastil.escapeRoom.stoveChecked
-        ) {
-          soundManager.playClick();
-          setEscapeInspectTarget("SECRET_WALL");
-          return;
-        }
-        if (distToExitDoor < 2.0) {
-          soundManager.playClick();
-          setEscapeInspectTarget("EXIT_DOOR");
-          return;
-        }
+      if (distToCabinet < 2.0) {
+        soundManager.playClick();
+        setEscapeInspectTarget("CABINET");
+        return;
+      }
+      if (distToStove < 2.0 && session.kastil.escapeRoom.cabinetSearched) {
+        soundManager.playClick();
+        setEscapeInspectTarget("STOVE");
+        return;
+      }
+      if (
+        distToSecretWall < 2.0 &&
+        session.kastil.escapeRoom.cabinetSearched &&
+        session.kastil.escapeRoom.stoveChecked
+      ) {
+        soundManager.playClick();
+        setEscapeInspectTarget("SECRET_WALL");
+        return;
+      }
+      if (distToExitDoor < 2.0) {
+        soundManager.playClick();
+        setEscapeInspectTarget("EXIT_DOOR");
+        return;
       }
     }
   }, [session]);
-  interactionHandlerRef.current = handleContextInteraction;
 
-  // Destination Selection Handler from Jalan & Dimensi Lain
-  const handleSelectDestination = (dest: "RUMAH" | "TEMPAT_KERJA" | "BENGKEL" | "KASTIL") => {
-    soundManager.playDoorOpen();
-    if (dest === "RUMAH") {
-      setVehicleState(createInitialVehicleState());
-      setSession((prev) => arriveHomeForEvening(prev));
-    } else if (dest === "TEMPAT_KERJA") {
-      setVehicleState(createInitialVehicleState());
-      setSession((prev) => arriveAtWork(prev));
-    } else if (dest === "BENGKEL") {
-      setVehicleState(createInitialVehicleState());
-      setSession((prev) => ({
-        ...prev,
-        currentLocation: "BENGKEL",
-        humanPosition: [0, 0, 4.0],
-        activePrompt: "Tiba di bengkel mobil. Bincang dengan Pak Montir [E] atau servis mobil.",
-      }));
-    } else if (dest === "KASTIL") {
-      setVehicleState(createInitialVehicleState());
-      setSession((prev) => enterCastle(prev));
-    }
-  };
+  interactionHandlerRef.current = handleContextInteraction;
 
   // Complete Workplace PC Tasks
   const handleCompleteOfficeWork = () => {
@@ -805,7 +797,7 @@ export default function ProjectQuatroApp() {
     }));
   };
 
-  // Final Escape to End Screen!
+  // Final Escape to Victory
   const handleEscapeToVictory = () => {
     setEscapeInspectTarget(null);
     soundManager.playPurr();
@@ -820,151 +812,113 @@ export default function ProjectQuatroApp() {
   const handlePlayAgain = () => {
     soundManager.setCinematicMode(false);
     setSession(createInitialSessionState());
+    setPlayerMode("ON_FOOT");
+    setVehicleState({
+      ...createInitialVehicleState(),
+      position: { x: 20, y: 0.35, z: -48 },
+      heading: 0,
+    });
   };
 
-  // Calculate nearby action prompt for Home
-  let nearbyHomeAction: "WAKE" | "COOK" | "EAT" | "SHOWER" | "SLEEP" | "EXIT" | null = null;
-  if (session.currentLocation === "RUMAH") {
-    const [hx, , hz] = session.humanPosition;
-    const isEvening = session.phase === "EVENING_ROUTINE";
-    if (Math.hypot(hx - (-2.4), hz - (-3.2)) < 2.0) {
-      if (isEvening && session.rumah.canSleepEvening) nearbyHomeAction = "SLEEP";
-      else if (!isEvening && !session.rumah.wokenUp) nearbyHomeAction = "WAKE";
-    } else if (!isEvening && Math.hypot(hx - (-3.8), hz - 1.0) < 1.8 && session.rumah.wokenUp && !session.rumah.hasCooked) {
-      nearbyHomeAction = "COOK";
-    } else if (Math.hypot(hx - 0.8, hz - 1.6) < 1.8) {
-      if (isEvening && !session.rumah.hasEatenEvening) nearbyHomeAction = "EAT";
-      else if (!isEvening && session.rumah.hasCooked && !session.rumah.hasEaten) nearbyHomeAction = "EAT";
-    } else if (Math.hypot(hx - 3.4, hz - (-3.4)) < 2.0) {
-      if (isEvening && !session.rumah.hasShoweredEvening) nearbyHomeAction = "SHOWER";
-      else if (!isEvening && session.rumah.hasEaten && !session.rumah.hasShowered) nearbyHomeAction = "SHOWER";
-    } else if (!isEvening && Math.hypot(hx - 0, hz - 4.0) < 1.8 && session.rumah.canExitHouse) {
-      nearbyHomeAction = "EXIT";
-    }
-  }
-
+  // Contextual HUD Prompt Calculation
   let contextualAction: string | null = null;
   const [playerX, , playerZ] = session.humanPosition;
-  if (nearbyHomeAction) {
-    contextualAction = {
-      WAKE: "Wake up",
-      COOK: "Cook",
-      EAT: "Eat",
-      SHOWER: "Shower",
-      SLEEP: "Sleep",
-      EXIT: "Leave home",
-    }[nearbyHomeAction];
-  } else if (session.currentLocation === "TEMPAT_KERJA") {
-    if (Math.hypot(playerX - 3.0, playerZ + 1.4) < 2 && !session.workplace.allTasksDone) {
-      contextualAction = "Workstation";
-    } else if (Math.hypot(playerX, playerZ - 6.2) < 2 && session.workplace.allTasksDone) {
-      contextualAction = session.dayNumber === 3 ? "Enter portal" : "Return home";
+
+  if (playerMode === "ON_FOOT") {
+    // Check proximity to vehicle
+    const distToCar = Math.hypot(playerX - vehicleState.position.x, playerZ - vehicleState.position.z);
+    if (distToCar < 3.2) {
+      contextualAction = "Masuk Mobil (Quattro)";
+    } else if (session.currentLocation === "RUMAH") {
+      const isEvening = session.phase === "EVENING_ROUTINE";
+      if (Math.hypot(playerX - (-2.4), playerZ - (-3.2)) < 2.0) {
+        contextualAction = isEvening && session.rumah.canSleepEvening ? "Tidur" : !isEvening && !session.rumah.wokenUp ? "Bangun" : null;
+      } else if (!isEvening && Math.hypot(playerX - (-3.8), playerZ - 1.0) < 1.8 && session.rumah.wokenUp && !session.rumah.hasCooked) {
+        contextualAction = "Masak Sarapan";
+      } else if (Math.hypot(playerX - 0.8, playerZ - 1.6) < 1.8) {
+        if (isEvening && !session.rumah.hasEatenEvening) contextualAction = "Makan Malam";
+        else if (!isEvening && session.rumah.hasCooked && !session.rumah.hasEaten) contextualAction = "Makan Sarapan";
+      } else if (Math.hypot(playerX - 3.4, playerZ - (-3.4)) < 2.0) {
+        if (isEvening && !session.rumah.hasShoweredEvening) contextualAction = "Mandi Malam";
+        else if (!isEvening && session.rumah.hasEaten && !session.rumah.hasShowered) contextualAction = "Mandi Pagi";
+      } else if (!isEvening && Math.hypot(playerX - 0, playerZ - 4.0) < 1.8 && session.rumah.canExitHouse) {
+        contextualAction = "Keluar ke Halaman";
+      }
+    } else if (session.currentLocation === "KASTIL" && session.kastil.insideEscapeRoom) {
+      if (Math.hypot(playerX + 5.2, playerZ) < 2) contextualAction = "Periksa Lemari";
+      else if (session.kastil.escapeRoom.cabinetSearched && Math.hypot(playerX - 5.2, playerZ) < 2) contextualAction = "Periksa Perapian";
+      else if (session.kastil.escapeRoom.cabinetSearched && session.kastil.escapeRoom.stoveChecked && Math.hypot(playerX + 1.4, playerZ + 5.8) < 2) contextualAction = "Periksa Batu Longgar";
+      else if (Math.hypot(playerX - 2.0, playerZ + 5.8) < 2) contextualAction = "Periksa Pintu Keluar";
+    } else {
+      // In Continuous World
+      if (Math.hypot(playerX - 20.0, playerZ - (-55.7)) < 2.5) contextualAction = "Masuk Rumah";
+      else if (Math.hypot(playerX - (-16.0), playerZ - (-1.5)) < 2.8) contextualAction = "Bincang · Pak Montir";
+      else if (Math.hypot(playerX - 21.0, playerZ - 68.0) < 2.8 && !session.workplace.allTasksDone) contextualAction = "Workstation · Coding";
+      else if (Math.hypot(playerX + 3.5, playerZ - 176.0) < 2.4) contextualAction = "Bincang · Jeffrey";
+      else if (Math.hypot(playerX - 3.5, playerZ - 176.0) < 2.4) contextualAction = "Bincang · Vespera";
+      else if (Math.hypot(playerX + 5.0, playerZ - 180.0) < 2.4) contextualAction = "Bincang · Barnaby";
+      else if (Math.hypot(playerX, playerZ - 179.0) < 2.4 && !session.kastil.easterEggs.fountain) contextualAction = "Periksa · Air Mancur";
+      else if (Math.hypot(playerX + 5.5, playerZ - 183.0) < 2.4 && !session.kastil.easterEggs.hayBales) contextualAction = "Periksa · Jerami";
+      else if (Math.hypot(playerX, playerZ - 198.0) < 2.5) contextualAction = "Masuk Great Keep";
     }
-  } else if (session.currentLocation === "BENGKEL") {
-    if (Math.hypot(playerX - 2.0, playerZ + 1.5) < 2) contextualAction = "Talk · Mechanic";
-    else if (Math.hypot(playerX, playerZ - 5.0) < 2) contextualAction = "Leave workshop";
-  } else if (session.currentLocation === "KASTIL") {
-    if (session.kastil.insideEscapeRoom) {
-      if (Math.hypot(playerX + 5.2, playerZ) < 2) contextualAction = "Inspect · Cabinet";
-      else if (session.kastil.escapeRoom.cabinetSearched && Math.hypot(playerX - 5.2, playerZ) < 2) contextualAction = "Inspect · Hearth";
-      else if (
-        session.kastil.escapeRoom.cabinetSearched &&
-        session.kastil.escapeRoom.stoveChecked &&
-        Math.hypot(playerX + 1.4, playerZ + 5.8) < 2
-      ) contextualAction = "Inspect · Loose stone";
-      else if (Math.hypot(playerX - 2.0, playerZ + 5.8) < 2) contextualAction = "Inspect · Exit door";
-    } else if (Math.hypot(playerX + 3.5, playerZ + 4.0) < 2) contextualAction = "Talk · Jeffrey";
-    else if (Math.hypot(playerX - 3.5, playerZ + 4.0) < 2) contextualAction = "Talk · Vespera";
-    else if (Math.hypot(playerX + 5.0, playerZ) < 2) contextualAction = "Talk · Barnaby";
-    else if (Math.hypot(playerX, playerZ + 8.0) < 2.2) contextualAction = "Enter keep";
-    else if (Math.hypot(playerX, playerZ - 1.0) < 2.2 && !session.kastil.easterEggs.fountain) contextualAction = "Inspect · Fountain";
-    else if (Math.hypot(playerX - 5.5, playerZ - 3.0) < 2.2 && !session.kastil.easterEggs.hayBales) contextualAction = "Inspect · Hay bales";
   }
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none bg-black">
-      {/* 3D Canvas Rendering Active Scene */}
+      {/* 3D Canvas Rendering Active Continuous Exploration Scene */}
       {session.currentLocation !== "END_SCREEN" && (
         <GameCanvas
-          location={session.currentLocation}
-          humanPos={isRoadLocation
-            ? [vehicleState.position.x, 0, 0]
-            : session.humanPosition}
-          humanHeading={isRoadLocation ? vehicleState.heading : session.humanHeading}
+          playerMode={playerMode}
+          humanPos={session.humanPosition}
+          humanHeading={session.humanHeading}
           isHumanMoving={isHumanMoving}
           isInsideEscapeRoom={session.kastil.insideEscapeRoom}
           remotePlayers={realtime.remotePlayers}
-          vehicleState={isRoadLocation ? vehicleState : undefined}
+          vehicleState={vehicleState}
           cameraMode={cameraMode}
-          weaponSystemStateRef={isWalkableLocation ? weaponSystem.stateRef : undefined}
+          weaponSystemStateRef={weaponSystem.stateRef}
           isAttackingRef={isAttackingRef}
           isChargingRef={isChargingRef}
+          activeWeaponId={weaponSystem.stateRef.current.activeWeaponId}
+          chargeLevel={weaponSystem.stateRef.current.chargeLevel}
+          attackProgress={weaponSystem.stateRef.current.activeAttack?.progress ?? 0}
+          isAttacking={isAttackingRef.current}
         >
-          {/* Location 1: RUMAH */}
-          {session.currentLocation === "RUMAH" && (
-            <HouseInterior
+          {session.currentLocation === "KASTIL" && session.kastil.insideEscapeRoom ? (
+            <CastleEscapeRoomScene
+              escapeRoomState={session.kastil.escapeRoom}
+              playerPos={session.humanPosition}
+            />
+          ) : (
+            <UnifiedWorld
+              playerMode={playerMode}
+              humanPos={session.humanPosition}
+              humanHeading={session.humanHeading}
+              vehicleState={vehicleState}
+              dayNumber={session.dayNumber}
               rumahState={session.rumah}
-              dayNumber={session.dayNumber}
-              playerPos={session.humanPosition}
-              isEvening={session.phase === "EVENING_ROUTINE"}
-            />
-          )}
-
-          {/* Location 2: JALAN */}
-          {session.currentLocation === "JALAN" && (
-            <HighwayDriveScene isVoidHighway={false} vehicleState={vehicleState} />
-          )}
-
-          {/* Location 3: TEMPAT KERJA */}
-          {session.currentLocation === "TEMPAT_KERJA" && (
-            <WorkplaceInterior
               workplaceState={session.workplace}
-              dayNumber={session.dayNumber}
-              playerPos={session.humanPosition}
+              kastilState={session.kastil}
+              isEvening={session.phase === "EVENING_ROUTINE"}
+              isAttacking={isAttackingRef.current}
+              activeWeaponId={weaponSystem.stateRef.current.activeWeaponId}
             />
-          )}
-
-          {/* LOCATION: BENGKEL */}
-          {session.currentLocation === "BENGKEL" && (
-            <MechanicShopScene playerPos={session.humanPosition} />
-          )}
-
-          {/* Location 4: DIMENSI LAIN */}
-          {session.currentLocation === "DIMENSI_LAIN" && (
-            <HighwayDriveScene isVoidHighway={true} vehicleState={vehicleState} />
-          )}
-
-          {/* Location 5: KASTIL */}
-          {session.currentLocation === "KASTIL" && (
-            <>
-              {session.kastil.insideEscapeRoom ? (
-                <CastleEscapeRoomScene
-                  escapeRoomState={session.kastil.escapeRoom}
-                  playerPos={session.humanPosition}
-                />
-              ) : (
-                <CastleExteriorScene
-                  kastilState={session.kastil}
-                  playerPos={session.humanPosition}
-                />
-              )}
-            </>
           )}
         </GameCanvas>
       )}
 
-      {/* Driving HUD — shown when on road */}
-      {isRoadLocation && session.currentLocation !== "END_SCREEN" && !isVoidCutsceneOpen && (
+      {/* Driving HUD — shown when driving */}
+      {playerMode === "DRIVING" && session.currentLocation !== "END_SCREEN" && (
         <DrivingHUD
           vehicleState={vehicleState}
           cameraMode={cameraMode}
           onToggleCamera={() => setCameraMode((prev) => (prev === "CHASE" ? "COCKPIT" : "CHASE"))}
-          isVoidHighway={session.currentLocation === "DIMENSI_LAIN"}
+          isVoidHighway={session.dayNumber === 3 || vehicleState.position.z > 120}
         />
       )}
 
-      {/* Weapon HUD — shown in walkable scenes */}
-      {isWalkableLocation && session.currentLocation !== "END_SCREEN" && !session.isPaused && (
+      {/* Weapon HUD — shown when exploring on foot */}
+      {playerMode === "ON_FOOT" && session.currentLocation !== "END_SCREEN" && !session.isPaused && (
         <WeaponHUD
           activeWeaponId={weaponSystem.stateRef.current.activeWeaponId}
           chargeLevel={weaponSystem.stateRef.current.chargeLevel}
@@ -978,30 +932,32 @@ export default function ProjectQuatroApp() {
       {session.currentLocation !== "END_SCREEN" && (
         <div
           aria-live="polite"
-          className="fixed top-4 right-4 z-40 flex max-w-[min(22rem,calc(100vw-2rem))] items-center gap-3 border-l border-quatro-amber/70 bg-quatro-navy/80 px-3 py-2 text-quatro-cream shadow-lg backdrop-blur-sm"
+          className="fixed top-4 right-4 z-40 flex max-w-[min(24rem,calc(100vw-2rem))] items-center gap-3 border-l-2 border-quatro-amber bg-quatro-navy/85 px-3.5 py-2.5 text-quatro-cream shadow-2xl backdrop-blur-md"
         >
           <span className="shrink-0 font-mono text-[9px] uppercase tracking-wider text-quatro-amber">
-            Day {session.dayNumber}
+            Day {session.dayNumber} · {playerMode}
           </span>
-          <span className="h-5 w-px bg-quatro-cream/15" />
-          <span className="text-xs leading-snug">{getCurrentObjective(session)}</span>
+          <span className="h-5 w-px bg-quatro-cream/20" />
+          <span className="text-xs font-medium leading-snug">{getCurrentObjective(session)}</span>
         </div>
       )}
 
+      {/* Contextual Action Button */}
       {contextualAction && session.currentLocation !== "END_SCREEN" && (
         <button
           type="button"
           onClick={handleContextInteraction}
-          className="fixed bottom-7 left-1/2 z-40 -translate-x-1/2 border border-quatro-cream/20 bg-quatro-navy/75 px-4 py-2 text-[11px] font-mono tracking-wide text-quatro-cream/90 shadow-lg backdrop-blur-sm transition-colors hover:border-quatro-amber/50 hover:text-quatro-amber focus-visible:outline focus-visible:outline-1 focus-visible:outline-quatro-amber"
+          className="fixed bottom-8 left-1/2 z-40 -translate-x-1/2 border border-quatro-amber/60 bg-quatro-navy/85 px-5 py-2.5 text-xs font-mono tracking-wide text-quatro-cream shadow-2xl backdrop-blur-md transition-all hover:bg-quatro-navy hover:border-quatro-amber hover:scale-105 active:scale-95"
         >
-          <span className="mr-2 text-quatro-amber">E</span>
-          <span className="mr-2 text-quatro-cream/45">/ CLICK</span>
+          <span className="mr-2 rounded bg-quatro-amber/20 px-1.5 py-0.5 text-quatro-amber font-bold">E</span>
+          <span className="mr-2 text-quatro-cream/40">/ CLICK</span>
           {contextualAction}
         </button>
       )}
 
+      {/* Online count */}
       {session.currentLocation !== "END_SCREEN" && (
-        <div className="fixed bottom-3 right-4 z-30 pointer-events-none font-mono text-[9px] uppercase tracking-wider text-quatro-cream/55">
+        <div className="fixed bottom-3 right-4 z-30 pointer-events-none font-mono text-[9px] uppercase tracking-wider text-quatro-cream/60 bg-black/40 px-2.5 py-1 rounded backdrop-blur-sm">
           <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${realtime.connectionStatus === "CONNECTED" ? "bg-emerald-400" : realtime.connectionStatus === "CONNECTING" ? "bg-amber-300 animate-pulse" : "bg-quatro-cream/30"}`} />
           {realtime.connectionStatus === "CONNECTED"
             ? `${Math.max(0, realtime.onlineCount - 1)} nearby`
@@ -1009,29 +965,12 @@ export default function ProjectQuatroApp() {
         </div>
       )}
 
-      {/* Location 1 Overlay: Rumah Routine Checklist */}
+      {/* Location 1 Overlay: Rumah Routine Checklist (shown when in morning/evening at home) */}
       {session.currentLocation === "RUMAH" && (
         <HomeRoutineOverlay
           dayNumber={session.dayNumber}
           rumahState={session.rumah}
           isEvening={session.phase === "EVENING_ROUTINE"}
-        />
-      )}
-
-      {/* Location 2 & 4 Overlay: Road Navigation Modal */}
-      {(session.currentLocation === "JALAN" || session.currentLocation === "DIMENSI_LAIN") && (
-        <RoadNavigationModal
-          isVoidHighway={session.currentLocation === "DIMENSI_LAIN"}
-          allowedDestinations={
-            session.currentLocation === "DIMENSI_LAIN"
-              ? session.phase === "CASTLE_EXPLORATION" ? ["KASTIL"] : []
-              : session.phase === "COMMUTE_TO_WORK"
-              ? ["TEMPAT_KERJA", "BENGKEL"]
-              : session.phase === "COMMUTE_HOME"
-              ? ["RUMAH", "BENGKEL"]
-              : ["BENGKEL"]
-          }
-          onSelectDestination={handleSelectDestination}
         />
       )}
 

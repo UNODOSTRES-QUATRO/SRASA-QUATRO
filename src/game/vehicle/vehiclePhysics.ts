@@ -104,6 +104,13 @@ export function updateVehiclePhysics(
   const angularBlend = Math.min(1, clampedDt * (effectiveGrip * 12));
   angularVelocity = angularVelocity + (desiredAngularVel - angularVelocity) * angularBlend;
 
+  // Counter-steer stability assist (FR Legends style flow)
+  // Stabilizes slide when driver counter-steers into the drift
+  const isCounterSteering = (lateralSpeed > 0.4 && steeringAngle < -0.05) || (lateralSpeed < -0.4 && steeringAngle > 0.05);
+  if (isCounterSteering) {
+    angularVelocity *= (1.0 - Math.min(0.55, clampedDt * 5.5));
+  }
+
   // Apply rotation
   heading += angularVelocity * clampedDt;
 

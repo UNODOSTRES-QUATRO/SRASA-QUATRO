@@ -141,15 +141,17 @@ export function DrivingHUD({
         </button>
       </div>
 
-      {/* ── Controls hint (fades after a few seconds would need state — keeping static) ── */}
-      <div className="absolute top-5 left-1/2 -translate-x-1/2 flex gap-4 font-mono text-[9px] text-white/35 uppercase tracking-wider">
+      {/* ── Controls hint & [E] Dismount prompt ── */}
+      <div className="absolute top-5 left-1/2 -translate-x-1/2 flex items-center gap-4 font-mono text-[9px] text-white/45 uppercase tracking-wider bg-black/40 px-4 py-1.5 rounded-full border border-white/10 backdrop-blur-sm">
         <span>W/↑ Throttle</span>
-        <span className="text-white/15">·</span>
+        <span className="text-white/20">·</span>
         <span>S/↓ Brake/Rev</span>
-        <span className="text-white/15">·</span>
+        <span className="text-white/20">·</span>
         <span>A/D Steer</span>
-        <span className="text-white/15">·</span>
-        <span>Shift Handbrake</span>
+        <span className="text-white/20">·</span>
+        <span>Space/Shift Drift</span>
+        <span className="text-white/20">·</span>
+        <span className="text-amber-400 font-bold">[E] Turun Mobil</span>
       </div>
     </div>
   );

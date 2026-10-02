@@ -11,6 +11,7 @@ import {
   Projectile,
   HitEffect,
 } from "./weaponTypes";
+import { soundManager } from "../audio/SoundManager";
 
 // ─── Individual Weapon Meshes ─────────────────────────────────────────────────
 
@@ -444,6 +445,9 @@ export function useWeaponSystem() {
 
     if (def.type === "CHARGE") {
       // Start charging
+      if (s.activeWeaponId === "HEAVENLY_PEN") {
+        soundManager.playInkStroke();
+      }
       stateRef.current = {
         ...s,
         activeAttack: {
@@ -454,7 +458,10 @@ export function useWeaponSystem() {
         },
       };
     } else {
-      // Instant attack
+      // Instant attack SFX
+      if (s.activeWeaponId === "BLUE_SHARD_SWORD" || s.activeWeaponId === "SCYTHE") {
+        soundManager.playSwordSlash();
+      }
       const newAttack: ActiveAttack = {
         weaponId: s.activeWeaponId,
         progress: 0,
@@ -499,6 +506,10 @@ export function useWeaponSystem() {
 
     const def = WEAPON_DEFS[s.activeWeaponId];
     const chargeLevel = s.chargeLevel;
+
+    if (s.activeWeaponId === "BOW") {
+      soundManager.playBowRelease();
+    }
 
     // Spawn projectile on release for charge weapons
     const newProjectiles = [...s.projectiles];
@@ -627,48 +638,17 @@ export function WeaponSystem3D({
   const def = WEAPON_DEFS[s.activeWeaponId];
   const attack = s.activeAttack;
 
-  // Position: in front of player, at hand height
-  const weaponX = playerPos[0] + Math.sin(playerHeading) * 0.5 + Math.cos(playerHeading) * 0.4;
-  const weaponY = playerPos[1] + 0.9;
-  const weaponZ = playerPos[2] + Math.cos(playerHeading) * 0.5 - Math.sin(playerHeading) * 0.4;
-
   return (
-    <group position={[weaponX, weaponY, weaponZ]} rotation={[0, playerHeading, 0]}>
-      {/* Active weapon mesh */}
-      {s.activeWeaponId === "BLUE_SHARD_SWORD" && (
-        <BlueshardSwordMesh
-          chargeLevel={s.chargeLevel}
-          attackProgress={attack?.progress ?? 0}
-        />
-      )}
-      {s.activeWeaponId === "RPG" && (
-        <RPGMesh attackProgress={attack?.progress ?? 0} />
-      )}
-      {s.activeWeaponId === "BOW" && (
-        <BowMesh chargeLevel={s.chargeLevel} attackProgress={attack?.progress ?? 0} />
-      )}
-      {s.activeWeaponId === "SCYTHE" && (
-        <ScytheMesh attackProgress={attack?.progress ?? 0} />
-      )}
-      {s.activeWeaponId === "HEAVENLY_PEN" && (
-        <HeavenlyPenMesh
-          chargeLevel={s.chargeLevel}
-          attackProgress={attack?.progress ?? 0}
-        />
-      )}
+    <group>
+      {/* ── Active Projectiles in flight ── */}
+      {s.projectiles.map((p) => (
+        <ProjectileMesh key={p.id} projectile={p} />
+      ))}
 
-      {/* Attack arc flash for melee */}
-      {attack && !attack.isCharging && def.sweepArc && def.type === "MELEE" && attack.progress < 0.7 && (
-        <mesh rotation={[0, -attack.progress * def.sweepArc, 0]}>
-          <torusGeometry args={[0.55, 0.04, 4, 20, def.sweepArc]} />
-          <meshBasicMaterial
-            color={def.color}
-            transparent
-            opacity={(1 - attack.progress) * 0.65}
-            depthWrite={false}
-          />
-        </mesh>
-      )}
+      {/* ── Hit & Impact Effects ── */}
+      {s.hitEffects.map((e) => (
+        <HitEffectMesh key={e.id} effect={e} />
+      ))}
     </group>
   );
 }

@@ -79,9 +79,11 @@ export function CockpitCamera({ vehicleState }: CockpitCameraProps) {
       return;
     }
 
-    // Smooth the camera position
-    smoothedPos.current.lerp(targetPos, Math.min(1, clampedDelta * 14));
-    smoothedLookAt.current.lerp(targetLookAt, Math.min(1, clampedDelta * 10));
+    // Smooth the camera position with exponential damping
+    const posAlpha = 1.0 - Math.exp(-14.0 * clampedDelta);
+    const lookAlpha = 1.0 - Math.exp(-10.0 * clampedDelta);
+    smoothedPos.current.lerp(targetPos, posAlpha);
+    smoothedLookAt.current.lerp(targetLookAt, lookAlpha);
 
     state.camera.position.copy(smoothedPos.current);
     state.camera.lookAt(smoothedLookAt.current);
@@ -92,7 +94,8 @@ export function CockpitCamera({ vehicleState }: CockpitCameraProps) {
       const speedRatio = Math.min(1, Math.abs(speed) / 22);
       const driftFov = driftFactor * 4;
       const targetFov = 62 + speedRatio * 8 + driftFov;
-      perspCamera.fov = THREE.MathUtils.lerp(perspCamera.fov, targetFov, clampedDelta * 5);
+      const fovAlpha = 1.0 - Math.exp(-6.0 * clampedDelta);
+      perspCamera.fov = THREE.MathUtils.lerp(perspCamera.fov, targetFov, fovAlpha);
       perspCamera.updateProjectionMatrix();
     }
   });

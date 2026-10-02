@@ -82,21 +82,22 @@ export function FollowCamera({ vehicleState }: FollowCameraProps) {
       return;
     }
 
-    // ── 8. Smooth position ────────────────────────────────────────────────────
-    const posLerp = Math.min(1, clampedDelta * 6.5);
-    const lookLerp = Math.min(1, clampedDelta * 9.0);
+    // ── 8. Smooth position with exponential damping ─────────────────────────
+    const posAlpha = 1.0 - Math.exp(-7.0 * clampedDelta);
+    const lookAlpha = 1.0 - Math.exp(-9.0 * clampedDelta);
 
-    currentPos.current.lerp(new THREE.Vector3(targetX, targetY + vibration, targetZ), posLerp);
+    currentPos.current.lerp(new THREE.Vector3(targetX, targetY + vibration, targetZ), posAlpha);
     currentLookAt.current.lerp(
       new THREE.Vector3(targetLookAtX, targetLookAtY, targetLookAtZ),
-      lookLerp
+      lookAlpha
     );
 
     // ── 9. Speed FOV ──────────────────────────────────────────────────────────
     const perspCamera = state.camera as THREE.PerspectiveCamera;
     if (perspCamera.isPerspectiveCamera) {
       const targetFov = 46 + speedRatio * 10 + smoothedDrift.current * 5;
-      perspCamera.fov = THREE.MathUtils.lerp(perspCamera.fov, targetFov, clampedDelta * 4);
+      const fovAlpha = 1.0 - Math.exp(-5.0 * clampedDelta);
+      perspCamera.fov = THREE.MathUtils.lerp(perspCamera.fov, targetFov, fovAlpha);
       perspCamera.updateProjectionMatrix();
     }
 
