@@ -116,7 +116,7 @@ export function createInitialSessionState(): GameSessionState {
     isAudioMuted: false,
     activePrompt: "Day 1 — Bangun dari tempat tidur [WASD/E] lalu siapkan sarapan.",
 
-    humanPosition: [-1.0, 0, -3.2], // Clear of the bed collider, beside its east edge
+    humanPosition: [19.0, 0, -62.8], // Clear of the bed collider inside Home in continuous world coordinates
     humanHeading: 0,
 
     rumah: {
@@ -249,7 +249,7 @@ export function advanceDay(current: GameSessionState): GameSessionState {
     dayNumber: nextDay,
     phase: "MORNING_ROUTINE",
     activePrompt: prompt,
-    humanPosition: [18.8, 0, -63.2],
+    humanPosition: [19.0, 0, -62.8],
     humanHeading: 0,
     rumah: {
       wokenUp: false,

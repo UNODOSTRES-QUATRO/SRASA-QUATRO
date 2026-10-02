@@ -4,6 +4,7 @@ import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { WeaponId } from "../weapons/weaponTypes";
+import type { WeaponSystemState } from "../weapons/WeaponSystem";
 
 interface HumanPlayerProps {
   position: [number, number, number];
@@ -14,6 +15,7 @@ interface HumanPlayerProps {
   attackProgress?: number;
   isAttacking?: boolean;
   humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
+  weaponSystemStateRef?: React.MutableRefObject<WeaponSystemState>;
 }
 
 export function HumanPlayer({
@@ -25,6 +27,7 @@ export function HumanPlayer({
   attackProgress = 0,
   isAttacking = false,
   humanPosRef,
+  weaponSystemStateRef,
 }: HumanPlayerProps) {
   const rootRef = useRef<THREE.Group>(null);
   const leftLegRef = useRef<THREE.Mesh>(null);
@@ -45,6 +48,13 @@ export function HumanPlayer({
     const dt = Math.min(delta, 0.05);
     const t = clock.getElapsedTime() * 10;
     const timeSec = clock.getElapsedTime();
+
+    // Live weapon state directly from ref for 60+ FPS frame-perfect animation
+    const liveAttack = weaponSystemStateRef?.current?.activeAttack;
+    const liveIsAttacking = isAttacking || !!liveAttack;
+    const liveProgress = liveAttack ? liveAttack.progress : (attackProgress || 0);
+    const liveCharge = weaponSystemStateRef?.current ? weaponSystemStateRef.current.chargeLevel : (chargeLevel || 0);
+    const liveWeaponId = (weaponSystemStateRef?.current?.activeWeaponId ?? activeWeaponId) as WeaponId;
 
     // ── 1. Root Position & Heading (Direct ref sync, 60+ FPS zero stutter) ──
     if (rootRef.current) {
@@ -80,45 +90,45 @@ export function HumanPlayer({
     const targetLeftArm = new THREE.Vector3();
     const targetWeapon = new THREE.Vector3();
 
-    if (isAttacking) {
-      if (activeWeaponId === "BLUE_SHARD_SWORD") {
+    if (liveIsAttacking) {
+      if (liveWeaponId === "BLUE_SHARD_SWORD") {
         // Fluid, satisfying diagonal slash arc
-        const slashPhase = Math.sin(attackProgress * Math.PI);
+        const slashPhase = Math.sin(liveProgress * Math.PI);
         targetRightArm.set(
-          -1.1 + slashPhase * 2.2,
-          -0.4 + slashPhase * 0.9,
-          -0.3 + slashPhase * 0.6
+          -1.2 + slashPhase * 2.3,
+          -0.45 + slashPhase * 1.0,
+          -0.3 + slashPhase * 0.7
         );
         targetLeftArm.set(0.2, 0.3, -0.2); // Left arm balances swing
-        targetWeapon.set(0.15, 0.0, -0.2);
-      } else if (activeWeaponId === "BOW") {
+        targetWeapon.set(0.35, -slashPhase * 0.6, -0.25 + slashPhase * 0.5);
+      } else if (liveWeaponId === "BOW") {
         // Left arm extends bow forward, right arm draws string back
-        const draw = (chargeLevel || 0.1);
+        const draw = (liveCharge || 0.1);
         targetLeftArm.set(-1.48, 0.15, 0.05);
         targetRightArm.set(-1.38, -0.35 - draw * 0.35, 0.18);
         targetWeapon.set(0.0, 0.0, 0.0);
-      } else if (activeWeaponId === "HEAVENLY_PEN") {
+      } else if (liveWeaponId === "HEAVENLY_PEN") {
         // Poetic calligraphy arc
-        const strokePhase = Math.sin(attackProgress * Math.PI * 1.5);
+        const strokePhase = Math.sin(liveProgress * Math.PI * 1.5);
         targetRightArm.set(-1.0 + strokePhase * 1.2, strokePhase * 0.6, -0.15);
         targetLeftArm.set(-0.2, 0.2, 0);
         targetWeapon.set(0.25, 0.1, 0.05);
-      } else if (activeWeaponId === "SCYTHE") {
+      } else if (liveWeaponId === "SCYTHE") {
         // Wide sweeping scythe harvest strike
-        const sweepPhase = Math.sin(attackProgress * Math.PI);
+        const sweepPhase = Math.sin(liveProgress * Math.PI);
         targetRightArm.set(-1.3 + sweepPhase * 2.0, 0.7 - sweepPhase * 1.4, 0);
         targetLeftArm.set(-0.9 + sweepPhase * 1.2, 0.4, 0.2);
         targetWeapon.set(-0.15, 0, 0.2);
-      } else if (activeWeaponId === "RPG") {
+      } else if (liveWeaponId === "RPG") {
         // Shoulder recoil
-        const recoil = Math.sin(attackProgress * Math.PI) * 0.2;
+        const recoil = Math.sin(liveProgress * Math.PI) * 0.2;
         targetRightArm.set(-1.42 + recoil, -0.12, 0.08);
         targetLeftArm.set(-1.25, 0.35, 0.2);
         targetWeapon.set(-0.05, 0, 0);
       }
     } else {
       // ── Natural Ready / Idle Posture (No clipping, zero floating) ──
-      if (activeWeaponId === "BLUE_SHARD_SWORD") {
+      if (liveWeaponId === "BLUE_SHARD_SWORD") {
         // Blade resting naturally angled down and forward beside the hip
         targetRightArm.set(
           isMoving ? swing * 0.3 + 0.22 : 0.2 + idle * 1.2,
@@ -127,22 +137,22 @@ export function HumanPlayer({
         );
         targetLeftArm.set(isMoving ? -swing * 0.6 : idle, 0, 0);
         targetWeapon.set(0.55, 0.1, -0.15); // Naturally angled forward-downward
-      } else if (activeWeaponId === "BOW") {
+      } else if (liveWeaponId === "BOW") {
         // Bow held gracefully in left hand, right arm relaxed
         targetLeftArm.set(isMoving ? -swing * 0.3 - 0.2 : -0.25 + idle, 0.1, -0.1);
         targetRightArm.set(isMoving ? swing * 0.5 : idle, 0, 0);
         targetWeapon.set(0, 0, 0);
-      } else if (activeWeaponId === "HEAVENLY_PEN") {
+      } else if (liveWeaponId === "HEAVENLY_PEN") {
         // Pen poised gracefully near waist
         targetRightArm.set(isMoving ? swing * 0.25 + 0.3 : 0.32 + idle * 1.2, -0.12, 0.08);
         targetLeftArm.set(isMoving ? -swing * 0.5 : idle, 0, 0);
         targetWeapon.set(0.4, 0.15, -0.1);
-      } else if (activeWeaponId === "SCYTHE") {
+      } else if (liveWeaponId === "SCYTHE") {
         // Haft resting diagonally across body
         targetRightArm.set(isMoving ? swing * 0.2 + 0.35 : 0.38 + idle, -0.15, 0.1);
         targetLeftArm.set(-0.4, 0.2, 0.1);
         targetWeapon.set(0.35, 0.1, -0.15);
-      } else if (activeWeaponId === "RPG") {
+      } else if (liveWeaponId === "RPG") {
         // Rests comfortably on shoulder
         targetRightArm.set(-1.18 + (isMoving ? swing * 0.08 : idle * 0.4), -0.12, 0.12);
         targetLeftArm.set(-0.75, 0.25, 0.15);
@@ -151,7 +161,7 @@ export function HumanPlayer({
     }
 
     // ── 4. Exponential Smoothing on Arm & Socket Angles ──
-    const armDampRate = isAttacking ? 22 : 12;
+    const armDampRate = liveIsAttacking ? 22 : 12;
     rightArmRot.current.x = THREE.MathUtils.damp(rightArmRot.current.x, targetRightArm.x, armDampRate, dt);
     rightArmRot.current.y = THREE.MathUtils.damp(rightArmRot.current.y, targetRightArm.y, armDampRate, dt);
     rightArmRot.current.z = THREE.MathUtils.damp(rightArmRot.current.z, targetRightArm.z, armDampRate, dt);
@@ -176,9 +186,9 @@ export function HumanPlayer({
 
     // ── 5. Slash Energy Ribbon ──
     if (slashRibbonRef.current) {
-      if (isAttacking && activeWeaponId === "BLUE_SHARD_SWORD" && attackProgress > 0.05 && attackProgress < 0.88) {
+      if (liveIsAttacking && liveWeaponId === "BLUE_SHARD_SWORD" && liveProgress > 0.05 && liveProgress < 0.88) {
         slashRibbonRef.current.visible = true;
-        (slashRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = Math.sin(attackProgress * Math.PI) * 0.85;
+        (slashRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = Math.sin(liveProgress * Math.PI) * 0.85;
       } else {
         slashRibbonRef.current.visible = false;
       }
@@ -186,10 +196,10 @@ export function HumanPlayer({
 
     // ── 6. Ink Flourish Ribbon ──
     if (inkRibbonRef.current) {
-      if (isAttacking && activeWeaponId === "HEAVENLY_PEN" && attackProgress > 0.05 && attackProgress < 0.9) {
+      if (liveIsAttacking && liveWeaponId === "HEAVENLY_PEN" && liveProgress > 0.05 && liveProgress < 0.9) {
         inkRibbonRef.current.visible = true;
-        (inkRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = Math.sin(attackProgress * Math.PI) * 0.9;
-        inkRibbonRef.current.rotation.z = attackProgress * Math.PI * 2;
+        (inkRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = Math.sin(liveProgress * Math.PI) * 0.9;
+        inkRibbonRef.current.rotation.z = liveProgress * Math.PI * 2;
       } else {
         inkRibbonRef.current.visible = false;
       }

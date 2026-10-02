@@ -306,10 +306,11 @@ function SingleAstralEntity({
       defeatBloomRef.current.position.set(0, 0, 0);
     }
 
-    // Gentle wandering sinusoidal path around base position
-    const wanderX = data.basePosition[0] + Math.sin(t * 0.35 + Number(data.id.slice(-1))) * data.wanderRadius;
-    const wanderZ = data.basePosition[2] + Math.cos(t * 0.28 + Number(data.id.slice(-1))) * (data.wanderRadius * 0.75);
-    const hoverY = data.basePosition[1] + Math.sin(t * 1.6) * 0.24;
+    // Gentle wandering sinusoidal path around base position (deterministic phase per monster)
+    const idHash = data.id.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 20;
+    const wanderX = data.basePosition[0] + Math.sin(t * 0.35 + idHash) * data.wanderRadius;
+    const wanderZ = data.basePosition[2] + Math.cos(t * 0.28 + idHash * 1.3) * (data.wanderRadius * 0.75);
+    const hoverY = data.basePosition[1] + Math.sin(t * 1.6 + idHash) * 0.24;
 
     // Add subtle hit shudder offset
     const shudderX = hitShudderRef.current > 0 ? (Math.random() - 0.5) * 0.08 : 0;

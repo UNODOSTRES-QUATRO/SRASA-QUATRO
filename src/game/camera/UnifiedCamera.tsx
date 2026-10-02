@@ -147,9 +147,17 @@ export function UnifiedCamera({
 
     // Smooth mode switch alignment with dynamic transition easing
     if (prevMode.current !== mode) {
+      const dx = currentPos.current.x - liveTargetPos[0];
+      const dz = currentPos.current.z - liveTargetPos[2];
+      const currentAngle = Math.atan2(-dx, -dz);
+
       if (mode === "ON_FOOT") {
-        orbitAzimuth.current = liveHeading;
+        orbitAzimuth.current = isNaN(currentAngle) ? liveHeading : currentAngle;
         pointerVel.current = { x: 0, y: 0 };
+      } else if (mode === "DRIVING_CHASE") {
+        if (!isNaN(currentAngle)) {
+          smoothedHeading.current = currentAngle;
+        }
       }
       prevMode.current = mode;
       transitionProgress.current = 1.0; // Trigger transition blend
@@ -285,7 +293,7 @@ export function UnifiedCamera({
 
       desiredPos.set(
         liveTargetPos[0] - Math.sin(orbitAzimuth.current) * hDist,
-        liveTargetPos[1] + vDist + (isInsideEscapeRoom ? 0.4 : 0.8),
+        Math.max(0.45, liveTargetPos[1] + vDist + (isInsideEscapeRoom ? 0.4 : 0.8)),
         liveTargetPos[2] - Math.cos(orbitAzimuth.current) * hDist
       );
 

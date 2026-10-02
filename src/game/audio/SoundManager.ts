@@ -659,29 +659,29 @@ export class SoundManager {
     });
   }
 
-  // Harmonic Resonance Chime (on astral monster hit)
+  // Harmonic Resonance Chime (on astral monster hit - meditative 528Hz Solfeggio bell)
   public playHarmonicChime() {
     this.ensureAudioContext();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
-    // Solfeggio / meditative harmonic bells: 528Hz (Love/Transformation) & 852Hz
-    const freqs = [528.0, 792.0, 1056.0];
+    // Singing bowl warmth & Solfeggio overtones: 264Hz (root sub), 528Hz (heart), 792Hz (fifth), 1056Hz (octave)
+    const freqs = [264.0, 528.0, 792.0, 1056.0];
     freqs.forEach((freq, i) => {
       if (!this.ctx || !this.compressor) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, now + i * 0.03);
+      osc.type = i === 0 ? "triangle" : "sine";
+      osc.frequency.setValueAtTime(freq, now + i * 0.02);
 
-      gain.gain.setValueAtTime(0.001, now + i * 0.03);
-      gain.gain.linearRampToValueAtTime(0.24, now + i * 0.03 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.03 + 1.2);
+      gain.gain.setValueAtTime(0.001, now + i * 0.02);
+      gain.gain.linearRampToValueAtTime(0.32 / (1 + i * 0.2), now + i * 0.02 + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.02 + 1.8);
 
       osc.connect(gain);
       gain.connect(this.compressor);
-      osc.start(now + i * 0.03);
-      osc.stop(now + i * 0.03 + 1.2);
+      osc.start(now + i * 0.02);
+      osc.stop(now + i * 0.02 + 1.8);
     });
   }
 
@@ -692,22 +692,22 @@ export class SoundManager {
     const now = this.ctx.currentTime;
 
     // Cascading gentle crystalline pentatonic bells (soothing & rewarding!)
-    const crystalNotes = [880.0, 1046.5, 1318.5, 1567.98, 2093.0];
+    const crystalNotes = [528.0, 660.0, 880.0, 1056.0, 1320.0, 1584.0, 2112.0];
     crystalNotes.forEach((freq, i) => {
       if (!this.ctx || !this.compressor) return;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, now + i * 0.06);
+      osc.frequency.setValueAtTime(freq, now + i * 0.05);
 
-      gain.gain.setValueAtTime(0.001, now + i * 0.06);
-      gain.gain.linearRampToValueAtTime(0.22, now + i * 0.06 + 0.03);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.06 + 1.6);
+      gain.gain.setValueAtTime(0.001, now + i * 0.05);
+      gain.gain.linearRampToValueAtTime(0.28, now + i * 0.05 + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.05 + 2.0);
 
       osc.connect(gain);
       gain.connect(this.compressor);
-      osc.start(now + i * 0.06);
-      osc.stop(now + i * 0.06 + 1.6);
+      osc.start(now + i * 0.05);
+      osc.stop(now + i * 0.05 + 2.0);
     });
   }
 
@@ -715,7 +715,7 @@ export class SoundManager {
   public setMuted(muted: boolean) {
     this.isMuted = muted;
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(muted ? 0 : 0.9, this.ctx.currentTime, 0.05);
+      this.masterGain.gain.setTargetAtTime(muted ? 0 : 1.28, this.ctx.currentTime, 0.05);
     }
   }
 
@@ -724,7 +724,7 @@ export class SoundManager {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     if (this.engineGain) this.engineGain.gain.setTargetAtTime(enabled ? 0 : 0.08, now, 0.5);
-    if (this.ambientGain) this.ambientGain.gain.setTargetAtTime(enabled ? 0.35 : 0.24, now, 0.5);
+    if (this.ambientGain) this.ambientGain.gain.setTargetAtTime(enabled ? 0.95 : 0.85, now, 0.5);
   }
 
   public playEndingChime() {

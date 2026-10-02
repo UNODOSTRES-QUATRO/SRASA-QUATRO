@@ -204,16 +204,27 @@ export function QuatroMesh({
       {/* ========================================================
           CYBER UNDERGLOW NEON (Aesthetic Cyan/Amber Glow)
           ======================================================== */}
-      <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[1.8, 3.2]} />
+      {/* Inner vibrant core underglow */}
+      <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[1.7, 3.2]} />
         <meshBasicMaterial
           color="#38bdf8"
           transparent
-          opacity={0.42 + (vehicleState.driftFactor ?? 0) * 0.38}
+          opacity={0.55 + (vehicleState.driftFactor ?? 0) * 0.4}
           depthWrite={false}
         />
       </mesh>
-      <pointLight position={[0, 0.15, 0]} color="#38bdf8" intensity={2.2 + (vehicleState.driftFactor ?? 0) * 2.0} distance={4.5} />
+      {/* Outer soft ambient bleed */}
+      <mesh position={[0, 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[2.5, 4.0]} />
+        <meshBasicMaterial
+          color="#0284c7"
+          transparent
+          opacity={0.28 + (vehicleState.driftFactor ?? 0) * 0.3}
+          depthWrite={false}
+        />
+      </mesh>
+      <pointLight position={[0, 0.15, 0]} color="#38bdf8" intensity={3.5 + (vehicleState.driftFactor ?? 0) * 3.0} distance={5.5} />
 
       {/* ========================================================
           DYNAMIC SUSPENSION CHASSIS GROUP
@@ -434,6 +445,13 @@ export function QuatroMesh({
             roughness={0.2}
           />
         </mesh>
+        {/* Rear taillight glow wash onto ground & road */}
+        <pointLight
+          position={[0, 0.52, -2.1]}
+          color="#ef4444"
+          intensity={vehicleState.isHandbraking || (vehicleState.driftFactor ?? 0) > 0.15 ? 4.2 : 1.5}
+          distance={5.0}
+        />
 
         {/* Rear Diffuser */}
         <mesh position={[0, 0.28, -1.76]} castShadow>

@@ -265,11 +265,12 @@ export default function ProjectQuatroApp() {
           handleDismountVehicle();
           return;
         } else {
-          // Check proximity to car in world coordinates
-          const [hx, , hz] = currentSession.humanPosition;
+          // Check proximity to car in real-time world coordinates
+          const hx = humanPosRef.current?.x ?? currentSession.humanPosition[0];
+          const hz = humanPosRef.current?.z ?? currentSession.humanPosition[2];
           const car = vehicleStateRef.current;
           const distToCar = Math.hypot(hx - car.position.x, hz - car.position.z);
-          if (distToCar < 3.4) {
+          if (distToCar < 3.5) {
             handleMountVehicle();
             return;
           }

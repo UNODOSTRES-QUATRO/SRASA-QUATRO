@@ -266,6 +266,7 @@ export function GameCanvas({
           attackProgress={attackProgress}
           isAttacking={isAttacking}
           humanPosRef={humanPosRef}
+          weaponSystemStateRef={weaponSystemStateRef}
         />
       )}
 

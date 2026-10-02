@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolvePlayerPosition } from "../src/game/core/playerCollision";
+import { resolvePlayerPosition, resolvePlayerWorldPosition } from "../src/game/core/playerCollision";
 import { createInitialSessionState } from "../src/game/core/gameStore";
 
 describe("player collision", () => {
@@ -27,14 +27,12 @@ describe("player collision", () => {
 
   it("spawns beside the bed with room to take the first step", () => {
     const spawn = createInitialSessionState().humanPosition;
-    const firstStep = resolvePlayerPosition(
+    const firstStep = resolvePlayerWorldPosition(
       spawn,
-      [spawn[0], 0, spawn[2] - 0.4],
-      "RUMAH",
-      false
+      [spawn[0], 0, spawn[2] + 0.4]
     );
 
-    expect(spawn).toEqual([-1, 0, -3.2]);
+    expect(spawn).toEqual([19.0, 0, -62.8]);
     expect(firstStep).not.toEqual(spawn);
   });
 
