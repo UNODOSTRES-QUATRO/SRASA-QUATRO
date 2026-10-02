@@ -937,6 +937,7 @@ export default function ProjectQuatroApp() {
               isEvening={session.phase === "EVENING_ROUTINE"}
               isAttacking={isAttackingRef.current}
               activeWeaponId={weaponSystem.stateRef.current.activeWeaponId}
+              weaponStateRef={weaponSystem.stateRef}
             />
           )}
         </GameCanvas>

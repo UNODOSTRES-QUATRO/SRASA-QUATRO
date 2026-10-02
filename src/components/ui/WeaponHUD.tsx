@@ -95,12 +95,10 @@ export function WeaponHUD({
       )}
 
       {/* Controls hint */}
-      <div className="font-mono text-[8px] text-white/25 uppercase tracking-wider flex gap-2">
-        <span>1-5 Switch</span>
-        <span className="text-white/15">·</span>
-        <span>F Attack</span>
-        <span className="text-white/15">·</span>
-        <span>Q/E Cycle</span>
+      <div className="font-mono text-[8px] text-white/40 uppercase tracking-wider flex gap-2">
+        <span>1-5 / Q Switch</span>
+        <span className="text-white/20">·</span>
+        <span>F Attack / Draw</span>
       </div>
     </div>
   );

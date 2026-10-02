@@ -7,6 +7,7 @@ import { HouseInterior } from "./HouseInterior";
 import { WorkplaceInterior } from "./WorkplaceInterior";
 import { MechanicShopScene } from "./MechanicShopScene";
 import { CastleExteriorScene } from "./CastleExteriorScene";
+import { CastleEscapeRoomScene } from "./CastleEscapeRoomScene";
 import { QuatroMesh } from "../vehicle/QuatroMesh";
 import { VehicleState } from "../vehicle/vehicleTypes";
 import { AstralMonsterSystem } from "../character/AstralEntity";
@@ -24,6 +25,7 @@ interface UnifiedWorldProps {
   isEvening: boolean;
   isAttacking: boolean;
   activeWeaponId: string;
+  weaponStateRef?: React.MutableRefObject<any>;
 }
 
 export function UnifiedWorld({
@@ -38,6 +40,7 @@ export function UnifiedWorld({
   isEvening,
   isAttacking,
   activeWeaponId,
+  weaponStateRef,
 }: UnifiedWorldProps) {
   // Roadway parameters
   const roadLength = 340; // From Z = -100 to Z = 240
@@ -404,6 +407,14 @@ export function UnifiedWorld({
         />
       </group>
 
+      {/* Castle Great Keep Hall / Escape Room physically inside the Fortress (Z = 205) */}
+      <group position={[0, 0, 205]} rotation={[0, Math.PI, 0]}>
+        <CastleEscapeRoomScene
+          escapeRoomState={kastilState.escapeRoom}
+          playerPos={humanPos}
+        />
+      </group>
+
       {/* ========================================================
           6. PEACEFUL ASTRAL MONSTERS SYSTEM (OUTSKIRTS & FIELDS)
           ======================================================== */}
@@ -411,6 +422,7 @@ export function UnifiedWorld({
         playerPos={humanPos}
         isAttacking={isAttacking}
         weaponType={activeWeaponId}
+        weaponStateRef={weaponStateRef}
       />
 
       {/* ========================================================

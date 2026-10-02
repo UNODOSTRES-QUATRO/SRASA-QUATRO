@@ -89,13 +89,13 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
       {/* ========================================================
           1. COBBLESTONE COURTYARD FLOOR
           ======================================================== */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
-        <planeGeometry args={[26, 26]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 6]} receiveShadow>
+        <planeGeometry args={[26, 36]} />
         <meshStandardMaterial color={cobbleFloor} roughness={0.85} />
       </mesh>
 
-      <CastleBanner position={[-6.2, 0, -8.2]} color="#70433a" />
-      <CastleBanner position={[6.2, 0, -8.2]} color="#53634f" />
+      <CastleBanner position={[-6.2, 0, 16.8]} color="#70433a" />
+      <CastleBanner position={[6.2, 0, 16.8]} color="#53634f" />
 
       <group position={[-8.0, 0, 5.1]} rotation={[0, 0.16, 0]}>
         <mesh position={[0, 0.45, 0]} castShadow>
@@ -115,14 +115,14 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
       {/* ========================================================
           2. MASSIVE MEDIEVAL CASTLE WALLS & TOWERS (HOGWARTS STYLE)
           ======================================================== */}
-      {/* Rear Fortress Keep Wall with Grand Entrance Door (Z = -10) */}
-      <mesh position={[0, 5.0, -10]} castShadow receiveShadow>
+      {/* North Fortress Keep Wall with Grand Entrance Door (Z = 18, World Z = 198) */}
+      <mesh position={[0, 5.0, 18.0]} castShadow receiveShadow>
         <boxGeometry args={[26, 10, 2.5]} />
         <meshStandardMaterial color={stoneWall} roughness={0.9} />
       </mesh>
 
       {/* Left Tower */}
-      <group position={[-10, 0, -9]}>
+      <group position={[-10, 0, 18.0]}>
         <mesh position={[0, 7.5, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[2.2, 2.5, 15, 16]} />
           <meshStandardMaterial color={stoneTrim} roughness={0.85} />
@@ -135,7 +135,7 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
       </group>
 
       {/* Right Tower */}
-      <group position={[10, 0, -9]}>
+      <group position={[10, 0, 18.0]}>
         <mesh position={[0, 7.5, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[2.2, 2.5, 15, 16]} />
           <meshStandardMaterial color={stoneTrim} roughness={0.85} />
@@ -147,26 +147,26 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
         </mesh>
       </group>
 
-      {/* Grand Castle Entrance Arch & Double Doors at X=0, Z=-8.7 */}
-      <group position={[0, 3.2, -8.7]}>
+      {/* Grand Castle Entrance Arch & Double Doors at X=0, Z=17.5 (World Z = 197.5) */}
+      <group position={[0, 3.2, 17.5]}>
         {/* Arch Frame */}
         <mesh>
           <boxGeometry args={[5.2, 6.4, 0.6]} />
           <meshStandardMaterial color={stoneTrim} />
         </mesh>
         {/* Massive Double Wood Doors */}
-        <mesh position={[0, 0, 0.05]} castShadow>
+        <mesh position={[0, 0, -0.05]} castShadow>
           <boxGeometry args={[4.4, 5.8, 0.25]} />
           <meshStandardMaterial color="#3b1d11" roughness={0.7} />
         </mesh>
         {/* Iron Hinges & Studs */}
         {[-1.8, 1.8].map((hx, hi) => (
           <group key={`hinge-${hi}`}>
-            <mesh position={[hx, 1.5, 0.2]}>
+            <mesh position={[hx, 1.5, -0.2]}>
               <boxGeometry args={[0.7, 0.12, 0.08]} />
               <meshStandardMaterial color="#0f172a" metalness={0.9} />
             </mesh>
-            <mesh position={[hx, -1.5, 0.2]}>
+            <mesh position={[hx, -1.5, -0.2]}>
               <boxGeometry args={[0.7, 0.12, 0.08]} />
               <meshStandardMaterial color="#0f172a" metalness={0.9} />
             </mesh>
@@ -174,12 +174,12 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
         ))}
 
         {/* Castle Door Semicolon Royal Crest */}
-        <mesh position={[0, 3.5, 0.2]}>
+        <mesh position={[0, 3.5, -0.2]}>
           <boxGeometry args={[1.2, 1.2, 0.15]} />
           <meshStandardMaterial color="#d97706" metalness={0.8} roughness={0.2} />
         </mesh>
         {/* Interactive Beacon over Castle Door */}
-        <group position={[0, 3.8, 0.6]}>
+        <group position={[0, 3.8, -0.6]}>
           <mesh position={[0, Math.sin(clockRef.current * 4) * 0.1, 0]}>
             <octahedronGeometry args={[0.25]} />
             <meshStandardMaterial
@@ -192,14 +192,14 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
       </group>
 
       {/* Flanking Torches & Braziers at Entrance */}
-      <group position={[-3.2, 3.5, -8.5]}>
+      <group position={[-3.2, 3.5, 17.0]}>
         <pointLight ref={torchLight1Ref} color="#ffedd5" intensity={2.8} distance={10} />
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[0.2, 0.6, 0.2]} />
           <meshStandardMaterial color="#1e293b" />
         </mesh>
       </group>
-      <group position={[3.2, 3.5, -8.5]}>
+      <group position={[3.2, 3.5, 17.0]}>
         <pointLight ref={torchLight2Ref} color="#ffedd5" intensity={2.8} distance={10} />
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[0.2, 0.6, 0.2]} />
@@ -208,9 +208,9 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
       </group>
 
       {/* ========================================================
-          3. COURTYARD FOUNTAIN (AIR MANCUR) at X=0, Z=1.0
+          3. COURTYARD FOUNTAIN (AIR MANCUR) at X=0, Z=-1.0 (World Z = 179)
           ======================================================== */}
-      <group position={[0, 0, 1.0]}>
+      <group position={[0, 0, -1.0]}>
         {/* Stone Basin Outer Rim */}
         <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
           <cylinderGeometry args={[2.5, 2.7, 0.6, 24]} />

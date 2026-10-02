@@ -43,6 +43,14 @@ export function UnifiedCamera({
   const prevSpeed = useRef(0);
   const bobTime = useRef(0);
 
+  // Transition smoothing between modes
+  const transitionProgress = useRef(0);
+  const prevDesiredPos = useRef(new THREE.Vector3());
+
+  // Inertial pointer dragging velocity for ON_FOOT
+  const pointerVel = useRef({ x: 0, y: 0 });
+  const lastPointerPos = useRef({ x: 0, y: 0, time: 0 });
+
   // Mouse drag & wheel handlers for ON_FOOT mode
   useEffect(() => {
     const element = gl.domElement;
@@ -55,20 +63,32 @@ export function UnifiedCamera({
         x: event.clientX,
         y: event.clientY,
       };
+      pointerVel.current = { x: 0, y: 0 };
+      lastPointerPos.current = { x: event.clientX, y: event.clientY, time: performance.now() };
       element.setPointerCapture(event.pointerId);
       element.style.cursor = "grabbing";
     };
 
     const handlePointerMove = (event: PointerEvent) => {
       if (!pointer.current.dragging || pointer.current.pointerId !== event.pointerId) return;
+      const now = performance.now();
+      const dtMove = Math.max(1, now - lastPointerPos.current.time) / 1000;
+
       const deltaX = event.clientX - pointer.current.x;
       const deltaY = event.clientY - pointer.current.y;
       pointer.current.x = event.clientX;
       pointer.current.y = event.clientY;
 
-      orbitAzimuth.current -= deltaX * 0.005;
+      // Track instantaneous velocity for smooth release inertia
+      pointerVel.current = {
+        x: (deltaX / dtMove) * 0.003,
+        y: (deltaY / dtMove) * 0.002,
+      };
+      lastPointerPos.current = { x: event.clientX, y: event.clientY, time: now };
+
+      orbitAzimuth.current -= deltaX * 0.0045;
       orbitPolar.current = THREE.MathUtils.clamp(
-        orbitPolar.current + deltaY * 0.0035,
+        orbitPolar.current + deltaY * 0.003,
         0.22,
         Math.PI / 2 - 0.08
       );
@@ -110,12 +130,19 @@ export function UnifiedCamera({
     // Decouple delta to eliminate micro-stutters: sub-frame clamped
     const dt = Math.min(delta, 0.05);
 
-    // Smooth mode switch alignment
+    // Smooth mode switch alignment with dynamic transition easing
     if (prevMode.current !== mode) {
       if (mode === "ON_FOOT") {
         orbitAzimuth.current = smoothedHeading.current;
+        pointerVel.current = { x: 0, y: 0 };
       }
       prevMode.current = mode;
+      transitionProgress.current = 1.0; // Trigger transition blend
+    }
+
+    // Decay transition progress smoothly
+    if (transitionProgress.current > 0) {
+      transitionProgress.current = Math.max(0, transitionProgress.current - dt / 0.55);
     }
 
     let desiredPos = new THREE.Vector3();
@@ -167,7 +194,7 @@ export function UnifiedCamera({
       );
 
       // Speed FOV: breathing expansion sensation without motion sickness
-      targetFov = 48 + speedRatio * 10 + smoothedDrift.current * 4.5;
+      targetFov = 48 + speedRatio * 9 + smoothedDrift.current * 4.0;
 
     } else if (mode === "DRIVING_COCKPIT" && vehicleState) {
       // ── MODE: DRIVING COCKPIT (First-Person Interior) ──────────────────────
@@ -217,12 +244,24 @@ export function UnifiedCamera({
         distAlpha
       );
 
-      // Gentle auto-follow behind movement direction if not actively dragging
+      // Inertia or gentle auto-follow
       if (!pointer.current.dragging) {
-        let diff = targetHeading - orbitAzimuth.current;
-        while (diff < -Math.PI) diff += Math.PI * 2;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        orbitAzimuth.current += diff * (1.0 - Math.exp(-2.2 * dt));
+        if (Math.abs(pointerVel.current.x) > 0.0001 || Math.abs(pointerVel.current.y) > 0.0001) {
+          orbitAzimuth.current -= pointerVel.current.x * dt;
+          orbitPolar.current = THREE.MathUtils.clamp(
+            orbitPolar.current + pointerVel.current.y * dt,
+            0.22,
+            Math.PI / 2 - 0.08
+          );
+          const decay = Math.exp(-7.0 * dt);
+          pointerVel.current.x *= decay;
+          pointerVel.current.y *= decay;
+        } else {
+          let diff = targetHeading - orbitAzimuth.current;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          orbitAzimuth.current += diff * (1.0 - Math.exp(-2.2 * dt));
+        }
       }
 
       const hDist = orbitDistance.current * Math.sin(orbitPolar.current);
@@ -254,9 +293,12 @@ export function UnifiedCamera({
     }
 
     // ── Exponential Smoothing (1 - exp(-lambda * dt)) ────────────────────────
-    // Completely eliminates jitter, frame drops, and snapping!
-    const posLambda = mode === "DRIVING_COCKPIT" ? 15.0 : mode === "DRIVING_CHASE" ? 8.2 : 7.0;
-    const lookLambda = mode === "DRIVING_COCKPIT" ? 13.0 : mode === "DRIVING_CHASE" ? 9.5 : 7.5;
+    // Softer lambda during transitions for a cinematic crane glide, tight lambda during gameplay
+    const basePosLambda = mode === "DRIVING_COCKPIT" ? 15.0 : mode === "DRIVING_CHASE" ? 8.2 : 7.0;
+    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 13.0 : mode === "DRIVING_CHASE" ? 9.5 : 7.5;
+
+    const posLambda = THREE.MathUtils.lerp(basePosLambda, 4.8, transitionProgress.current);
+    const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 5.2, transitionProgress.current);
 
     const posAlpha = 1.0 - Math.exp(-posLambda * dt);
     const lookAlpha = 1.0 - Math.exp(-lookLambda * dt);

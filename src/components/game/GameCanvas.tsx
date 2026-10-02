@@ -71,6 +71,8 @@ export function GameCanvas({
   return (
     <Canvas
       shadows
+      dpr={[1, 2]}
+      frameloop="always"
       camera={{ position: [-6, 6, 12], fov: 48, near: 0.1, far: 400 }}
       gl={{
         antialias: true,

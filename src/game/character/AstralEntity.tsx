@@ -5,6 +5,8 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { soundManager } from "../audio/SoundManager";
 
+import type { WeaponSystemState } from "../weapons/WeaponSystem";
+
 export interface AstralMonsterData {
   id: string;
   name: string;
@@ -22,6 +24,7 @@ interface AstralMonsterSystemProps {
   playerPos: [number, number, number];
   isAttacking: boolean;
   weaponType?: string;
+  weaponStateRef?: React.MutableRefObject<WeaponSystemState>;
   onMonsterDefeated?: (monster: AstralMonsterData) => void;
 }
 
@@ -29,6 +32,7 @@ export function AstralMonsterSystem({
   playerPos,
   isAttacking,
   weaponType = "BLUE_SHARD_SWORD",
+  weaponStateRef,
   onMonsterDefeated,
 }: AstralMonsterSystemProps) {
   // Peaceful wandering astral entities along outskirts, cyber alley, and fields
@@ -96,40 +100,79 @@ export function AstralMonsterSystem({
   ]);
 
   const lastHitTimeRef = useRef(0);
+  const respawnTimersRef = useRef<Record<string, number>>({});
 
   // Check player proximity attack (melee or ranged impact)
-  const handleMeleeHitCheck = (monsterId: string, monsterPos: THREE.Vector3) => {
+  const handleHit = (monsterId: string, monsterPos: THREE.Vector3, specificWeapon?: string) => {
     const now = performance.now();
-    if (now - lastHitTimeRef.current < 240) return; // Debounce hit
+    if (now - lastHitTimeRef.current < 200) return; // Debounce hit
 
+    lastHitTimeRef.current = now;
+    soundManager.playHarmonicChime();
+
+    const usedWeapon = specificWeapon || weaponType;
+    const damage = usedWeapon === "RPG" ? 75 : usedWeapon === "SCYTHE" ? 50 : usedWeapon === "BOW" ? 40 : usedWeapon === "HEAVENLY_PEN" ? 45 : 35;
+
+    setMonsters((prev) =>
+      prev.map((m) => {
+        if (m.id !== monsterId || m.isDefeated) return m;
+        const nextHp = Math.max(0, m.hp - damage);
+        const defeated = nextHp <= 0;
+        if (defeated) {
+          soundManager.playCrystalShatter();
+          respawnTimersRef.current[m.id] = 18.0; // 18 seconds respawn
+          onMonsterDefeated?.(m);
+        }
+        return {
+          ...m,
+          hp: nextHp,
+          isDefeated: defeated,
+          respawnTime: defeated ? 18.0 : 0,
+        };
+      })
+    );
+  };
+
+  const handleMeleeHitCheck = (monsterId: string, monsterPos: THREE.Vector3) => {
     const playerVec = new THREE.Vector3(playerPos[0], playerPos[1] + 1.0, playerPos[2]);
     const dist = monsterPos.distanceTo(playerVec);
 
-    // Melee range or broad shockwave
+    // Melee range
     if (dist < 3.2) {
-      lastHitTimeRef.current = now;
-      soundManager.playHarmonicChime();
+      handleHit(monsterId, monsterPos);
+    }
+  };
 
+  // Respawn loop & Projectile hit check in frame
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05);
+
+    // 1. Tick respawn timers
+    let hasRespawned = false;
+    Object.keys(respawnTimersRef.current).forEach((id) => {
+      respawnTimersRef.current[id] -= dt;
+      if (respawnTimersRef.current[id] <= 0) {
+        delete respawnTimersRef.current[id];
+        hasRespawned = true;
+      }
+    });
+
+    if (hasRespawned) {
       setMonsters((prev) =>
         prev.map((m) => {
-          if (m.id !== monsterId || m.isDefeated) return m;
-          const damage = weaponType === "RPG" ? 70 : weaponType === "SCYTHE" ? 45 : 35;
-          const nextHp = Math.max(0, m.hp - damage);
-          const defeated = nextHp <= 0;
-          if (defeated) {
-            soundManager.playCrystalShatter();
-            onMonsterDefeated?.(m);
+          if (m.isDefeated && !respawnTimersRef.current[m.id]) {
+            return {
+              ...m,
+              hp: m.maxHp,
+              isDefeated: false,
+              respawnTime: 0,
+            };
           }
-          return {
-            ...m,
-            hp: nextHp,
-            isDefeated: defeated,
-            respawnTime: defeated ? 20.0 : 0,
-          };
+          return m;
         })
       );
     }
-  };
+  });
 
   return (
     <group>
@@ -139,7 +182,9 @@ export function AstralMonsterSystem({
           data={m}
           playerPos={playerPos}
           isPlayerAttacking={isAttacking}
+          weaponStateRef={weaponStateRef}
           onHitCheck={handleMeleeHitCheck}
+          onDirectHit={handleHit}
         />
       ))}
     </group>
@@ -150,19 +195,22 @@ function SingleAstralEntity({
   data,
   playerPos,
   isPlayerAttacking,
+  weaponStateRef,
   onHitCheck,
+  onDirectHit,
 }: {
   data: AstralMonsterData;
   playerPos: [number, number, number];
   isPlayerAttacking: boolean;
+  weaponStateRef?: React.MutableRefObject<WeaponSystemState>;
   onHitCheck: (id: string, pos: THREE.Vector3) => void;
+  onDirectHit: (id: string, pos: THREE.Vector3, specificWeapon?: string) => void;
 }) {
   const rootRef = useRef<THREE.Group>(null);
   const coreRef = useRef<THREE.Mesh>(null);
   const ringRef = useRef<THREE.Group>(null);
   const defeatBloomRef = useRef<THREE.Group>(null);
 
-  const [defeatTimer, setDefeatTimer] = useState(0);
   const currentPos = useRef(new THREE.Vector3(...data.basePosition));
 
   useFrame(({ clock }, delta) => {
@@ -182,7 +230,11 @@ function SingleAstralEntity({
 
     if (coreRef.current) coreRef.current.visible = true;
     if (ringRef.current) ringRef.current.visible = true;
-    if (defeatBloomRef.current) defeatBloomRef.current.visible = false;
+    if (defeatBloomRef.current) {
+      defeatBloomRef.current.visible = false;
+      defeatBloomRef.current.scale.set(1, 1, 1);
+      defeatBloomRef.current.position.set(0, 0, 0);
+    }
 
     // Gentle wandering sinusoidal path around base position
     const wanderX = data.basePosition[0] + Math.sin(t * 0.35 + Number(data.id.slice(-1))) * data.wanderRadius;
@@ -219,9 +271,25 @@ function SingleAstralEntity({
       coreRef.current.scale.setScalar(breathe);
     }
 
-    // Check hit if player is actively attacking
+    // 1. Check melee hit if player is actively attacking
     if (isPlayerAttacking) {
       onHitCheck(data.id, currentPos.current);
+    }
+
+    // 2. Check ranged projectile collisions from flight
+    if (weaponStateRef?.current?.projectiles) {
+      const projs = weaponStateRef.current.projectiles;
+      for (let i = 0; i < projs.length; i++) {
+        const p = projs[i];
+        const dist = currentPos.current.distanceTo(
+          new THREE.Vector3(p.position[0], p.position[1], p.position[2])
+        );
+        if (dist < 1.6) {
+          p.age = p.maxAge; // Consume projectile
+          onDirectHit(data.id, currentPos.current, p.weaponId);
+          break;
+        }
+      }
     }
   });
 

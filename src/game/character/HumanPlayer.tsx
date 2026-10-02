@@ -31,6 +31,7 @@ export function HumanPlayer({
   const rightArmRef = useRef<THREE.Group>(null);
   const headRef = useRef<THREE.Group>(null);
   const slashRibbonRef = useRef<THREE.Mesh>(null);
+  const inkRibbonRef = useRef<THREE.Mesh>(null);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime() * 10;
@@ -92,9 +93,20 @@ export function HumanPlayer({
     if (slashRibbonRef.current) {
       if (isAttacking && activeWeaponId === "BLUE_SHARD_SWORD" && attackProgress > 0.05 && attackProgress < 0.85) {
         slashRibbonRef.current.visible = true;
-        (slashRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = (1 - attackProgress) * 0.8;
+        (slashRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = (1 - attackProgress) * 0.85;
       } else {
         slashRibbonRef.current.visible = false;
+      }
+    }
+
+    // Animate calligraphy ink flourish ribbon
+    if (inkRibbonRef.current) {
+      if (isAttacking && activeWeaponId === "HEAVENLY_PEN" && attackProgress > 0.05 && attackProgress < 0.9) {
+        inkRibbonRef.current.visible = true;
+        (inkRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = (1 - attackProgress) * 0.9;
+        inkRibbonRef.current.rotation.z = attackProgress * Math.PI * 2;
+      } else {
+        inkRibbonRef.current.visible = false;
       }
     }
   });
@@ -265,6 +277,12 @@ export function HumanPlayer({
       <mesh ref={slashRibbonRef} position={[0.4, 1.1, 0.7]} rotation={[0.4, 0, -0.6]} visible={false}>
         <torusGeometry args={[0.75, 0.08, 4, 24, Math.PI * 0.65]} />
         <meshBasicMaterial color="#38bdf8" transparent opacity={0.7} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* CALLIGRAPHY INK FLOURISH RIBBON */}
+      <mesh ref={inkRibbonRef} position={[0.25, 1.1, 0.6]} rotation={[0.2, 0.4, 0]} visible={false}>
+        <torusGeometry args={[0.65, 0.06, 4, 24, Math.PI * 0.8]} />
+        <meshBasicMaterial color="#fbbf24" transparent opacity={0.8} side={THREE.DoubleSide} />
       </mesh>
 
       {/* HEAD GROUP */}
