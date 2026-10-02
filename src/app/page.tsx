@@ -9,6 +9,12 @@ export default function HomePage() {
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-quatro-navy">
       <ProjectQuatroApp />
+      <footer className="sr-only">
+        <nav aria-label="Quick links">
+          <a href="/about">About Project Quatro</a>
+          <a href="/privacy">Privacy Policy</a>
+        </nav>
+      </footer>
     </main>
   );
 }

@@ -1,0 +1,11 @@
+# Project Quatro
+
+> A small, warm world where something strange is happening — and the player is allowed to simply be there.
+
+## Overview
+Project Quatro is a third-person narrative driving and environmental exploration game built on Next.js, React Three Fiber (R3F), and Three.js. It features cozy low-cortisol aesthetics, tactile retro-voxel physics, and contemplative spaces.
+
+## Key Concepts
+- Semicolon (;): The design philosophy of deliberate pause, breathing room, and continuation.
+- Quatro: The protagonist's vintage vehicle that transforms into a Pocket Car in the Voxel Dimension.
+- Semicolon (Companion): A stray cat that acts as a mystic guide bridging memory and consciousness.

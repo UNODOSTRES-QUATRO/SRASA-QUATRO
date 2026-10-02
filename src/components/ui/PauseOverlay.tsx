@@ -44,6 +44,15 @@ export function PauseOverlay({
           >
             AUDIO: {isAudioMuted ? "MUTED" : "ENABLED"}
           </button>
+
+          <div className="flex justify-center space-x-4 pt-2 text-xs font-mono">
+            <a href="/about" className="text-quatro-navy/70 hover:underline">
+              [ABOUT]
+            </a>
+            <a href="/privacy" className="text-quatro-navy/70 hover:underline">
+              [PRIVACY]
+            </a>
+          </div>
         </div>
 
         <div className="border-t border-quatro-navy/20 pt-4 text-center text-xs text-quatro-navy/60 font-mono">
