@@ -7,6 +7,7 @@ interface GuardianDialogueModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPocketUnlocked: () => void;
+  onOpenGate?: () => void;
 }
 
 const GUARDIAN_DIALOGUES = [
@@ -16,15 +17,15 @@ const GUARDIAN_DIALOGUES = [
   },
   {
     speaker: "The Guardian",
-    text: "You seek the castle within, but the heavy portcullis is locked by ancient logic. Brute force will only crush your wheels against stone.",
+    text: "You seek the Semicolon Sanctuary within the Castle Courtyard. In the realm of men, you were rushing towards endless deadlines. Here, stillness is the key.",
   },
   {
     speaker: "The Guardian",
-    text: "Remember the semicolon: it is not a full stop, nor an endless race. It is a deliberate pause to transform. Your vehicle carries this wisdom.",
+    text: "The semicolon (;) is the sacred mark of our sanctuary: a pause in a sentence when the author could have chosen to end it, but chose to breathe and keep going.",
   },
   {
     speaker: "The Guardian",
-    text: "Press [Q] to shrink into Pocket Car Mode. Enter the low drainage conduit at the right wall. The hidden pressure plate will answer to your smaller presence.",
+    text: "Press [Q] to shrink into Pocket Car Mode whenever you wish to enter narrow conduits. I shall also unseal the Castle Portcullis so you may drive your Quatro freely into the courtyard.",
   },
 ];
 
@@ -32,6 +33,7 @@ export function GuardianDialogueModal({
   isOpen,
   onClose,
   onPocketUnlocked,
+  onOpenGate,
 }: GuardianDialogueModalProps) {
   const [step, setStep] = useState(0);
 
@@ -44,6 +46,8 @@ export function GuardianDialogueModal({
     soundManager.playClick();
     if (isLast) {
       onPocketUnlocked();
+      if (onOpenGate) onOpenGate();
+      soundManager.playPurr();
       onClose();
       setStep(0);
     } else {
@@ -52,7 +56,7 @@ export function GuardianDialogueModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 select-none">
       <div className="relative w-full max-w-lg bg-[#fbf8f1] text-[#2b2725] rounded-2xl p-7 shadow-2xl border-4 border-[#3d4454] font-serif transition-all duration-300">
         {/* Parchment aesthetic top bar */}
         <div className="flex items-center justify-between pb-3 border-b-2 border-[#e2d9c8] text-xs font-mono tracking-widest text-[#786c5e]">
@@ -71,13 +75,22 @@ export function GuardianDialogueModal({
         </div>
 
         {/* Action Button */}
-        <div className="flex justify-end pt-2">
+        <div className="flex justify-between items-center pt-2 border-t border-[#e2d9c8]">
+          <button
+            onClick={() => {
+              soundManager.playClick();
+              onClose();
+            }}
+            className="text-xs font-mono text-[#786c5e] hover:text-[#2b2725] transition-colors cursor-pointer"
+          >
+            [ESC] Listen Later
+          </button>
+
           <button
             onClick={handleNext}
             className="px-5 py-2.5 bg-[#3d4454] hover:bg-[#2b303d] text-[#fbf8f1] rounded-xl text-xs font-mono tracking-wider transition-all duration-150 cursor-pointer shadow-md hover:shadow-lg flex items-center space-x-2"
           >
-            <span>{isLast ? "Understood ; [Q to Shrink]" : "Continue..."}</span>
-            <span>→</span>
+            <span>{isLast ? "Unseal Castle & Shrink [Q] →" : "Next Reflection →"}</span>
           </button>
         </div>
       </div>

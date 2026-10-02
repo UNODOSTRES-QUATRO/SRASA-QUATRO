@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { VehicleState } from "../vehicle/vehicleTypes";
+import { RealtimeChannel } from "@supabase/supabase-js";
 
 export interface RemotePlayer {
   id: string;
@@ -33,22 +34,27 @@ export function useGameRealtime({
   const [connectionStatus, setConnectionStatus] = useState<
     "OFFLINE" | "CONNECTING" | "CONNECTED"
   >("OFFLINE");
+  const [onlineCount, setOnlineCount] = useState<number>(1);
 
-  const playerIdRef = useRef<string>(
-    typeof window !== "undefined"
-      ? localStorage.getItem("quatro_player_id") ||
-        `player_${Math.random().toString(36).substring(2, 9)}`
-      : "local_player"
-  );
-
-  const lastBroadcastRef = useRef<number>(0);
-
+  // Use sessionStorage so multiple tabs in the same browser have unique driver IDs
+  const playerIdRef = useRef<string>("local_player");
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("quatro_player_id", playerIdRef.current);
+      let id = sessionStorage.getItem("quatro_tab_driver_id");
+      if (!id) {
+        id = `driver_${Math.random().toString(36).substring(2, 8)}`;
+        sessionStorage.setItem("quatro_tab_driver_id", id);
+      }
+      playerIdRef.current = id;
     }
   }, []);
 
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const lastBroadcastRef = useRef<number>(0);
+  const vehicleStateRef = useRef<VehicleState>(vehicleState);
+  vehicleStateRef.current = vehicleState;
+
+  // Initialize and subscribe to Supabase Realtime Channel
   useEffect(() => {
     if (!isEnabled) return;
 
@@ -60,7 +66,6 @@ export function useGameRealtime({
 
     setConnectionStatus("CONNECTING");
 
-    // Realtime broadcast & presence channel for Project Quatro world
     const channel = supabase.channel("room:quatro-world", {
       config: {
         broadcast: { self: false },
@@ -68,7 +73,9 @@ export function useGameRealtime({
       },
     });
 
-    // Listen for broadcast movement packets from other drivers
+    channelRef.current = channel;
+
+    // 1. Listen for position broadcasts from other cars
     channel.on("broadcast", { event: "player_move" }, ({ payload }) => {
       const data = payload as RemotePlayer;
       if (!data || data.id === playerIdRef.current) return;
@@ -83,65 +90,108 @@ export function useGameRealtime({
       });
     });
 
-    // Clean up stale players (inactive > 8 seconds)
-    const pruneInterval = setInterval(() => {
+    // 2. Presence tracking (detect other players joining and leaving)
+    channel.on("presence", { event: "sync" }, () => {
+      const state = channel.presenceState();
+      const keys = Object.keys(state);
+      setOnlineCount(Math.max(1, keys.length));
+    });
+
+    channel.on("presence", { event: "join" }, () => {
+      const state = channel.presenceState();
+      setOnlineCount(Math.max(1, Object.keys(state).length));
+    });
+
+    channel.on("presence", { event: "leave" }, ({ leftPresences }) => {
+      const state = channel.presenceState();
+      setOnlineCount(Math.max(1, Object.keys(state).length));
+
+      // Remove leaving players immediately
+      if (Array.isArray(leftPresences)) {
+        setRemotePlayers((prev) => {
+          const next = new Map(prev);
+          for (const lp of leftPresences) {
+            const id = (lp as { id?: string })?.id;
+            if (id) next.delete(id);
+          }
+          return next;
+        });
+      }
+    });
+
+    // 3. Subscribe to the channel and register presence
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        setConnectionStatus("CONNECTED");
+        channel.track({
+          id: playerIdRef.current,
+          name: playerName,
+          onlineAt: Date.now(),
+        });
+      } else if (status === "CLOSED" || status === "CHANNEL_ERROR") {
+        setConnectionStatus("OFFLINE");
+      }
+    });
+
+    // Prune stale players after 6 seconds of silence
+    const pruneTimer = setInterval(() => {
       const now = Date.now();
       setRemotePlayers((prev) => {
         let changed = false;
         const next = new Map(prev);
         for (const [id, player] of next.entries()) {
-          if (now - player.lastUpdated > 8000) {
+          if (now - player.lastUpdated > 6000) {
             next.delete(id);
             changed = true;
           }
         }
         return changed ? next : prev;
       });
-    }, 4000);
-
-    channel.subscribe((status) => {
-      if (status === "SUBSCRIBED") {
-        setConnectionStatus("CONNECTED");
-      }
-    });
+    }, 3000);
 
     return () => {
-      clearInterval(pruneInterval);
+      clearInterval(pruneTimer);
+      channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [isEnabled]);
+  }, [isEnabled, playerName]);
 
-  // Throttled broadcast (10Hz = 100ms) for efficient networking
-  useEffect(() => {
-    if (!isEnabled) return;
+  // 10Hz Broadcast Loop
+  const broadcastMovement = useCallback(() => {
+    const channel = channelRef.current;
+    if (!channel || connectionStatus !== "CONNECTED") return;
 
-    const supabase = getSupabaseBrowserClient();
-    if (!supabase || connectionStatus !== "CONNECTED") return;
-
-    const now = performance.now();
-    if (now - lastBroadcastRef.current < 100) return;
-    lastBroadcastRef.current = now;
-
-    const channel = supabase.channel("room:quatro-world");
+    const currentVehicle = vehicleStateRef.current;
     channel.send({
       type: "broadcast",
       event: "player_move",
       payload: {
         id: playerIdRef.current,
         name: playerName,
-        position: vehicleState.position,
-        heading: vehicleState.heading,
-        speed: vehicleState.speed,
-        scaleMode: vehicleState.scaleMode,
-        scaleFactor: vehicleState.scaleFactor,
-        status: vehicleState.scaleMode === "POCKET" ? "POCKET_CAR" : "DRIVING",
+        position: currentVehicle.position,
+        heading: currentVehicle.heading,
+        speed: currentVehicle.speed,
+        scaleMode: currentVehicle.scaleMode,
+        scaleFactor: currentVehicle.scaleFactor,
+        status: currentVehicle.scaleMode === "POCKET" ? "POCKET_CAR" : "DRIVING",
       },
     });
-  }, [vehicleState, playerName, isEnabled, connectionStatus]);
+  }, [connectionStatus, playerName]);
+
+  useEffect(() => {
+    if (!isEnabled || connectionStatus !== "CONNECTED") return;
+
+    const interval = setInterval(() => {
+      broadcastMovement();
+    }, 90); // ~11 times per second
+
+    return () => clearInterval(interval);
+  }, [isEnabled, connectionStatus, broadcastMovement]);
 
   return {
     remotePlayers: Array.from(remotePlayers.values()),
     connectionStatus,
+    onlineCount,
     playerId: playerIdRef.current,
   };
 }

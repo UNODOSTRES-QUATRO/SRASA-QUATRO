@@ -8,9 +8,12 @@ interface QuietHUDProps {
   dayNumber: number;
   catAlert: boolean;
   pocketUnlocked?: boolean;
+  connectionStatus?: "OFFLINE" | "CONNECTING" | "CONNECTED";
+  onlineCount?: number;
   onOpenPause: () => void;
   onPromptAction?: () => void;
   onTogglePocketMode?: () => void;
+  onSelectDay?: (day: number) => void;
 }
 
 export function QuietHUD({
@@ -19,9 +22,12 @@ export function QuietHUD({
   dayNumber,
   catAlert,
   pocketUnlocked = false,
+  connectionStatus = "OFFLINE",
+  onlineCount = 1,
   onOpenPause,
   onPromptAction,
   onTogglePocketMode,
+  onSelectDay,
 }: QuietHUDProps) {
   const kmh = Math.round(Math.abs(vehicleState.speed) * 3.6);
   const isMoving = Math.abs(vehicleState.speed) > 0.5;
@@ -36,19 +42,59 @@ export function QuietHUD({
 
   return (
     <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-6 select-none font-mono">
-      {/* Top Header */}
-      <div className="flex justify-between items-start">
-        <div className="flex items-center space-x-3">
+      {/* Top Header & Objective Section */}
+      <div className="flex flex-col w-full">
+        <div className="flex justify-between items-start">
+        <div className="flex items-center space-x-2.5 flex-wrap gap-y-2">
           <div className="bg-quatro-navy/60 backdrop-blur-sm px-3.5 py-1.5 rounded-lg border border-quatro-cream/15 text-xs tracking-widest text-quatro-cream/90 flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-quatro-amber animate-pulse" />
             <span>PROJECT QUATRO • {dayTitle}</span>
           </div>
+
+          {/* Quick Chapter / Day Skip Buttons */}
+          {onSelectDay && (
+            <div className="bg-quatro-navy/40 backdrop-blur-sm p-0.5 rounded-lg border border-quatro-cream/10 flex items-center space-x-1">
+              {[1, 2, 3].map((d) => (
+                <button
+                  key={d}
+                  onClick={() => onSelectDay(d)}
+                  className={`pointer-events-auto px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
+                    dayNumber === d
+                      ? "bg-quatro-amber text-quatro-navy"
+                      : "text-quatro-cream/60 hover:text-quatro-cream"
+                  }`}
+                >
+                  DAY {d}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Semicolon companion status badge */}
           <div className="bg-quatro-navy/40 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-quatro-cream/10 text-[11px] text-quatro-cream/70 flex items-center space-x-1.5">
             <span>🐾 Semicolon:</span>
             <span className={catAlert ? "text-quatro-amber" : "text-quatro-mutedGreen"}>
               {catAlert ? "Alert (sensing anomalies)" : "Purring peacefully"}
+            </span>
+          </div>
+
+          {/* Supabase Multiplayer Realtime Status Badge */}
+          <div className="bg-quatro-navy/50 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-quatro-cream/15 text-[11px] text-quatro-cream/90 flex items-center space-x-1.5">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                connectionStatus === "CONNECTED"
+                  ? "bg-emerald-400 animate-pulse"
+                  : connectionStatus === "CONNECTING"
+                  ? "bg-amber-400 animate-ping"
+                  : "bg-zinc-500"
+              }`}
+            />
+            <span>
+              {connectionStatus === "CONNECTED"
+                ? `ROOM: ${onlineCount} DRIVER${onlineCount > 1 ? "S" : ""}`
+                : connectionStatus === "CONNECTING"
+                ? "CONNECTING..."
+                : "OFFLINE"}
             </span>
           </div>
 
@@ -78,23 +124,32 @@ export function QuietHUD({
         </button>
       </div>
 
-      {/* Center Contextual Prompt */}
+      {/* Objective / Quest Banner (Sleek sub-header banner, non-obtrusive, clear driving view) */}
       {activePrompt && (
-        <div
-          onClick={onPromptAction}
-          className={`self-center bg-quatro-navy/85 backdrop-blur-md px-6 py-3 rounded-full border border-quatro-amber/60 shadow-2xl flex items-center space-x-3 text-sm text-quatro-cream transition-all duration-300 ${
-            onPromptAction ? "pointer-events-auto cursor-pointer hover:border-quatro-amber hover:scale-105" : ""
-          }`}
-        >
-          <span className="text-quatro-amber text-lg animate-pulse">✦</span>
-          <span>{activePrompt}</span>
-          {onPromptAction && (
-            <span className="text-xs bg-quatro-amber text-quatro-navy font-bold px-2.5 py-0.5 rounded shadow">
-              PRESS SPACE / E
-            </span>
-          )}
+        <div className="mt-2.5 flex justify-center w-full">
+          <div
+            onClick={onPromptAction}
+            className={`max-w-xl bg-quatro-navy/90 backdrop-blur-md px-4 py-2 rounded-xl border border-quatro-amber/35 shadow-xl flex items-center justify-between gap-3 text-xs text-quatro-cream transition-all duration-200 ${
+              onPromptAction
+                ? "pointer-events-auto cursor-pointer hover:border-quatro-amber hover:bg-quatro-navy hover:scale-[1.01]"
+                : ""
+            }`}
+          >
+            <div className="flex items-center space-x-2.5 min-w-0">
+              <span className="text-quatro-amber text-sm animate-pulse shrink-0">✦</span>
+              <span className="text-quatro-cream/90 text-xs font-sans tracking-wide">
+                {activePrompt}
+              </span>
+            </div>
+            {onPromptAction && (
+              <span className="shrink-0 text-[10px] bg-quatro-amber text-quatro-navy font-bold px-2.5 py-0.5 rounded shadow tracking-wider">
+                [SPACE / E]
+              </span>
+            )}
+          </div>
         </div>
       )}
+    </div>
 
       {/* Bottom Row */}
       <div className="flex justify-between items-end">

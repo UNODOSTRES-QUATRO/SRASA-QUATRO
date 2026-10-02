@@ -8,6 +8,7 @@ import { PauseOverlay } from "@/components/ui/PauseOverlay";
 import { WorkplaceMiniGame } from "@/components/ui/WorkplaceMiniGame";
 import { PortalTransitionOverlay } from "@/components/ui/PortalTransitionOverlay";
 import { GuardianDialogueModal } from "@/components/ui/GuardianDialogueModal";
+import { SemicolonSanctuaryModal } from "@/components/ui/SemicolonSanctuaryModal";
 import {
   createInitialVehicleState,
   updateVehiclePhysics,
@@ -29,9 +30,10 @@ export default function ProjectQuatroApp() {
   const [isWorkModalOpen, setIsWorkModalOpen] = useState(false);
   const [isPortalModalOpen, setIsPortalModalOpen] = useState(false);
   const [isGuardianModalOpen, setIsGuardianModalOpen] = useState(false);
+  const [isSanctuaryModalOpen, setIsSanctuaryModalOpen] = useState(false);
 
   // Supabase Realtime synchronization for multiplayer positions and status
-  const { remotePlayers } = useGameRealtime({
+  const { remotePlayers, connectionStatus, onlineCount } = useGameRealtime({
     vehicleState,
     isEnabled: true,
   });
@@ -74,12 +76,12 @@ export default function ProjectQuatroApp() {
     const { position, scaleMode } = vehicleState;
     const { dayNumber, workDone, guardianSpoken, puzzleSolved, castleGateOpen } = session;
 
-    // 1. Office Parking bay: [8, 0, 70]
+    // 1. Commute to Office / Office Parking: [8, 0, 70]
     const distToOffice = Math.hypot(position.x - 8, position.z - 70);
     if (distToOffice < 6 && !workDone && dayNumber < 3) {
       setSession((prev) => ({
         ...prev,
-        activePrompt: "Parked at office. Press [SPACE] or [E] to Start Work.",
+        activePrompt: "Parked at office. Press [SPACE] or [E] to enter Workstation.",
         officeParkingUnlocked: true,
       }));
       return;
@@ -91,14 +93,24 @@ export default function ProjectQuatroApp() {
       }));
     }
 
-    // 2. Day 3 Voxel Portal at z=100
+    // 2. Evening Commute Home check: [0, 0, -20]
+    if (session.phase === "COMMUTE_HOME" && position.z <= -15) {
+      setSession((prev) => ({
+        ...prev,
+        homeReached: true,
+        activePrompt: "Home driveway reached. Press [SPACE] or [E] to pet Semicolon and rest for the night.",
+      }));
+      return;
+    }
+
+    // 3. Day 3 Voxel Portal at z=100
     if (dayNumber === 3 && position.z > 98 && position.z < 108 && !session.portalEntered) {
       soundManager.playMeow();
       setIsPortalModalOpen(true);
       return;
     }
 
-    // 3. The Guardian NPC at [-3.8, 0, 131]
+    // 4. The Guardian NPC at [-3.8, 0, 131]
     const distToGuardian = Math.hypot(position.x - (-3.8), position.z - 131);
     if (dayNumber === 3 && distToGuardian < 5.0 && !guardianSpoken) {
       setSession((prev) => ({
@@ -108,21 +120,21 @@ export default function ProjectQuatroApp() {
       return;
     }
 
-    // 4. Dual-Scale Puzzle Pressure Plate inside conduit at [7.2, 0, 141]
+    // 5. Dual-Scale Puzzle Pressure Plate inside conduit at [7.2, 0, 141]
     const distToPlate = Math.hypot(position.x - 7.2, position.z - 141);
-    if (dayNumber === 3 && scaleMode === "POCKET" && distToPlate < 1.3 && !puzzleSolved) {
+    if (dayNumber === 3 && scaleMode === "POCKET" && distToPlate < 1.4 && !puzzleSolved) {
       soundManager.playPurr();
       setSession((prev) => ({
         ...prev,
         puzzleSolved: true,
         castleGateOpen: true,
         activePrompt:
-          "✦ Rune Activated! Castle Portcullis opened! Switch back to Big Car [Q] to drive in.",
+          "✦ Ancient Rune Activated! Castle Portcullis opened! Switch to Big Car [Q] to drive in.",
       }));
       return;
     }
 
-    // 5. Castle Gate Collision (Z = 135 to 137)
+    // 6. Castle Gate Collision (Z = 135 to 137)
     if (dayNumber === 3 && !castleGateOpen && position.z > 134.6 && position.z < 137.2) {
       // If Big Car mode, gate blocks entry
       if (scaleMode === "BIG") {
@@ -132,28 +144,45 @@ export default function ProjectQuatroApp() {
         setSession((prev) => ({
           ...prev,
           activePrompt:
-            "The Castle Gate is locked! Speak with The Guardian or find a smaller way [Q].",
+            "The Castle Gate is locked! Speak with The Guardian or shrink [Q] to enter conduit.",
         }));
         return;
       }
     }
 
-    // 6. Inside Castle Courtyard (Z > 146)
-    if (dayNumber === 3 && position.z > 146) {
+    // 7. Inside Castle Courtyard (Z = 146 to 175)
+    if (dayNumber === 3 && position.z > 146 && position.z < 176) {
       setSession((prev) => ({
         ...prev,
-        activePrompt: "Castle Courtyard reached. The Semicolon Sanctuary awaits.",
+        activePrompt: "Castle Courtyard reached. Approach the glowing Semicolon Sanctuary arch ahead.",
       }));
+    }
+
+    // 8. Grand Semicolon Sanctuary Entrance (Z >= 176)
+    if (dayNumber === 3 && position.z >= 176 && Math.abs(position.x) < 6) {
+      if (!session.sanctuaryEntered) {
+        soundManager.playPurr();
+        setIsSanctuaryModalOpen(true);
+        setSession((prev) => ({
+          ...prev,
+          sanctuaryEntered: true,
+          phase: "SANCTUARY_REACHED",
+          activePrompt: "✦ Semicolon Sanctuary reached. Press [SPACE] or [E] to step inside.",
+        }));
+      }
+      return;
     }
   }, [
     vehicleState,
     session.dayNumber,
+    session.phase,
     session.workDone,
     session.officeParkingUnlocked,
     session.portalEntered,
     session.guardianSpoken,
     session.puzzleSolved,
     session.castleGateOpen,
+    session.sanctuaryEntered,
   ]);
 
   // Keyboard input listeners
@@ -161,7 +190,9 @@ export default function ProjectQuatroApp() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === "Escape") {
         soundManager.playClick();
-        if (isWorkModalOpen) {
+        if (isSanctuaryModalOpen) {
+          setIsSanctuaryModalOpen(false);
+        } else if (isWorkModalOpen) {
           setIsWorkModalOpen(false);
         } else if (isPortalModalOpen) {
           setIsPortalModalOpen(false);
@@ -177,7 +208,8 @@ export default function ProjectQuatroApp() {
         session.isPaused ||
         isWorkModalOpen ||
         isPortalModalOpen ||
-        isGuardianModalOpen
+        isGuardianModalOpen ||
+        isSanctuaryModalOpen
       )
         return;
 
@@ -196,6 +228,15 @@ export default function ProjectQuatroApp() {
           setIsGuardianModalOpen(true);
           return;
         }
+        if (session.dayNumber === 3 && position.z >= 176 && Math.abs(position.x) < 6) {
+          soundManager.playPurr();
+          setIsSanctuaryModalOpen(true);
+          return;
+        }
+        if (session.phase === "COMMUTE_HOME" && position.z <= -15) {
+          handleRestForNight();
+          return;
+        }
         if (session.officeParkingUnlocked && !session.workDone) {
           soundManager.playClick();
           setIsWorkModalOpen(true);
@@ -204,12 +245,21 @@ export default function ProjectQuatroApp() {
       }
 
       if (e.code === "Space") {
+        const { position } = vehicleState;
+        if (session.phase === "COMMUTE_HOME" && position.z <= -15) {
+          handleRestForNight();
+          return;
+        }
+        if (session.dayNumber === 3 && position.z >= 176 && Math.abs(position.x) < 6) {
+          soundManager.playPurr();
+          setIsSanctuaryModalOpen(true);
+          return;
+        }
         if (session.officeParkingUnlocked && !session.workDone) {
           soundManager.playClick();
           setIsWorkModalOpen(true);
           return;
         }
-        const { position } = vehicleState;
         const distToGuardian = Math.hypot(position.x - (-3.8), position.z - 131);
         if (session.dayNumber === 3 && distToGuardian < 5.5) {
           soundManager.playClick();
@@ -329,15 +379,37 @@ export default function ProjectQuatroApp() {
     setIsWorkModalOpen(false);
     soundManager.playPurr();
 
-    // Advance to next day and reset car to home road position
+    setSession((prev) => ({
+      ...prev,
+      workDone: true,
+      phase: "COMMUTE_HOME",
+      officeParkingUnlocked: false,
+      activePrompt:
+        prev.dayNumber === 1
+          ? "Workday complete. The golden hour sun is setting. Drive south along the road back to your home (Z = -20)."
+          : "Workday complete. Anomalous violet twilight glimmers in the north. Drive south back to your home (Z = -20).",
+    }));
+  }, []);
+
+  const handleRestForNight = useCallback(() => {
+    soundManager.playPurr();
     const nextSession = advanceDay(session);
     setSession(nextSession);
 
-    // Reset car position
+    // Reset car to home driveway position
     const resetVehicle = createInitialVehicleState();
     stateRef.current = resetVehicle;
     setVehicleState(resetVehicle);
   }, [session]);
+
+  const handleOpenGate = useCallback(() => {
+    soundManager.playPurr();
+    setSession((prev) => ({
+      ...prev,
+      castleGateOpen: true,
+      activePrompt: "✦ The Guardian unsealed the Castle Portcullis! Drive into the courtyard.",
+    }));
+  }, []);
 
   const handleEnterVoxelWorld = useCallback(() => {
     soundManager.playPurr();
@@ -359,13 +431,57 @@ export default function ProjectQuatroApp() {
     }));
   }, []);
 
+  const handleSelectDay = useCallback((day: number) => {
+    soundManager.playClick();
+    const isDay3 = day === 3;
+    setSession((prev) => ({
+      ...prev,
+      dayNumber: day,
+      pocketUnlocked: isDay3 ? true : prev.pocketUnlocked,
+      portalEntered: isDay3 ? true : prev.portalEntered,
+      castleGateOpen: isDay3 ? prev.castleGateOpen : false,
+      activePrompt:
+        day === 3
+          ? "Day 3: The Voxel Realm. Approach the Castle Gate or find The Guardian."
+          : day === 2
+          ? "Day 2: The Shift. Notice the changing atmosphere on the road."
+          : "Day 1: The Routine. Drive to the office parking bay.",
+    }));
+
+    if (day === 3) {
+      // Teleport closer to voxel portal and castle entrance
+      const tpVehicle: VehicleState = {
+        ...stateRef.current,
+        position: { x: 0, y: 0.35, z: 95 },
+        speed: 0,
+        heading: 0,
+      };
+      stateRef.current = tpVehicle;
+      setVehicleState(tpVehicle);
+    } else {
+      const resetVehicle = createInitialVehicleState();
+      stateRef.current = resetVehicle;
+      setVehicleState(resetVehicle);
+    }
+  }, []);
+
   // Determine prompt action handler
   const distToGuardian = Math.hypot(
     vehicleState.position.x - (-3.8),
     vehicleState.position.z - 131
   );
+  const isAtHome = session.phase === "COMMUTE_HOME" && vehicleState.position.z <= -15;
+  const isAtSanctuary =
+    session.dayNumber === 3 &&
+    vehicleState.position.z >= 176 &&
+    Math.abs(vehicleState.position.x) < 6;
+
   const handlePromptAction =
-    session.officeParkingUnlocked && !session.workDone
+    isAtHome
+      ? handleRestForNight
+      : isAtSanctuary
+      ? () => setIsSanctuaryModalOpen(true)
+      : session.officeParkingUnlocked && !session.workDone
       ? () => setIsWorkModalOpen(true)
       : session.dayNumber === 3 && distToGuardian < 5.5
       ? () => setIsGuardianModalOpen(true)
@@ -391,6 +507,9 @@ export default function ProjectQuatroApp() {
         dayNumber={session.dayNumber}
         catAlert={session.catAlert}
         pocketUnlocked={session.pocketUnlocked}
+        connectionStatus={connectionStatus}
+        onlineCount={onlineCount}
+        onSelectDay={handleSelectDay}
         onOpenPause={() => {
           soundManager.playClick();
           setSession((prev) => ({ ...prev, isPaused: true }));
@@ -415,6 +534,13 @@ export default function ProjectQuatroApp() {
         isOpen={isGuardianModalOpen}
         onClose={() => setIsGuardianModalOpen(false)}
         onPocketUnlocked={handleGuardianPocketUnlocked}
+        onOpenGate={handleOpenGate}
+      />
+
+      <SemicolonSanctuaryModal
+        isOpen={isSanctuaryModalOpen}
+        onClose={() => setIsSanctuaryModalOpen(false)}
+        onMeditate={() => soundManager.playPurr()}
       />
 
       <PauseOverlay

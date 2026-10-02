@@ -4,6 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { SceneLighting } from "./SceneLighting";
 import { QuatroMesh } from "@/game/vehicle/QuatroMesh";
+import { RemoteVehicle } from "@/game/vehicle/RemoteVehicle";
 import { FollowCamera } from "@/game/camera/FollowCamera";
 import { VehicleState } from "@/game/vehicle/vehicleTypes";
 import { RemotePlayer } from "@/game/realtime/useGameRealtime";
@@ -36,23 +37,9 @@ export function GameCanvas({
       <QuatroMesh vehicleState={vehicleState} isCatAlert={isCatAlert} />
       <FollowCamera vehicleState={vehicleState} />
 
-      {/* RENDER MULTIPLAYER REMOTE PLAYERS */}
+      {/* RENDER MULTIPLAYER REMOTE PLAYERS WITH LERP & 3D NAMETAGS */}
       {remotePlayers.map((player) => (
-        <group key={player.id}>
-          <QuatroMesh
-            vehicleState={{
-              position: player.position,
-              heading: player.heading,
-              speed: player.speed,
-              steeringAngle: 0,
-              wheelRotation: 0,
-              isReversing: false,
-              driftFactor: 0,
-              scaleMode: player.scaleMode,
-              scaleFactor: player.scaleFactor,
-            }}
-          />
-        </group>
+        <RemoteVehicle key={player.id} player={player} />
       ))}
 
       {children}

@@ -16,6 +16,10 @@ export default function AboutPage() {
 
       <h1 className="text-3xl font-serif font-bold text-quatro-cream mb-4">About Project Quatro</h1>
       
+      <p className="text-quatro-cream/90 leading-relaxed mb-4 text-base italic border-l-2 border-quatro-amber/60 pl-4 py-1 bg-quatro-slate/20 rounded-r-lg">
+        “Sebuah game eksplorasi naratif low-cortisol yang memadukan kenyamanan berkendara mobil Quatro dengan teka-teki point-and-click di dimensi voxel yang hangat. Pemain diajak mengamati pergeseran realitas secara perlahan, menyusutkan mobil menjadi ukuran saku untuk memecahkan misteri kastil kuno tanpa tekanan waktu. Sentuhan visual bergaya Animal Crossing dan soundscape akustik yang menenangkan menghadirkan ruang hening dan pemulihan bagi pikiran.”
+      </p>
+
       <p className="text-quatro-cream/80 leading-relaxed mb-4">
         Project Quatro is an exploratory narrative driving experience built around the philosophy of <em>The Semicolon</em>:
         a deliberate pause before continuing. In this game, movement, curiosity, and calm coexist in a warm retro-voxel world.

@@ -9,6 +9,7 @@ import { SemicolonCat } from "../character/SemicolonCat";
 interface QuatroMeshProps {
   vehicleState: VehicleState;
   isCatAlert?: boolean;
+  bodyColor?: string;
 }
 
 // Deep-dish rally wheel component with visible brake rotor and caliper
@@ -77,6 +78,7 @@ function RallyWheel({
 export function QuatroMesh({
   vehicleState,
   isCatAlert = false,
+  bodyColor = "#d65d28",
 }: QuatroMeshProps) {
   const groupRef = useRef<THREE.Group>(null);
   const { position, heading, steeringAngle, wheelRotation, scaleFactor } = vehicleState;
@@ -94,8 +96,7 @@ export function QuatroMesh({
     }
   });
 
-  // Color Palette (Audi Sport Rally Terracotta & Classic Cream)
-  const bodyColor = "#d65d28"; // Warm vintage rally terracotta
+  // Color Palette (Audi Sport Rally Terracotta / Custom & Classic Cream)
   const accentColor = "#f4eee1"; // Heritage warm off-white
   const trimColor = "#1f2229"; // Dark matte plastic / rubber
   const glassColor = "#1a222d"; // Smoked glass

@@ -1,6 +1,8 @@
 # Project Quatro ;
 
-> **A cozy, low-cortisol narrative driving and environmental puzzle web game inspired by *The Semicolon* philosophy (`ACTION → PAUSE → NOTICE → FEEL → CONTINUE`).**
+> **Sebuah game eksplorasi naratif low-cortisol yang memadukan kenyamanan berkendara mobil Quatro dengan teka-teki point-and-click di dimensi voxel yang hangat. Pemain diajak mengamati pergeseran realitas secara perlahan, menyusutkan mobil menjadi ukuran saku untuk memecahkan misteri kastil kuno tanpa tekanan waktu. Sentuhan visual bergaya Animal Crossing dan soundscape akustik yang menenangkan menghadirkan ruang hening dan pemulihan bagi pikiran.**
+> 
+> *A low-cortisol narrative driving and environmental puzzle experience inspired by The Semicolon philosophy (`ACTION → PAUSE → NOTICE → FEEL → CONTINUE`).*
 
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?style=flat&logo=next.js)](https://nextjs.org/)
 [![React Three Fiber](https://img.shields.io/badge/R3F-Three.js-orange?style=flat&logo=three.js)](https://docs.pmnd.rs/react-three-fiber)

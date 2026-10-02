@@ -137,6 +137,19 @@ export function CastleCourtyard({
         ))}
       </group>
 
+      {/* Conduit Entry Beacon (Glowing Vertical Light Indicator) */}
+      <mesh position={[7.2, 1.8, 134.8]}>
+        <cylinderGeometry args={[0.04, 0.04, 2.4, 8]} />
+        <meshStandardMaterial
+          color="#f59e0b"
+          emissive="#fbbf24"
+          emissiveIntensity={2.5}
+          transparent
+          opacity={0.8}
+        />
+      </mesh>
+      <pointLight position={[7.2, 1.5, 135]} color="#f59e0b" intensity={2.0} distance={5} />
+
       {/* ========================================================
           3. DUAL-SCALE PUZZLE: SMALL CONDUIT & PRESSURE PLATE
           ======================================================== */}
@@ -154,7 +167,7 @@ export function CastleCourtyard({
           <meshStandardMaterial
             color={puzzleSolved ? "#48bb78" : "#38bdf8"}
             emissive={puzzleSolved ? "#22c55e" : "#0284c7"}
-            emissiveIntensity={puzzleSolved ? 2.2 : 1.2}
+            emissiveIntensity={puzzleSolved ? 2.5 : 1.5}
             roughness={0.3}
           />
         </mesh>
@@ -162,10 +175,10 @@ export function CastleCourtyard({
         {/* Plate Glow Light */}
         <pointLight
           color={puzzleSolved ? "#22c55e" : "#38bdf8"}
-          intensity={puzzleSolved ? 3.0 : 1.8}
-          distance={6}
+          intensity={puzzleSolved ? 3.5 : 2.0}
+          distance={8}
           decay={2}
-          position={[0, 0.3, 0]}
+          position={[0, 0.5, 0]}
         />
       </group>
 
@@ -199,16 +212,33 @@ export function CastleCourtyard({
         <boxGeometry args={[36, 12, 3]} />
         <meshStandardMaterial color={trimStoneColor} roughness={0.9} />
       </mesh>
-      {/* Inner Grand Sanctuary Arch */}
-      <mesh position={[0, 4.5, 183.4]} castShadow>
-        <boxGeometry args={[6, 9, 0.4]} />
-        <meshStandardMaterial
-          color="#fff4cc"
-          emissive="#ffe2a0"
-          emissiveIntensity={0.8}
-          roughness={0.2}
-        />
-      </mesh>
+
+      {/* Inner Grand Sanctuary Archway (Entrance to Semicolon Sanctuary at Z=180-184) */}
+      <group position={[0, 4.5, 183]}>
+        <mesh castShadow>
+          <boxGeometry args={[6.4, 9, 0.6]} />
+          <meshStandardMaterial
+            color="#fff4cc"
+            emissive="#f59e0b"
+            emissiveIntensity={1.2}
+            roughness={0.2}
+          />
+        </mesh>
+
+        {/* Ambient Sanctuary Beacon Warmth Light */}
+        <pointLight position={[0, 0, -2.5]} color="#f59e0b" intensity={4.5} distance={18} decay={2} />
+
+        {/* Floating Golden Semicolon Monolith Rune */}
+        <mesh position={[0, 2.2, -0.6]}>
+          <boxGeometry args={[0.8, 1.2, 0.2]} />
+          <meshStandardMaterial
+            color="#fbbf24"
+            emissive="#d97706"
+            emissiveIntensity={2.5}
+            roughness={0.1}
+          />
+        </mesh>
+      </group>
     </group>
   );
 }
