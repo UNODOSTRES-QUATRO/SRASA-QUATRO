@@ -10,6 +10,10 @@ export interface GameSessionState {
   officeParkingUnlocked: boolean;
   catAlert: boolean;
   portalEntered: boolean;
+  pocketUnlocked: boolean;
+  guardianSpoken: boolean;
+  castleGateOpen: boolean;
+  puzzleSolved: boolean;
 }
 
 export function createInitialSessionState(): GameSessionState {
@@ -23,6 +27,10 @@ export function createInitialSessionState(): GameSessionState {
     officeParkingUnlocked: false,
     catAlert: false,
     portalEntered: false,
+    pocketUnlocked: false,
+    guardianSpoken: false,
+    castleGateOpen: false,
+    puzzleSolved: false,
   };
 }
 

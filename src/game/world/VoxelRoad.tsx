@@ -1,11 +1,11 @@
 "use client";
 
 export function VoxelRoad() {
-  const roadLength = 240;
+  const roadLength = 360;
   const roadWidth = 9;
 
   return (
-    <group position={[0, -0.05, 0]}>
+    <group position={[0, -0.05, 40]}>
       {/* MAIN ROAD ASPHALT */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[roadWidth, roadLength]} />

@@ -11,6 +11,9 @@ describe("Game Session and Day Progression Store", () => {
     expect(session.phase).toBe("COMMUTE_TO_WORK");
     expect(session.workDone).toBe(false);
     expect(session.catAlert).toBe(false);
+    expect(session.pocketUnlocked).toBe(false);
+    expect(session.castleGateOpen).toBe(false);
+    expect(session.puzzleSolved).toBe(false);
   });
 
   it("should advance from Day 1 to Day 2 with environmental anomaly alert", () => {

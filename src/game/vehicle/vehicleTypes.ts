@@ -33,4 +33,6 @@ export interface VehicleState {
   wheelRotation: number; // spinning wheel angle
   isReversing: boolean;
   driftFactor: number;
+  scaleMode: "BIG" | "POCKET";
+  scaleFactor: number; // 1.0 for BIG, 0.22 for POCKET
 }

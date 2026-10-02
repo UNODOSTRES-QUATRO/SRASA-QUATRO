@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   createInitialVehicleState,
   updateVehiclePhysics,
+  toggleVehicleScale,
   DEFAULT_VEHICLE_CONFIG,
 } from "../src/game/vehicle/vehiclePhysics";
 import { VehicleInput } from "../src/game/vehicle/vehicleTypes";
@@ -66,5 +67,21 @@ describe("Vehicle Physics Engine", () => {
     };
     const nextState = updateVehiclePhysics(state, input, 0.1, DEFAULT_VEHICLE_CONFIG);
     expect(nextState.speed).toBeLessThan(8);
+  });
+
+  it("should toggle between BIG and POCKET vehicle scale modes correctly", () => {
+    const state = createInitialVehicleState();
+    expect(state.scaleMode).toBe("BIG");
+    expect(state.scaleFactor).toBe(1.0);
+
+    const pocketState = toggleVehicleScale(state);
+    expect(pocketState.scaleMode).toBe("POCKET");
+    expect(pocketState.scaleFactor).toBe(0.22);
+    expect(pocketState.position.y).toBe(0.08);
+
+    const bigState = toggleVehicleScale(pocketState);
+    expect(bigState.scaleMode).toBe("BIG");
+    expect(bigState.scaleFactor).toBe(1.0);
+    expect(bigState.position.y).toBe(0.35);
   });
 });

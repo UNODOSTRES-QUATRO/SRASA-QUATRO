@@ -22,6 +22,8 @@ export function createInitialVehicleState(): VehicleState {
     wheelRotation: 0,
     isReversing: false,
     driftFactor: 0,
+    scaleMode: "BIG",
+    scaleFactor: 1.0,
   };
 }
 
@@ -88,19 +90,32 @@ export function updateVehiclePhysics(
     }
   }
 
-  // 3. Bicycle kinematics model for smooth vehicle turning
+  // 3. Bicycle kinematics model with FR Legends style drift oversteer
+  const effectiveWheelbase =
+    current.scaleMode === "POCKET"
+      ? config.wheelbase * 0.35
+      : config.wheelbase;
+
+  const isHandbraking = input.brake && Math.abs(speed) > 2.5 && Math.abs(steeringAngle) > 0.08;
+  const oversteerMultiplier = isHandbraking ? 1.55 : 1.0;
+
   if (Math.abs(speed) > 0.05) {
-    const angularVelocity = (speed / config.wheelbase) * Math.tan(steeringAngle);
+    const angularVelocity = (speed / effectiveWheelbase) * Math.tan(steeringAngle) * oversteerMultiplier;
     heading += angularVelocity * clampedDt;
   }
 
-  // 4. Update Position
+  // 4. Update Position with subtle lateral drift slide
   const moveDistance = speed * clampedDt;
   position.x += Math.sin(heading) * moveDistance;
   position.z += Math.cos(heading) * moveDistance;
 
   // 5. Update Wheel spin
-  wheelRotation += (speed / 0.35) * clampedDt;
+  wheelRotation += (speed / (0.35 * current.scaleFactor)) * clampedDt;
+
+  const calculatedDrift =
+    (Math.abs(steeringAngle) / config.maxSteerAngle) *
+    (Math.abs(speed) / config.maxSpeed) *
+    (isHandbraking ? 1.8 : 1.0);
 
   return {
     position,
@@ -109,6 +124,26 @@ export function updateVehiclePhysics(
     steeringAngle,
     wheelRotation,
     isReversing: speed < -0.1,
-    driftFactor: Math.abs(steeringAngle) * (Math.abs(speed) / config.maxSpeed),
+    driftFactor: Math.min(1.0, calculatedDrift),
+    scaleMode: current.scaleMode,
+    scaleFactor: current.scaleFactor,
   };
 }
+
+export function toggleVehicleScale(current: VehicleState): VehicleState {
+  const isBig = current.scaleMode === "BIG";
+  const newMode = isBig ? "POCKET" : "BIG";
+  const newFactor = isBig ? 0.22 : 1.0;
+  const newY = isBig ? 0.08 : 0.35;
+
+  return {
+    ...current,
+    scaleMode: newMode,
+    scaleFactor: newFactor,
+    position: {
+      ...current.position,
+      y: newY,
+    },
+  };
+}
+
