@@ -882,6 +882,7 @@ export default function ProjectQuatroApp() {
             isAttacking={isAttackingRef.current}
             activeWeaponId={weaponSystem.stateRef.current.activeWeaponId}
             weaponStateRef={weaponSystem.stateRef}
+            cameraMode={cameraMode}
           />
         </GameCanvas>
       )}

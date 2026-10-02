@@ -26,6 +26,7 @@ interface ContinuousPhysicsProps {
   isPaused?: boolean;
   onFootstep?: () => void;
   onSyncUI?: (x: number, z: number, heading: number, isMoving: boolean, vehicle?: VehicleState) => void;
+  camAzimuthRef?: React.MutableRefObject<number>;
 }
 
 function ContinuousWorldPhysics({
@@ -38,6 +39,7 @@ function ContinuousWorldPhysics({
   isPaused = false,
   onFootstep,
   onSyncUI,
+  camAzimuthRef,
 }: ContinuousPhysicsProps) {
   const lastSyncTime = useRef(0);
   const lastFootstepTime = useRef(0);
@@ -47,27 +49,38 @@ function ContinuousWorldPhysics({
     const dt = Math.min(delta, 0.05);
 
     if (playerMode === "ON_FOOT" && humanPosRef?.current && humanVelocityRef?.current && inputRef?.current) {
-      let inputX = 0;
-      let inputZ = 0;
       const input = inputRef.current;
-      if (input.forward) inputZ -= 1;
-      if (input.backward) inputZ += 1;
-      if (input.left) inputX -= 1;
-      if (input.right) inputX += 1;
+      let moveForward = 0;
+      let moveRight = 0;
+      if (input.forward) moveForward += 1;
+      if (input.backward) moveForward -= 1;
+      if (input.right) moveRight += 1;
+      if (input.left) moveRight -= 1;
 
-      const isPressingMove = inputX !== 0 || inputZ !== 0;
+      const isPressingMove = moveForward !== 0 || moveRight !== 0;
       let targetVx = 0;
       let targetVz = 0;
-      const walkSpeed = 4.8;
+      const walkSpeed = 5.2;
 
       if (isPressingMove) {
-        const len = Math.hypot(inputX, inputZ);
-        targetVx = (inputX / len) * walkSpeed;
-        targetVz = (inputZ / len) * walkSpeed;
+        const len = Math.hypot(moveForward, moveRight);
+        const normF = moveForward / len;
+        const normR = moveRight / len;
+
+        // Camera-relative orientation so [W] is ALWAYS forward where the player is looking
+        const camAngle = camAzimuthRef?.current ?? 0;
+        const sinA = Math.sin(camAngle);
+        const cosA = Math.cos(camAngle);
+
+        const dirX = normF * sinA + normR * cosA;
+        const dirZ = normF * cosA - normR * sinA;
+
+        targetVx = dirX * walkSpeed;
+        targetVz = dirZ * walkSpeed;
       }
 
-      // Smooth exponential velocity damping
-      const velAlpha = 1.0 - Math.exp(-15.0 * dt);
+      // Smooth exponential velocity damping (1 - exp(-lambda * dt))
+      const velAlpha = 1.0 - Math.exp(-18.0 * dt);
       humanVelocityRef.current.vx += (targetVx - humanVelocityRef.current.vx) * velAlpha;
       humanVelocityRef.current.vz += (targetVz - humanVelocityRef.current.vz) * velAlpha;
 
@@ -80,12 +93,12 @@ function ContinuousWorldPhysics({
         let nextX = curX + humanVelocityRef.current.vx * dt;
         let nextZ = curZ + humanVelocityRef.current.vz * dt;
 
-        // Smooth shortest-arc heading
+        // Smooth shortest-arc heading with exponential damping
         const targetHeading = Math.atan2(humanVelocityRef.current.vx, humanVelocityRef.current.vz);
         let headingDiff = targetHeading - humanPosRef.current.heading;
         while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
         while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
-        const headingAlpha = 1.0 - Math.exp(-16.0 * dt);
+        const headingAlpha = 1.0 - Math.exp(-18.0 * dt);
         const nextHeading = humanPosRef.current.heading + headingDiff * headingAlpha;
 
         // Continuous world collision checking
@@ -233,6 +246,8 @@ export function GameCanvas({
   const cameraTargetHeading =
     playerMode === "DRIVING" && vehicleState ? vehicleState.heading : humanHeading;
 
+  const camAzimuthRef = useRef(humanHeading);
+
   return (
     <Canvas
       shadows
@@ -260,6 +275,7 @@ export function GameCanvas({
         isPaused={isPaused}
         onFootstep={onFootstep}
         onSyncUI={onSyncUI}
+        camAzimuthRef={camAzimuthRef}
       />
 
       {/* ── Buttery-Smooth Unified Camera Controller (No Jitter, No Snapping) ── */}
@@ -272,6 +288,7 @@ export function GameCanvas({
         humanPosRef={humanPosRef}
         isInsideEscapeRoom={isInsideEscapeRoom}
         isMoving={isHumanMoving}
+        camAzimuthRef={camAzimuthRef}
       />
 
       {/* ── Human Player Character (Shown on foot, socketed with weapon) ── */}

@@ -315,11 +315,12 @@ export class SoundManager {
     const now = this.ctx.currentTime;
     const fadeDuration = 3.6;
 
-    // Gently ramp down old voices
+    // Gently ramp down old voices without Web Audio 0-value exponential ramp errors
     this.activeVoices.forEach(({ gain, osc }) => {
       try {
+        const curVal = Math.max(0.0001, gain.gain.value);
         gain.gain.cancelScheduledValues(now);
-        gain.gain.setValueAtTime(gain.gain.value, now);
+        gain.gain.setValueAtTime(curVal, now);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + fadeDuration);
         setTimeout(() => {
           try {
@@ -331,9 +332,9 @@ export class SoundManager {
     });
     this.activeVoices = [];
 
-    // Filter frequency sweep based on mode
-    const targetFilterFreq = this.currentMode === "DRIVING" ? 920 : this.currentMode === "COMBAT" ? 1200 : 760;
-    this.ambientFilter.frequency.setTargetAtTime(targetFilterFreq, now, 1.6);
+    // Filter frequency sweep based on mode with gentle lofi breathing
+    const baseFilterFreq = this.currentMode === "DRIVING" ? 950 : this.currentMode === "COMBAT" ? 1250 : 800;
+    this.ambientFilter.frequency.setTargetAtTime(baseFilterFreq, now, 1.6);
 
     // Update sub drone to root of chord
     if (this.subDroneOsc && this.ctx) {

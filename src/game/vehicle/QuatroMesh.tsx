@@ -12,6 +12,7 @@ interface QuatroMeshProps {
   vehicleStateRef?: React.MutableRefObject<VehicleState>;
   isCatAlert?: boolean;
   bodyColor?: string;
+  isCockpit?: boolean;
 }
 
 // Deep-dish rally wheel with visible rotor, caliper, and camber
@@ -86,6 +87,7 @@ export function QuatroMesh({
   vehicleStateRef,
   isCatAlert = false,
   bodyColor = "#d65d28",
+  isCockpit = false,
 }: QuatroMeshProps) {
   const groupRef = useRef<THREE.Group>(null);
   const chassisRef = useRef<THREE.Group>(null);
@@ -459,19 +461,23 @@ export function QuatroMesh({
             <meshStandardMaterial color="#0f172a" roughness={0.8} />
           </mesh>
 
-          {/* Driver Silhouette (Visible through windows) */}
-          <mesh position={[0, 0.28, -0.02]} rotation={[0.15, 0, 0]} castShadow>
-            <boxGeometry args={[0.32, 0.4, 0.2]} />
-            <meshStandardMaterial color="#319795" roughness={0.7} />
-          </mesh>
-          <mesh position={[0, 0.56, 0.02]} castShadow>
-            <sphereGeometry args={[0.12, 12, 12]} />
-            <meshStandardMaterial color="#fbd38d" roughness={0.6} />
-          </mesh>
-          <mesh position={[0, 0.6, 0.02]} castShadow>
-            <boxGeometry args={[0.22, 0.1, 0.22]} />
-            <meshStandardMaterial color="#4a2c11" roughness={0.9} />
-          </mesh>
+          {/* Driver Silhouette (Visible through windows in chase/foot mode) */}
+          {!isCockpit && (
+            <>
+              <mesh position={[0, 0.28, -0.02]} rotation={[0.15, 0, 0]} castShadow>
+                <boxGeometry args={[0.32, 0.4, 0.2]} />
+                <meshStandardMaterial color="#319795" roughness={0.7} />
+              </mesh>
+              <mesh position={[0, 0.56, 0.02]} castShadow>
+                <sphereGeometry args={[0.12, 12, 12]} />
+                <meshStandardMaterial color="#fbd38d" roughness={0.6} />
+              </mesh>
+              <mesh position={[0, 0.6, 0.02]} castShadow>
+                <boxGeometry args={[0.22, 0.1, 0.22]} />
+                <meshStandardMaterial color="#4a2c11" roughness={0.9} />
+              </mesh>
+            </>
+          )}
           {/* Hands holding steering wheel */}
           <mesh position={[-0.12, 0.26, 0.16]} rotation={[0.45, 0.2, 0]}>
             <boxGeometry args={[0.07, 0.07, 0.26]} />

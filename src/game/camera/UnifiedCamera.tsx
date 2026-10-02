@@ -16,6 +16,7 @@ interface UnifiedCameraProps {
   humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
   isInsideEscapeRoom?: boolean;
   isMoving?: boolean;
+  camAzimuthRef?: React.MutableRefObject<number>;
 }
 
 export function UnifiedCamera({
@@ -27,6 +28,7 @@ export function UnifiedCamera({
   humanPosRef,
   isInsideEscapeRoom = false,
   isMoving = false,
+  camAzimuthRef,
 }: UnifiedCameraProps) {
   const { camera, gl } = useThree();
 
@@ -241,11 +243,11 @@ export function UnifiedCamera({
       const lateralSway = THREE.MathUtils.clamp(lateralSpeed * 0.032, -0.09, 0.09);
       const steerSway = steeringAngle * -0.045;
 
-      // Left driver seat offset
+      // Left driver seat offset inside cabin (eye level directly above bucket seat)
       const cockpitOffset = new THREE.Vector3(
-        -0.28 + steerSway + lateralSway,
-        1.05 + bob + gPitch,
-        0.22
+        -0.34 + steerSway + lateralSway,
+        1.10 + bob + gPitch,
+        0.04
       );
       const rotMatrix = new THREE.Matrix4().makeRotationY(smoothedHeading.current);
       cockpitOffset.applyMatrix4(rotMatrix);
@@ -256,20 +258,23 @@ export function UnifiedCamera({
         liveTargetPos[2] + cockpitOffset.z
       );
 
-      const lookDist = 18;
+      const lookDist = 22;
       const lookOffsetLateral = steerSway * 3.5;
       const rotLookX = Math.sin(smoothedHeading.current) * lookDist + Math.cos(smoothedHeading.current) * lookOffsetLateral;
       const rotLookZ = Math.cos(smoothedHeading.current) * lookDist - Math.sin(smoothedHeading.current) * lookOffsetLateral;
       desiredLookAt.set(
         liveTargetPos[0] + rotLookX,
-        liveTargetPos[1] + 0.9,
+        liveTargetPos[1] + 1.0,
         liveTargetPos[2] + rotLookZ
       );
 
-      targetFov = 62 + speedRatio * 7;
+      targetFov = 64 + speedRatio * 8;
 
     } else {
       // ── MODE: ON_FOOT (Smooth Over-The-Shoulder / Isometric Orbit) ─────────
+      if (camAzimuthRef) {
+        camAzimuthRef.current = orbitAzimuth.current;
+      }
       // Detect if player is inside an interior (Home, Workplace, or Great Keep)
       const isInsideHome =
         liveTargetPos[0] > 15.5 &&
@@ -354,8 +359,8 @@ export function UnifiedCamera({
 
     // ── Exponential Smoothing (1 - exp(-lambda * dt)) ────────────────────────
     // Softer lambda during transitions for a cinematic crane glide, tight lambda during gameplay
-    const basePosLambda = mode === "DRIVING_COCKPIT" ? 22.0 : mode === "DRIVING_CHASE" ? 8.5 : 7.5;
-    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 22.0 : mode === "DRIVING_CHASE" ? 9.8 : 8.0;
+    const basePosLambda = mode === "DRIVING_COCKPIT" ? 48.0 : mode === "DRIVING_CHASE" ? 9.5 : 8.5;
+    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 44.0 : mode === "DRIVING_CHASE" ? 10.5 : 9.0;
 
     const posLambda = THREE.MathUtils.lerp(basePosLambda, 5.0, transitionProgress.current);
     const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 5.5, transitionProgress.current);

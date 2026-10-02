@@ -27,6 +27,8 @@ interface AstralMonsterSystemProps {
   weaponStateRef?: React.MutableRefObject<WeaponSystemState>;
   onMonsterDefeated?: (monster: AstralMonsterData) => void;
   humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
+  playerMode?: "ON_FOOT" | "DRIVING";
+  vehicleStateRef?: React.MutableRefObject<any>;
 }
 
 export function AstralMonsterSystem({
@@ -36,6 +38,8 @@ export function AstralMonsterSystem({
   weaponStateRef,
   onMonsterDefeated,
   humanPosRef,
+  playerMode = "ON_FOOT",
+  vehicleStateRef,
 }: AstralMonsterSystemProps) {
   // Peaceful wandering astral entities along outskirts, cyber alley, and fields
   const [monsters, setMonsters] = useState<AstralMonsterData[]>([
@@ -173,7 +177,18 @@ export function AstralMonsterSystem({
     soundManager.playHarmonicChime();
 
     const usedWeapon = specificWeapon || weaponType;
-    const damage = usedWeapon === "RPG" ? 75 : usedWeapon === "SCYTHE" ? 55 : usedWeapon === "BOW" ? 45 : usedWeapon === "HEAVENLY_PEN" ? 50 : 38;
+    const damage =
+      usedWeapon === "RPG"
+        ? 75
+        : usedWeapon === "SCYTHE"
+        ? 55
+        : usedWeapon === "BOW"
+        ? 45
+        : usedWeapon === "HEAVENLY_PEN"
+        ? 50
+        : usedWeapon === "VEHICLE"
+        ? 45
+        : 38;
 
     setMonsters((prev) =>
       prev.map((m) => {
@@ -249,6 +264,8 @@ export function AstralMonsterSystem({
           humanPosRef={humanPosRef}
           isPlayerAttacking={isAttacking}
           weaponStateRef={weaponStateRef}
+          playerMode={playerMode}
+          vehicleStateRef={vehicleStateRef}
           onHitCheck={handleMeleeHitCheck}
           onDirectHit={handleHit}
         />
@@ -263,6 +280,8 @@ function SingleAstralEntity({
   humanPosRef,
   isPlayerAttacking,
   weaponStateRef,
+  playerMode,
+  vehicleStateRef,
   onHitCheck,
   onDirectHit,
 }: {
@@ -271,6 +290,8 @@ function SingleAstralEntity({
   humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
   isPlayerAttacking: boolean;
   weaponStateRef?: React.MutableRefObject<WeaponSystemState>;
+  playerMode?: "ON_FOOT" | "DRIVING";
+  vehicleStateRef?: React.MutableRefObject<any>;
   onHitCheck: (id: string, pos: THREE.Vector3) => void;
   onDirectHit: (id: string, pos: THREE.Vector3, specificWeapon?: string) => void;
 }) {
@@ -409,6 +430,18 @@ function SingleAstralEntity({
           p.age = p.maxAge; // Consume projectile
           onDirectHit(data.id, currentPos.current, p.weaponId);
           break;
+        }
+      }
+    }
+
+    // 3. Check vehicle collision in driving mode (harmonic spirit contact)
+    if (playerMode === "DRIVING" && vehicleStateRef?.current && !data.isDefeated) {
+      const v = vehicleStateRef.current;
+      if (Math.abs(v.speed) > 2.5) {
+        const carVec = new THREE.Vector3(v.position.x, 1.0, v.position.z);
+        const distToCar = currentPos.current.distanceTo(carVec);
+        if (distToCar < 2.6) {
+          onDirectHit(data.id, currentPos.current, "VEHICLE");
         }
       }
     }

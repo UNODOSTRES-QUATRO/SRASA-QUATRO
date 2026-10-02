@@ -9,7 +9,7 @@ import { MechanicShopScene } from "./MechanicShopScene";
 import { CastleExteriorScene } from "./CastleExteriorScene";
 import { CastleEscapeRoomScene } from "./CastleEscapeRoomScene";
 import { QuatroMesh } from "../vehicle/QuatroMesh";
-import { VehicleState } from "../vehicle/vehicleTypes";
+import { VehicleState, CameraMode } from "../vehicle/vehicleTypes";
 import { AstralMonsterSystem } from "../character/AstralEntity";
 import { RumahState, WorkplaceState, KastilState } from "../core/gameStore";
 
@@ -28,6 +28,7 @@ interface UnifiedWorldProps {
   activeWeaponId: string;
   weaponStateRef?: React.MutableRefObject<any>;
   humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
+  cameraMode?: CameraMode;
 }
 
 export function UnifiedWorld({
@@ -45,6 +46,7 @@ export function UnifiedWorld({
   activeWeaponId,
   weaponStateRef,
   humanPosRef,
+  cameraMode,
 }: UnifiedWorldProps) {
   // Roadway parameters
   const roadLength = 340; // From Z = -100 to Z = 240
@@ -428,6 +430,8 @@ export function UnifiedWorld({
         isAttacking={isAttacking}
         weaponType={activeWeaponId}
         weaponStateRef={weaponStateRef}
+        playerMode={playerMode}
+        vehicleStateRef={vehicleStateRef}
       />
 
       {/* ========================================================
@@ -438,6 +442,7 @@ export function UnifiedWorld({
         vehicleState={vehicleState}
         vehicleStateRef={vehicleStateRef}
         isCatAlert={dayNumber >= 2}
+        isCockpit={playerMode === "DRIVING" && cameraMode === "COCKPIT"}
       />
 
       {/* Car Headlights Beams cast into continuous world */}
