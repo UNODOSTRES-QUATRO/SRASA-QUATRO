@@ -15,7 +15,7 @@ import { OfficeWorkstationModal } from "@/components/ui/OfficeWorkstationModal";
 import { VoidLoreCutsceneModal } from "@/components/ui/VoidLoreCutsceneModal";
 import { CastleLoreDialogueModal } from "@/components/ui/CastleLoreDialogueModal";
 import { CastleEscapeRoomModal } from "@/components/ui/CastleEscapeRoomModal";
-import { EndScreenOverlay } from "@/components/ui/EndScreenOverlay";
+import { EndCreditsScene } from "@/components/ui/EndCreditsScene";
 import { PauseOverlay } from "@/components/ui/PauseOverlay";
 
 import {
@@ -638,6 +638,7 @@ export default function ProjectQuatroApp() {
   const handleEscapeToVictory = () => {
     setEscapeInspectTarget(null);
     soundManager.playPurr();
+    soundManager.setCinematicMode(true);
     setSession((prev) => ({
       ...prev,
       currentLocation: "END_SCREEN",
@@ -646,6 +647,7 @@ export default function ProjectQuatroApp() {
 
   // Play Again Restart
   const handlePlayAgain = () => {
+    soundManager.setCinematicMode(false);
     setSession(createInitialSessionState());
   };
 
@@ -795,16 +797,9 @@ export default function ProjectQuatroApp() {
         onClose={() => setEscapeInspectTarget(null)}
       />
 
-      {/* Location 6 Overlay: End Screen */}
+      {/* Location 6: Cinematic End Credits */}
       {session.currentLocation === "END_SCREEN" && (
-        <EndScreenOverlay
-          stats={{
-            daysCompleted: session.stats.daysCompleted,
-            bugsCaught: session.workplace.bugsCaught,
-            easterEggsFound: session.stats.easterEggsFound,
-          }}
-          onPlayAgain={handlePlayAgain}
-        />
+        <EndCreditsScene onPlayAgain={handlePlayAgain} />
       )}
 
       {/* Pause Menu */}

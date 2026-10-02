@@ -5,6 +5,7 @@ export class SoundManager {
   private noiseGain: GainNode | null = null;
   private isInitialized = false;
   private isMuted = false;
+  private isCinematic = false;
 
   public init() {
     if (this.isInitialized) return;
@@ -85,11 +86,47 @@ export class SoundManager {
   public setMuted(muted: boolean) {
     this.isMuted = muted;
     if (this.engineGain && this.ctx) {
-      this.engineGain.gain.setTargetAtTime(muted ? 0 : 0.08, this.ctx.currentTime, 0.05);
+      this.engineGain.gain.setTargetAtTime(muted || this.isCinematic ? 0 : 0.08, this.ctx.currentTime, 0.05);
     }
     if (this.noiseGain && this.ctx) {
-      this.noiseGain.gain.setTargetAtTime(muted ? 0 : 0.035, this.ctx.currentTime, 0.05);
+      this.noiseGain.gain.setTargetAtTime(muted || this.isCinematic ? 0 : 0.035, this.ctx.currentTime, 0.05);
     }
+  }
+
+  public setCinematicMode(enabled: boolean) {
+    this.isCinematic = enabled;
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const duration = enabled ? 5 : 1.2;
+    const fadeTo = (gain: GainNode | null, volume: number) => {
+      if (!gain) return;
+      gain.gain.cancelScheduledValues(now);
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(volume, now + duration);
+    };
+
+    fadeTo(this.engineGain, enabled || this.isMuted ? 0.0001 : 0.08);
+    fadeTo(this.noiseGain, enabled || this.isMuted ? 0.0001 : 0.035);
+  }
+
+  public playEndingChime() {
+    if (!this.ctx || this.isMuted) return;
+
+    [659.25, 880].forEach((frequency, index) => {
+      const oscillator = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      const startTime = this.ctx!.currentTime + index * 0.22;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, startTime);
+      gain.gain.setValueAtTime(0.0001, startTime);
+      gain.gain.linearRampToValueAtTime(0.012, startTime + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 1.5);
+      oscillator.connect(gain);
+      gain.connect(this.ctx!.destination);
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 1.5);
+    });
   }
 
   public playClick() {
