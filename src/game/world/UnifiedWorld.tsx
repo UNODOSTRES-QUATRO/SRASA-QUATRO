@@ -502,7 +502,7 @@ function CarHeadlights({
       rightTargetRef.current.position.set(rightX + sinH * 38, 0, rightZ + cosH * 38);
       rightTargetRef.current.updateMatrixWorld();
     }
-  }, 1);
+  });
 
   const intensity = playerMode === "DRIVING" ? 6.5 : 2.5;
 

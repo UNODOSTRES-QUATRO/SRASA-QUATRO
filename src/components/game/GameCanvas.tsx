@@ -172,7 +172,7 @@ function ContinuousWorldPhysics({
         lastSyncTime.current = now;
       }
     }
-  }, 0);
+  });
 
   return null;
 }
@@ -278,19 +278,6 @@ export function GameCanvas({
         camAzimuthRef={camAzimuthRef}
       />
 
-      {/* ── Buttery-Smooth Unified Camera Controller (No Jitter, No Snapping) ── */}
-      <UnifiedCamera
-        mode={unifiedMode}
-        targetPos={cameraTargetPos}
-        targetHeading={cameraTargetHeading}
-        vehicleState={vehicleState}
-        vehicleStateRef={vehicleStateRef}
-        humanPosRef={humanPosRef}
-        isInsideEscapeRoom={isInsideEscapeRoom}
-        isMoving={isHumanMoving}
-        camAzimuthRef={camAzimuthRef}
-      />
-
       {/* ── Human Player Character (Shown on foot, socketed with weapon) ── */}
       {playerMode === "ON_FOOT" && (
         <HumanPlayer
@@ -324,6 +311,19 @@ export function GameCanvas({
       {remotePlayers.map((player) => (
         <RemoteVehicle key={player.id} player={player} />
       ))}
+
+      {/* ── Buttery-Smooth Unified Camera Controller (Executed last for zero-frame latency) ── */}
+      <UnifiedCamera
+        mode={unifiedMode}
+        targetPos={cameraTargetPos}
+        targetHeading={cameraTargetHeading}
+        vehicleState={vehicleState}
+        vehicleStateRef={vehicleStateRef}
+        humanPosRef={humanPosRef}
+        isInsideEscapeRoom={isInsideEscapeRoom}
+        isMoving={isHumanMoving}
+        camAzimuthRef={camAzimuthRef}
+      />
     </Canvas>
   );
 }

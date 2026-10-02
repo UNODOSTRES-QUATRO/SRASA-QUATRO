@@ -231,7 +231,7 @@ export function HumanPlayer({
       nockedArrowRef.current.visible = isDrawing;
       nockedArrowRef.current.position.x = -0.18 + liveCharge * 0.15;
     }
-  }, 1);
+  });
 
   const currentWeaponId = (weaponSystemStateRef?.current?.activeWeaponId ?? activeWeaponId) as WeaponId;
 

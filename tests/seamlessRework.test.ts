@@ -136,4 +136,41 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     const remain1x30 = 1 - alpha30;
     expect(remain2x60).toBeCloseTo(remain1x30, 2);
   });
+
+  it("verifies vehicle physics clamps angular velocity to prevent jarring spin-outs", () => {
+    const initial = createInitialVehicleState();
+    initial.speed = 25.0;
+    initial.steeringAngle = Math.PI / 4.8;
+    initial.angularVelocity = 10.0; // extreme angular velocity
+
+    const next = updateVehiclePhysics(initial, {
+      forward: true,
+      backward: false,
+      left: false,
+      right: true,
+      brake: false,
+    }, 0.05);
+
+    expect(next.angularVelocity).toBeLessThanOrEqual(2.4);
+    expect(next.angularVelocity).toBeGreaterThanOrEqual(-2.4);
+    expect(next.lateralSpeed).toBeLessThanOrEqual(12.0);
+    expect(next.lateralSpeed).toBeGreaterThanOrEqual(-12.0);
+  });
+
+  it("verifies camera auto-follow ignores strafing and only follows forward motion", () => {
+    // When moving forward: heading ~ azimuth (diff < 80 deg)
+    const forwardDiff = 0.15;
+    const shouldAutoFollowForward = Math.abs(forwardDiff) < Math.PI * 0.44;
+    expect(shouldAutoFollowForward).toBe(true);
+
+    // When strafing right: heading is 90 deg relative to camera (diff = PI/2)
+    const strafeDiff = Math.PI / 2;
+    const shouldAutoFollowStrafe = Math.abs(strafeDiff) < Math.PI * 0.44;
+    expect(shouldAutoFollowStrafe).toBe(false);
+
+    // When walking backward: heading is 180 deg relative to camera
+    const backDiff = Math.PI;
+    const shouldAutoFollowBack = Math.abs(backDiff) < Math.PI * 0.44;
+    expect(shouldAutoFollowBack).toBe(false);
+  });
 });

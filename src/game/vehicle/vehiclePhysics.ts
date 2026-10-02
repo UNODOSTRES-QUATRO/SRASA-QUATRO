@@ -141,6 +141,9 @@ export function updateVehiclePhysics(
     }
   }
 
+  // Safety clamp to ensure smooth, forgiving FR Legends drift without snappy spin-outs
+  angularVelocity = Math.max(-2.4, Math.min(2.4, angularVelocity));
+
   // Apply rotation
   heading += angularVelocity * clampedDt;
 
@@ -152,6 +155,7 @@ export function updateVehiclePhysics(
   const lateralGripDamp = effectiveGrip * 12.0 * gripMultiplier * clampedDt;
   lateralSpeed += centrifugalLateral * clampedDt;
   lateralSpeed -= lateralSpeed * Math.min(0.9, lateralGripDamp); // dampen toward 0
+  lateralSpeed = Math.max(-12.0, Math.min(12.0, lateralSpeed));
 
   // ─── 5. POSITION UPDATE ───────────────────────────────────────────────────
   // Forward/back movement along heading

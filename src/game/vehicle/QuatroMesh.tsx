@@ -191,7 +191,7 @@ export function QuatroMesh({
         driftSmokeRef.current.visible = false;
       }
     }
-  }, 1);
+  });
 
   const accentColor = "#f8f4eb"; // Heritage warm off-white
   const trimColor = "#1a1c22"; // Dark matte aero trim

@@ -322,11 +322,13 @@ export function UnifiedCamera({
           pointerVel.current.x *= decay;
           pointerVel.current.y *= decay;
         } else if (isMoving) {
-          // Gentle auto-follow only when actively walking
+          // Gentle auto-follow only when walking forward (diff within 80 deg), never when strafing or facing backward
           let diff = liveHeading - orbitAzimuth.current;
           while (diff < -Math.PI) diff += Math.PI * 2;
           while (diff > Math.PI) diff -= Math.PI * 2;
-          orbitAzimuth.current += diff * (1.0 - Math.exp(-2.2 * dt));
+          if (Math.abs(diff) < Math.PI * 0.44) {
+            orbitAzimuth.current += diff * (1.0 - Math.exp(-1.8 * dt));
+          }
         }
       }
 
@@ -353,8 +355,9 @@ export function UnifiedCamera({
       targetFov = isInterior ? 52 : 48;
     }
 
-    // ── First Frame Initializer ──────────────────────────────────────────────
-    if (!isInitialized.current) {
+    // ── First Frame Initializer or Teleport Discontinuity Snap ───────────────
+    const distToTarget = currentLookAt.current.distanceTo(desiredLookAt);
+    if (!isInitialized.current || distToTarget > 32) {
       currentPos.current.copy(desiredPos);
       currentLookAt.current.copy(desiredLookAt);
       camera.position.copy(desiredPos);
@@ -380,14 +383,17 @@ export function UnifiedCamera({
     camera.position.copy(currentPos.current);
     camera.lookAt(currentLookAt.current);
 
-    // Dynamic FOV smoothing
+    // Dynamic FOV smoothing (only update projection matrix when changed)
     const perspCamera = camera as THREE.PerspectiveCamera;
     if (perspCamera.isPerspectiveCamera) {
       const fovAlpha = 1.0 - Math.exp(-5.0 * dt);
-      perspCamera.fov = THREE.MathUtils.lerp(perspCamera.fov, targetFov, fovAlpha);
-      perspCamera.updateProjectionMatrix();
+      const nextFov = THREE.MathUtils.lerp(perspCamera.fov, targetFov, fovAlpha);
+      if (Math.abs(perspCamera.fov - nextFov) > 0.015) {
+        perspCamera.fov = nextFov;
+        perspCamera.updateProjectionMatrix();
+      }
     }
-  }, 2);
+  });
 
   return null;
 }

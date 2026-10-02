@@ -411,7 +411,7 @@ export function WeaponSystem3D({
       e.age += dt;
       return e.age < e.maxAge;
     });
-  }, 1);
+  });
 
   const s = stateRef.current;
   const def = WEAPON_DEFS[s.activeWeaponId];

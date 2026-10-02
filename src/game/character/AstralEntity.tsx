@@ -259,11 +259,11 @@ export function AstralMonsterSystem({
               respawnTime: 0,
             };
           }
-          return m;
+            return m;
         })
       );
     }
-  }, 1);
+  });
 
   return (
     <group>
@@ -456,7 +456,7 @@ function SingleAstralEntity({
         }
       }
     }
-  }, 1);
+  });
 
   return (
     <group ref={rootRef} position={data.basePosition}>
