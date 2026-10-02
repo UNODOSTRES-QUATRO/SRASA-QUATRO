@@ -38,6 +38,8 @@ export function HumanPlayer({
   const weaponSocketRef = useRef<THREE.Group>(null);
   const slashRibbonRef = useRef<THREE.Mesh>(null);
   const inkRibbonRef = useRef<THREE.Mesh>(null);
+  const bowstringRef = useRef<THREE.Mesh>(null);
+  const nockedArrowRef = useRef<THREE.Group>(null);
 
   // Smoothed arm and weapon rotations to eliminate any snapping/jitter
   const rightArmRot = useRef(new THREE.Vector3(0.2, 0, 0));
@@ -204,7 +206,19 @@ export function HumanPlayer({
         inkRibbonRef.current.visible = false;
       }
     }
+
+    // ── 7. Real-Time Dynamic Bowstring & Arrow Draw (60+ FPS) ──
+    if (bowstringRef.current) {
+      bowstringRef.current.position.x = -0.18 + liveCharge * 0.15;
+    }
+    if (nockedArrowRef.current) {
+      const isDrawing = liveIsAttacking || liveCharge > 0.05;
+      nockedArrowRef.current.visible = isDrawing;
+      nockedArrowRef.current.position.x = -0.18 + liveCharge * 0.15;
+    }
   });
+
+  const currentWeaponId = (weaponSystemStateRef?.current?.activeWeaponId ?? activeWeaponId) as WeaponId;
 
   return (
     <group ref={rootRef} position={position} rotation={[0, heading, 0]}>
@@ -257,7 +271,7 @@ export function HumanPlayer({
         </mesh>
 
         {/* ── ETHEREAL LONGBOW (HELD SECURELY IN LEFT FIST) ── */}
-        {activeWeaponId === "BOW" && (
+        {currentWeaponId === "BOW" && (
           <group position={[0, -0.54, 0.08]} rotation={[0, Math.PI / 2, 0]}>
             {/* Bow Grip Handle (inside palm) */}
             <mesh position={[0, 0, 0]}>
@@ -274,24 +288,22 @@ export function HumanPlayer({
                 roughness={0.4}
               />
             </mesh>
-            {/* Bowstring */}
-            <mesh position={[-0.18 + (chargeLevel || 0) * 0.15, 0, 0]}>
+            {/* Bowstring (Real-time dynamic draw via ref) */}
+            <mesh ref={bowstringRef} position={[-0.18, 0, 0]}>
               <boxGeometry args={[0.006, 0.82, 0.006]} />
               <meshBasicMaterial color="#d1fae5" />
             </mesh>
-            {/* Nocked Arrow in Bow (Visible when drawing/charging) */}
-            {(isAttacking || (chargeLevel || 0) > 0.05) && (
-              <group position={[-0.18 + (chargeLevel || 0) * 0.15, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-                <mesh position={[0, 0.22, 0]}>
-                  <cylinderGeometry args={[0.006, 0.006, 0.65, 6]} />
-                  <meshStandardMaterial color="#d1fae5" metalness={0.8} />
-                </mesh>
-                <mesh position={[0, 0.54, 0]}>
-                  <coneGeometry args={[0.018, 0.08, 6]} />
-                  <meshStandardMaterial color="#86efac" emissive="#4ade80" emissiveIntensity={2.5} />
-                </mesh>
-              </group>
-            )}
+            {/* Nocked Arrow in Bow (Visible when drawing/charging, animated via ref) */}
+            <group ref={nockedArrowRef} position={[-0.18, 0, 0]} rotation={[0, 0, Math.PI / 2]} visible={false}>
+              <mesh position={[0, 0.22, 0]}>
+                <cylinderGeometry args={[0.006, 0.006, 0.65, 6]} />
+                <meshStandardMaterial color="#d1fae5" metalness={0.8} />
+              </mesh>
+              <mesh position={[0, 0.54, 0]}>
+                <coneGeometry args={[0.018, 0.08, 6]} />
+                <meshStandardMaterial color="#86efac" emissive="#4ade80" emissiveIntensity={2.5} />
+              </mesh>
+            </group>
           </group>
         )}
       </group>
@@ -311,7 +323,7 @@ export function HumanPlayer({
         {/* ── HAND SOCKET: CENTERED DIRECTLY IN RIGHT PALM ── */}
         <group ref={weaponSocketRef} position={[0, -0.54, 0.02]}>
           {/* 1. BLUE SHARD KATANA */}
-          {activeWeaponId === "BLUE_SHARD_SWORD" && (
+          {currentWeaponId === "BLUE_SHARD_SWORD" && (
             <group>
               {/* Wrapped Hilt (Centered inside palm) */}
               <mesh position={[0, 0, 0]}>
@@ -353,7 +365,7 @@ export function HumanPlayer({
           )}
 
           {/* 2. VOID CALLIGRAPHY PEN */}
-          {activeWeaponId === "HEAVENLY_PEN" && (
+          {currentWeaponId === "HEAVENLY_PEN" && (
             <group>
               {/* Bamboo & Gold Shaft held in fist */}
               <mesh position={[0, 0.1, 0]}>
@@ -374,7 +386,7 @@ export function HumanPlayer({
           )}
 
           {/* 3. REAPER SCYTHE */}
-          {activeWeaponId === "SCYTHE" && (
+          {currentWeaponId === "SCYTHE" && (
             <group>
               {/* Long haft gripped in fist */}
               <mesh position={[0, 0.25, 0]}>
@@ -390,7 +402,7 @@ export function HumanPlayer({
           )}
 
           {/* 4. RPG LAUNCHER */}
-          {activeWeaponId === "RPG" && (
+          {currentWeaponId === "RPG" && (
             <group position={[0, 0.15, -0.05]}>
               <mesh>
                 <cylinderGeometry args={[0.05, 0.05, 0.82, 8]} />

@@ -133,6 +133,30 @@ export function AstralMonsterSystem({
       isDefeated: false,
       respawnTime: 0,
     },
+    {
+      id: "astral-orchard",
+      name: "Orchard Spirit",
+      basePosition: [-18, 1.4, -12],
+      wanderRadius: 3.8,
+      color: "#34d399",
+      accentColor: "#a7f3d0",
+      maxHp: 60,
+      hp: 60,
+      isDefeated: false,
+      respawnTime: 0,
+    },
+    {
+      id: "astral-dawn",
+      name: "Dawn Wisp",
+      basePosition: [16, 1.3, -34],
+      wanderRadius: 3.5,
+      color: "#f59e0b",
+      accentColor: "#fde68a",
+      maxHp: 55,
+      hp: 55,
+      isDefeated: false,
+      respawnTime: 0,
+    },
   ]);
 
   const lastHitTimeRef = useRef(0);
@@ -351,7 +375,14 @@ function SingleAstralEntity({
     }
 
     // 1. Check melee hit if player is actively attacking
-    if (isPlayerAttacking) {
+    const liveAttack = weaponStateRef?.current?.activeAttack;
+    const isSwinging =
+      isPlayerAttacking ||
+      (liveAttack &&
+        !liveAttack.isCharging &&
+        liveAttack.progress > 0.08 &&
+        liveAttack.progress < 0.88);
+    if (isSwinging) {
       onHitCheck(data.id, currentPos.current);
     }
 

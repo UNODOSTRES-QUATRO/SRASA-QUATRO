@@ -474,6 +474,7 @@ function CarHeadlights({
         0,
         live.position.z + Math.cos(live.heading) * 35
       );
+      targetRef.current.updateMatrixWorld();
     }
   });
 

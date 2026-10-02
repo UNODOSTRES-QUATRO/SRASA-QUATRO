@@ -137,12 +137,18 @@ export default function ProjectQuatroApp() {
       soundManager.setMode(playerModeRef.current === "DRIVING" ? "DRIVING" : "WALKING");
       window.removeEventListener("keydown", handleFirstInteraction);
       window.removeEventListener("click", handleFirstInteraction);
+      window.removeEventListener("pointerdown", handleFirstInteraction);
+      window.removeEventListener("touchstart", handleFirstInteraction);
     };
     window.addEventListener("keydown", handleFirstInteraction);
     window.addEventListener("click", handleFirstInteraction);
+    window.addEventListener("pointerdown", handleFirstInteraction);
+    window.addEventListener("touchstart", handleFirstInteraction);
     return () => {
       window.removeEventListener("keydown", handleFirstInteraction);
       window.removeEventListener("click", handleFirstInteraction);
+      window.removeEventListener("pointerdown", handleFirstInteraction);
+      window.removeEventListener("touchstart", handleFirstInteraction);
     };
   }, []);
 

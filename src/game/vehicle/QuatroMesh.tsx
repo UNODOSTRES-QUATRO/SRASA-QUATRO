@@ -283,6 +283,16 @@ export function QuatroMesh({
           <meshStandardMaterial color="#0c0e12" roughness={0.9} />
         </mesh>
 
+        {/* Front Amber Fog Projectors */}
+        {[-0.66, 0.66].map((fx, fi) => (
+          <group key={`fog-${fi}`} position={[fx, 0.25, 1.82]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh>
+              <cylinderGeometry args={[0.065, 0.065, 0.04, 12]} />
+              <meshStandardMaterial color="#fef08a" emissive="#f59e0b" emissiveIntensity={2.6} />
+            </mesh>
+          </group>
+        ))}
+
         {/* Matte Black Front Grille */}
         <mesh position={[0, 0.48, 1.75]}>
           <boxGeometry args={[1.56, 0.22, 0.08]} />
@@ -376,6 +386,11 @@ export function QuatroMesh({
             <boxGeometry args={[0.14, 0.09, 0.16]} />
             <meshStandardMaterial color={trimColor} roughness={0.6} />
           </mesh>
+          {/* Mirror Cyber Amber LED Indicator */}
+          <mesh position={[-0.195, 0.18, -0.08]}>
+            <boxGeometry args={[0.012, 0.025, 0.12]} />
+            <meshStandardMaterial color="#f59e0b" emissive="#d97706" emissiveIntensity={2.8} />
+          </mesh>
           {/* Recessed Flush Door Handle */}
           <mesh position={[-0.045, -0.02, -0.78]}>
             <boxGeometry args={[0.02, 0.04, 0.14]} />
@@ -412,6 +427,16 @@ export function QuatroMesh({
           <torusGeometry args={[0.11, 0.02, 8, 16]} />
           <meshStandardMaterial color="#1f2937" roughness={0.7} />
         </mesh>
+        {/* Cyber Digital Instrument Cluster */}
+        <mesh position={[-0.34, 0.81, 0.42]} rotation={[-0.38, 0, 0]}>
+          <boxGeometry args={[0.26, 0.1, 0.02]} />
+          <meshStandardMaterial color="#0284c7" emissive="#38bdf8" emissiveIntensity={3.2} />
+        </mesh>
+        {/* Center Infotainment Navigation Screen */}
+        <mesh position={[0, 0.77, 0.41]} rotation={[-0.38, 0, 0]}>
+          <boxGeometry args={[0.22, 0.12, 0.02]} />
+          <meshStandardMaterial color="#d97706" emissive="#f59e0b" emissiveIntensity={2.4} />
+        </mesh>
         <SemicolonCat position={[0.35, 0.64, -0.1]} isAlert={isCatAlert} />
 
         {/* 6. REAR SPOILER & OLED TAILLIGHT BAR */}
@@ -427,6 +452,23 @@ export function QuatroMesh({
           <mesh position={[-0.55, 0, 0]}>
             <boxGeometry args={[0.08, 0.12, 0.18]} />
             <meshStandardMaterial color={trimColor} roughness={0.5} />
+          </mesh>
+          {/* Cyber Wing Endplates */}
+          <mesh position={[0.79, 0.11, 0]}>
+            <boxGeometry args={[0.02, 0.22, 0.36]} />
+            <meshStandardMaterial color="#1e293b" metalness={0.8} />
+          </mesh>
+          <mesh position={[0.802, 0.11, 0]}>
+            <boxGeometry args={[0.005, 0.18, 0.32]} />
+            <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={3.0} />
+          </mesh>
+          <mesh position={[-0.79, 0.11, 0]}>
+            <boxGeometry args={[0.02, 0.22, 0.36]} />
+            <meshStandardMaterial color="#1e293b" metalness={0.8} />
+          </mesh>
+          <mesh position={[-0.802, 0.11, 0]}>
+            <boxGeometry args={[0.005, 0.18, 0.32]} />
+            <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={3.0} />
           </mesh>
         </group>
 

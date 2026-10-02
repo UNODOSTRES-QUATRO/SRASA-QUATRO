@@ -177,7 +177,9 @@ export function UnifiedCamera({
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
 
-    const headingLambda = mode === "DRIVING_CHASE"
+    const headingLambda = mode === "DRIVING_COCKPIT"
+      ? 24.0
+      : mode === "DRIVING_CHASE"
       ? (liveVehicle?.driftFactor && liveVehicle.driftFactor > 0.2 ? 4.5 : 6.5)
       : 8.0;
     const headingAlpha = 1.0 - Math.exp(-headingLambda * dt);
@@ -318,8 +320,8 @@ export function UnifiedCamera({
 
     // ── Exponential Smoothing (1 - exp(-lambda * dt)) ────────────────────────
     // Softer lambda during transitions for a cinematic crane glide, tight lambda during gameplay
-    const basePosLambda = mode === "DRIVING_COCKPIT" ? 15.0 : mode === "DRIVING_CHASE" ? 8.2 : 7.0;
-    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 13.0 : mode === "DRIVING_CHASE" ? 9.5 : 7.5;
+    const basePosLambda = mode === "DRIVING_COCKPIT" ? 20.0 : mode === "DRIVING_CHASE" ? 8.2 : 7.0;
+    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 20.0 : mode === "DRIVING_CHASE" ? 9.5 : 7.5;
 
     const posLambda = THREE.MathUtils.lerp(basePosLambda, 4.8, transitionProgress.current);
     const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 5.2, transitionProgress.current);

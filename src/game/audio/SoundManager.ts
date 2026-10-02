@@ -381,6 +381,18 @@ export class SoundManager {
     }
   }
 
+  private combatTimer: ReturnType<typeof setTimeout> | null = null;
+  public triggerCombatStance() {
+    if (this.currentMode === "DRIVING") return;
+    this.setMode("COMBAT");
+    if (this.combatTimer) clearTimeout(this.combatTimer);
+    this.combatTimer = setTimeout(() => {
+      if (this.currentMode === "COMBAT") {
+        this.setMode("WALKING");
+      }
+    }, 7000);
+  }
+
   // ── Engine & Drift Physics Updates ─────────────────────────────────────────
   public updateEngine(speed: number, isDriving: boolean = true) {
     this.ensureAudioContext();
@@ -553,6 +565,7 @@ export class SoundManager {
   // Katana Whoosh (smooth resonant aerodynamic sweep)
   public playSwordSlash() {
     this.ensureAudioContext();
+    this.triggerCombatStance();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
@@ -601,6 +614,7 @@ export class SoundManager {
   // Bow String Draw & Release
   public playBowRelease() {
     this.ensureAudioContext();
+    this.triggerCombatStance();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
@@ -637,6 +651,7 @@ export class SoundManager {
   // Void Pen Calligraphy Stroke
   public playInkStroke() {
     this.ensureAudioContext();
+    this.triggerCombatStance();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
