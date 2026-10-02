@@ -191,7 +191,10 @@ export default function ProjectQuatroApp() {
     }, 280);
   }, []);
 
-  const handleDismountVehicle = useCallback(() => {
+  const isDismountingRef = useRef(false);
+
+  const performDismount = useCallback(() => {
+    isDismountingRef.current = false;
     const car = vehicleStateRef.current;
     soundManager.playVehicleDismount();
     soundManager.setMode("WALKING");
@@ -239,8 +242,35 @@ export default function ProjectQuatroApp() {
       if (vehicleStateRef.current) {
         vehicleStateRef.current.doorAngle = 0;
       }
-    }, 320);
+    }, 380);
   }, []);
+
+  const handleDismountVehicle = useCallback(() => {
+    if (isDismountingRef.current) return;
+    const car = vehicleStateRef.current;
+
+    // If driving at speed, decelerate smoothly to a stop before dismounting
+    if (Math.abs(car.speed) > 2.5) {
+      isDismountingRef.current = true;
+      inputRef.current.forward = false;
+      inputRef.current.brake = true;
+      const startTime = performance.now();
+      const initialSpeed = car.speed;
+
+      const slowInterval = setInterval(() => {
+        const elapsed = (performance.now() - startTime) / 320;
+        if (elapsed >= 1 || Math.abs(vehicleStateRef.current.speed) < 1.0) {
+          clearInterval(slowInterval);
+          inputRef.current.brake = false;
+          performDismount();
+        } else {
+          vehicleStateRef.current.speed = initialSpeed * (1 - elapsed);
+        }
+      }, 30);
+    } else {
+      performDismount();
+    }
+  }, [performDismount]);
 
   // ── Keyboard listeners for WASD / Arrows / E / Space / Escape / C / F / Q ──
   useEffect(() => {

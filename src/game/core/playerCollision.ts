@@ -195,6 +195,18 @@ export function resolvePlayerWorldPosition(
   return [x, desired[1], z];
 }
 
+// ── Highway Guardrail Collisions for Vehicles ─────────────────────────────────
+export const HIGHWAY_GUARDRAILS_FOOTPRINTS: Footprint[] = [
+  // Left side guardrails (openings at Bengkel Z: -14 to 14 and Outskirts Z >= 120)
+  { minX: -8.1, maxX: -7.5, minZ: -100, maxZ: -14 },
+  { minX: -8.1, maxX: -7.5, minZ: 14, maxZ: 120 },
+
+  // Right side guardrails (openings at Home Z: -60 to -44, Office Z: 58 to 82, Outskirts Z >= 120)
+  { minX: 7.5, maxX: 8.1, minZ: -100, maxZ: -60 },
+  { minX: 7.5, maxX: 8.1, minZ: -44, maxZ: 58 },
+  { minX: 7.5, maxX: 8.1, minZ: 82, maxZ: 120 },
+];
+
 export function resolveVehicleWorldPosition(
   current: { x: number; y: number; z: number },
   desired: { x: number; y: number; z: number },
@@ -204,15 +216,17 @@ export function resolveVehicleWorldPosition(
   let z = current.z;
   let collided = false;
 
+  const vehicleColliders = [...WORLD_COLLISION_FOOTPRINTS, ...HIGHWAY_GUARDRAILS_FOOTPRINTS];
+
   const testX = (fp: Footprint) => overlapsFootprint(x, z, radius, fp);
-  if (WORLD_COLLISION_FOOTPRINTS.some(testX)) {
+  if (vehicleColliders.some(testX)) {
     x = current.x;
     collided = true;
   }
 
   z = desired.z;
   const testZ = (fp: Footprint) => overlapsFootprint(x, z, radius, fp);
-  if (WORLD_COLLISION_FOOTPRINTS.some(testZ)) {
+  if (vehicleColliders.some(testZ)) {
     z = current.z;
     collided = true;
   }

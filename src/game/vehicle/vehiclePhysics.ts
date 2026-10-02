@@ -1,20 +1,20 @@
 import { VehicleConfig, VehicleInput, VehicleState } from "./vehicleTypes";
 
 export const DEFAULT_VEHICLE_CONFIG: VehicleConfig = {
-  maxSpeed: 26.0,          // Punchy highway top speed
-  maxReverseSpeed: 8.0,
-  acceleration: 16.0,      // Responsive instant torque
-  reverseAcceleration: 7.0,
-  brakingDeceleration: 18.0,
-  naturalDrag: 2.5,
-  maxSteerAngle: Math.PI / 4.8, // ~37.5 degrees – quick and agile
-  steerSpeed: 7.2,
-  steerReturnSpeed: 9.5,
+  maxSpeed: 28.0,          // Punchy, satisfying highway top speed
+  maxReverseSpeed: 8.5,
+  acceleration: 17.5,      // Responsive instant torque
+  reverseAcceleration: 7.5,
+  brakingDeceleration: 19.0,
+  naturalDrag: 2.2,
+  maxSteerAngle: Math.PI / 4.7, // ~38.3 degrees – quick and agile
+  steerSpeed: 8.0,
+  steerReturnSpeed: 10.5,
   wheelbase: 2.2,
   // Drift physics (FR Legends Flow)
-  gripFactor: 0.86,        // Solid straight grip, smooth break-away
-  handbrakeGrip: 0.14,     // Very loose on handbrake flick
-  driftAngularMomentum: 0.82, // Smooth momentum carry through corners
+  gripFactor: 0.88,        // Solid straight grip, smooth break-away
+  handbrakeGrip: 0.12,     // Instant, loose initiation on handbrake flick
+  driftAngularMomentum: 0.88, // Smooth momentum carry through corners
 };
 
 export function createInitialVehicleState(): VehicleState {

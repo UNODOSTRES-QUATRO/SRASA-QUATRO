@@ -48,7 +48,11 @@ export class SoundManager {
       this.init();
     }
     if (this.ctx && this.ctx.state === "suspended") {
-      this.ctx.resume().catch(() => {});
+      this.ctx.resume().then(() => {
+        if (this.activeVoices.length === 0) {
+          this.playNextPadChord();
+        }
+      }).catch(() => {});
     }
   }
 
@@ -56,7 +60,11 @@ export class SoundManager {
     if (typeof window === "undefined") return;
     if (this.isInitialized) {
       if (this.ctx && this.ctx.state === "suspended") {
-        this.ctx.resume().catch(() => {});
+        this.ctx.resume().then(() => {
+          if (this.activeVoices.length === 0) {
+            this.playNextPadChord();
+          }
+        }).catch(() => {});
       }
       return;
     }
@@ -81,7 +89,7 @@ export class SoundManager {
       this.compressor.release.setValueAtTime(0.18, this.ctx.currentTime);
 
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(1.45, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(1.85, this.ctx.currentTime);
 
       this.compressor.connect(this.masterGain);
       this.masterGain.connect(this.ctx.destination);
@@ -106,6 +114,9 @@ export class SoundManager {
       console.warn("Web Audio not supported or blocked", e);
     }
   }
+
+  private prevEngineSpeed = 0;
+  private lastFlutterTime = 0;
 
   private initEngineSynth() {
     if (!this.ctx || !this.compressor) return;
@@ -138,19 +149,19 @@ export class SoundManager {
     // Warm resonant lowpass filter
     this.engineFilter = this.ctx.createBiquadFilter();
     this.engineFilter.type = "lowpass";
-    this.engineFilter.frequency.setValueAtTime(320, this.ctx.currentTime);
-    this.engineFilter.Q.setValueAtTime(2.2, this.ctx.currentTime);
+    this.engineFilter.frequency.setValueAtTime(360, this.ctx.currentTime);
+    this.engineFilter.Q.setValueAtTime(2.4, this.ctx.currentTime);
 
     this.engineGain = this.ctx.createGain();
     this.engineGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
 
     const midGain = this.ctx.createGain();
-    midGain.gain.setValueAtTime(0.55, this.ctx.currentTime);
+    midGain.gain.setValueAtTime(0.65, this.ctx.currentTime);
     this.engineMidOsc.connect(midGain);
     midGain.connect(this.engineFilter);
 
     const harmGain = this.ctx.createGain();
-    harmGain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+    harmGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
     this.engineHarmonicOsc.connect(harmGain);
     harmGain.connect(this.engineFilter);
 
@@ -260,7 +271,7 @@ export class SoundManager {
   }
 
   // ── Procedural Ambient Synthwave / Lofi Pads ───────────────────────────────
-  // Pentatonic & rich warm 9th chords: Fmaj9 -> Dm9 -> Bbmaj9 -> C9sus -> Am9 -> Gm9
+  // Pentatonic & rich warm 9th/7th chords: Fmaj9 -> Dm9 -> Bbmaj9 -> C9sus -> Am9 -> Gm9 -> Ebmaj7 -> Abmaj9
   private static CHORD_PROGRESSION = [
     [174.61, 220.0, 261.63, 329.63, 392.0], // Fmaj9 (F3, A3, C4, E4, G4)
     [146.83, 220.0, 261.63, 293.66, 349.23], // Dm9 (D3, A3, C4, D4, F4)
@@ -268,6 +279,8 @@ export class SoundManager {
     [130.81, 196.0, 261.63, 293.66, 392.0], // C9sus (C3, G3, C4, D4, G4)
     [110.0, 164.81, 220.0, 261.63, 329.63], // Am9 (A2, E3, A3, C4, E4)
     [98.0, 146.83, 220.0, 261.63, 293.66], // Gm9 (G2, D3, A3, C4, D4)
+    [155.56, 196.0, 233.08, 293.66, 349.23], // Ebmaj7 (Eb3, G3, Bb3, D4, F4)
+    [103.83, 155.56, 207.65, 261.63, 311.13], // Abmaj9 (Ab2, Eb3, Ab3, C4, Eb4)
   ];
 
   private initAmbientPads() {
@@ -275,11 +288,11 @@ export class SoundManager {
 
     this.ambientFilter = this.ctx.createBiquadFilter();
     this.ambientFilter.type = "lowpass";
-    this.ambientFilter.frequency.setValueAtTime(740, this.ctx.currentTime);
+    this.ambientFilter.frequency.setValueAtTime(820, this.ctx.currentTime);
     this.ambientFilter.Q.setValueAtTime(1.8, this.ctx.currentTime);
 
     this.ambientGain = this.ctx.createGain();
-    this.ambientGain.gain.setValueAtTime(0.92, this.ctx.currentTime);
+    this.ambientGain.gain.setValueAtTime(1.15, this.ctx.currentTime);
 
     this.ambientFilter.connect(this.ambientGain);
     this.ambientGain.connect(this.compressor);
@@ -289,7 +302,7 @@ export class SoundManager {
     this.subDroneOsc.type = "sine";
     this.subDroneOsc.frequency.setValueAtTime(55, this.ctx.currentTime);
     this.subDroneGain = this.ctx.createGain();
-    this.subDroneGain.gain.setValueAtTime(0.22, this.ctx.currentTime);
+    this.subDroneGain.gain.setValueAtTime(0.32, this.ctx.currentTime);
     this.subDroneOsc.connect(this.subDroneGain);
     this.subDroneGain.connect(this.ambientFilter);
     this.subDroneOsc.start();
@@ -333,7 +346,7 @@ export class SoundManager {
     this.activeVoices = [];
 
     // Filter frequency sweep based on mode with gentle lofi breathing
-    const baseFilterFreq = this.currentMode === "DRIVING" ? 950 : this.currentMode === "COMBAT" ? 1250 : 800;
+    const baseFilterFreq = this.currentMode === "DRIVING" ? 1050 : this.currentMode === "COMBAT" ? 1350 : 860;
     this.ambientFilter.frequency.setTargetAtTime(baseFilterFreq, now, 1.6);
 
     // Update sub drone to root of chord
@@ -348,13 +361,13 @@ export class SoundManager {
 
       const osc = this.ctx.createOscillator();
       // Analog detuning for rich chorus vibe
-      const detuneCents = (idx % 2 === 0 ? 1 : -1) * (4 + idx * 2.5);
+      const detuneCents = (idx % 2 === 0 ? 1 : -1) * (5 + idx * 3.0);
       osc.type = idx === 0 ? "triangle" : idx === 1 ? "sawtooth" : "sine";
       osc.frequency.setValueAtTime(freq, now);
       osc.detune.setValueAtTime(detuneCents, now);
 
       const gain = this.ctx.createGain();
-      const targetVol = (0.85 / chord.length) * (idx === 0 ? 1.5 : idx === 1 ? 0.6 : 1.1);
+      const targetVol = (1.15 / chord.length) * (idx === 0 ? 1.6 : idx === 1 ? 0.75 : 1.25);
       gain.gain.setValueAtTime(0.0001, now);
       gain.gain.linearRampToValueAtTime(targetVol, now + fadeDuration * 0.7);
 
@@ -409,8 +422,18 @@ export class SoundManager {
     }
 
     const absSpeed = Math.abs(speed);
-    // Base 42Hz idle up to 165Hz high rev with throaty 5-cyl cadence
-    const subFreq = 42 + (absSpeed / 25) * 123;
+    const accel = (absSpeed - this.prevEngineSpeed) / 0.05;
+    this.prevEngineSpeed = absSpeed;
+
+    // Detect high-speed throttle lift for turbo wastegate flutter
+    const nowMs = performance.now();
+    if (accel < -6.5 && absSpeed > 9.0 && nowMs - this.lastFlutterTime > 1500) {
+      this.lastFlutterTime = nowMs;
+      this.playTurboFlutter();
+    }
+
+    // Base 42Hz idle up to 175Hz high rev with throaty 5-cyl cadence
+    const subFreq = 42 + (absSpeed / 28) * 133;
     const midFreq = subFreq * 2.15;
     const harmFreq = subFreq * 3.25;
 
@@ -421,21 +444,21 @@ export class SoundManager {
       this.engineHarmonicOsc.frequency.setTargetAtTime(harmFreq, now, 0.05);
     }
 
-    // Warm, heavy bass volume that scales with speed
-    const engineVol = 0.38 + Math.min(1.0, absSpeed / 22) * 0.52;
+    // Warm, heavy bass volume that scales with speed (punchy & satisfying)
+    const engineVol = 0.52 + Math.min(1.0, absSpeed / 22) * 0.62;
     this.engineGain.gain.setTargetAtTime(this.isCinematic ? 0 : engineVol, now, 0.05);
 
     if (this.engineFilter) {
-      const filterCutoff = 340 + (absSpeed / 25) * 850;
+      const filterCutoff = 380 + (absSpeed / 28) * 920;
       this.engineFilter.frequency.setTargetAtTime(filterCutoff, now, 0.07);
     }
 
-    // Turbocharger spool whine above 12 m/s
+    // Turbocharger spool whine above 10 m/s
     if (this.turboOsc && this.turboGain) {
-      if (absSpeed > 10.0) {
-        const turboRatio = Math.min(1.0, (absSpeed - 10.0) / 15.0);
-        this.turboOsc.frequency.setTargetAtTime(1400 + turboRatio * 1800, now, 0.08);
-        this.turboGain.gain.setTargetAtTime(turboRatio * 0.07, now, 0.08);
+      if (absSpeed > 9.0) {
+        const turboRatio = Math.min(1.0, (absSpeed - 9.0) / 16.0);
+        this.turboOsc.frequency.setTargetAtTime(1400 + turboRatio * 1900, now, 0.08);
+        this.turboGain.gain.setTargetAtTime(turboRatio * 0.12, now, 0.08);
       } else {
         this.turboGain.gain.setTargetAtTime(0, now, 0.1);
       }
@@ -445,7 +468,7 @@ export class SoundManager {
     if (this.windGain && this.windFilter) {
       if (absSpeed > 6.0) {
         const windRatio = Math.min(1.0, (absSpeed - 6.0) / 20.0);
-        this.windGain.gain.setTargetAtTime(windRatio * 0.38, now, 0.08);
+        this.windGain.gain.setTargetAtTime(windRatio * 0.44, now, 0.08);
         this.windFilter.frequency.setTargetAtTime(450 + windRatio * 750, now, 0.08);
       } else {
         this.windGain.gain.setTargetAtTime(0, now, 0.1);
@@ -453,21 +476,48 @@ export class SoundManager {
     }
   }
 
+  // Turbo wastegate flutter (compressor surge blow-off "tsu-tsu-tu")
+  public playTurboFlutter() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.compressor || this.isMuted) return;
+    const now = this.ctx.currentTime;
+
+    const pulses = [0, 0.045, 0.095, 0.15];
+    pulses.forEach((offset, idx) => {
+      if (!this.ctx || !this.compressor) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      const startF = 1750 - idx * 220;
+      osc.frequency.setValueAtTime(startF, now + offset);
+      osc.frequency.exponentialRampToValueAtTime(startF * 0.55, now + offset + 0.04);
+
+      const vol = 0.22 * Math.pow(0.72, idx);
+      gain.gain.setValueAtTime(vol, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.04);
+
+      osc.connect(gain);
+      gain.connect(this.compressor);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.04);
+    });
+  }
+
   public updateTireDrift(driftFactor: number, speed: number) {
     this.ensureAudioContext();
     if (!this.ctx || !this.tireGain || !this.tireFilter || this.isMuted) return;
 
     const absSpeed = Math.abs(speed);
-    if (driftFactor > 0.08 && absSpeed > 2.0) {
-      const intensity = Math.min(1.0, (driftFactor - 0.08) * 2.1);
-      const tireVol = intensity * 0.72;
-      const targetFreq = 850 + intensity * 900;
+    if (driftFactor > 0.06 && absSpeed > 1.8) {
+      const intensity = Math.min(1.0, (driftFactor - 0.06) * 2.2);
+      const tireVol = intensity * 0.92;
+      const targetFreq = 820 + intensity * 950;
 
       const now = this.ctx.currentTime;
       this.tireGain.gain.setTargetAtTime(tireVol, now, 0.025);
       this.tireFilter.frequency.setTargetAtTime(targetFreq, now, 0.025);
       if (this.tireHighFilter) {
-        this.tireHighFilter.frequency.setTargetAtTime(1600 + intensity * 1000, now, 0.025);
+        this.tireHighFilter.frequency.setTargetAtTime(1650 + intensity * 1100, now, 0.025);
       }
     } else {
       this.tireGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
@@ -590,7 +640,7 @@ export class SoundManager {
 
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.38, now + 0.04);
+    gain.gain.linearRampToValueAtTime(0.48, now + 0.04);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
 
     // High crystal blade sheen
@@ -599,7 +649,7 @@ export class SoundManager {
     sheen.type = "sine";
     sheen.frequency.setValueAtTime(1760, now);
     sheen.frequency.exponentialRampToValueAtTime(1046, now + 0.18);
-    sheenGain.gain.setValueAtTime(0.16, now);
+    sheenGain.gain.setValueAtTime(0.24, now);
     sheenGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
 
     sheen.connect(sheenGain);
@@ -628,7 +678,7 @@ export class SoundManager {
     osc.frequency.setValueAtTime(330, now);
     osc.frequency.exponentialRampToValueAtTime(180, now + 0.24);
 
-    gain.gain.setValueAtTime(0.34, now);
+    gain.gain.setValueAtTime(0.46, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
 
     osc.connect(gain);
@@ -642,7 +692,7 @@ export class SoundManager {
     whistle.type = "sine";
     whistle.frequency.setValueAtTime(880, now);
     whistle.frequency.linearRampToValueAtTime(1400, now + 0.15);
-    whistleGain.gain.setValueAtTime(0.16, now);
+    whistleGain.gain.setValueAtTime(0.22, now);
     whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
 
     whistle.connect(whistleGain);
@@ -667,7 +717,7 @@ export class SoundManager {
       osc.type = "sine";
       osc.frequency.setValueAtTime(freq, now + idx * 0.05);
 
-      gain.gain.setValueAtTime(0.14, now + idx * 0.05);
+      gain.gain.setValueAtTime(0.22, now + idx * 0.05);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.05 + 0.65);
 
       osc.connect(gain);
@@ -693,7 +743,7 @@ export class SoundManager {
       osc.frequency.setValueAtTime(freq, now + i * 0.02);
 
       gain.gain.setValueAtTime(0.001, now + i * 0.02);
-      gain.gain.linearRampToValueAtTime(0.32 / (1 + i * 0.2), now + i * 0.02 + 0.03);
+      gain.gain.linearRampToValueAtTime(0.42 / (1 + i * 0.2), now + i * 0.02 + 0.03);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.02 + 1.8);
 
       osc.connect(gain);
@@ -719,7 +769,7 @@ export class SoundManager {
       osc.frequency.setValueAtTime(freq, now + i * 0.05);
 
       gain.gain.setValueAtTime(0.001, now + i * 0.05);
-      gain.gain.linearRampToValueAtTime(0.28, now + i * 0.05 + 0.025);
+      gain.gain.linearRampToValueAtTime(0.38, now + i * 0.05 + 0.025);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.05 + 2.0);
 
       osc.connect(gain);
@@ -733,7 +783,7 @@ export class SoundManager {
   public setMuted(muted: boolean) {
     this.isMuted = muted;
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setTargetAtTime(muted ? 0 : 1.45, this.ctx.currentTime, 0.05);
+      this.masterGain.gain.setTargetAtTime(muted ? 0 : 1.85, this.ctx.currentTime, 0.05);
     }
   }
 

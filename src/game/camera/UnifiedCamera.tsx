@@ -87,10 +87,12 @@ export function UnifiedCamera({
       pointer.current.x = event.clientX;
       pointer.current.y = event.clientY;
 
-      // Track instantaneous velocity for smooth release inertia
+      // Track instantaneous velocity for smooth release inertia (safely clamped)
+      const rawVx = (deltaX / Math.max(0.008, dtMove)) * 0.0022;
+      const rawVy = (deltaY / Math.max(0.008, dtMove)) * 0.0016;
       pointerVel.current = {
-        x: (deltaX / dtMove) * 0.003,
-        y: (deltaY / dtMove) * 0.002,
+        x: THREE.MathUtils.clamp(rawVx, -2.8, 2.8),
+        y: THREE.MathUtils.clamp(rawVy, -2.0, 2.0),
       };
       lastPointerPos.current = { x: event.clientX, y: event.clientY, time: now };
 
@@ -104,6 +106,10 @@ export function UnifiedCamera({
 
     const endDrag = (event: PointerEvent) => {
       if (pointer.current.pointerId !== event.pointerId) return;
+      const now = performance.now();
+      if (now - lastPointerPos.current.time > 65) {
+        pointerVel.current = { x: 0, y: 0 };
+      }
       pointer.current.dragging = false;
       pointer.current.pointerId = -1;
       element.style.cursor = mode === "ON_FOOT" ? "grab" : "default";
@@ -192,6 +198,8 @@ export function UnifiedCamera({
       : 8.0;
     const headingAlpha = 1.0 - Math.exp(-headingLambda * dt);
     smoothedHeading.current += angleDiff * headingAlpha;
+    while (smoothedHeading.current < -Math.PI) smoothedHeading.current += Math.PI * 2;
+    while (smoothedHeading.current > Math.PI) smoothedHeading.current -= Math.PI * 2;
 
     if (mode === "DRIVING_CHASE" && liveVehicle) {
       // ── MODE: DRIVING CHASE (FR Legends Flow) ──────────────────────────────
@@ -331,6 +339,8 @@ export function UnifiedCamera({
           }
         }
       }
+      while (orbitAzimuth.current < -Math.PI) orbitAzimuth.current += Math.PI * 2;
+      while (orbitAzimuth.current > Math.PI) orbitAzimuth.current -= Math.PI * 2;
 
       const hDist = orbitDistance.current * Math.sin(orbitPolar.current);
       const vDist = orbitDistance.current * Math.cos(orbitPolar.current);

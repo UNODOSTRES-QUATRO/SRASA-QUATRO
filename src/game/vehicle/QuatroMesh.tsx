@@ -94,6 +94,9 @@ export function QuatroMesh({
   const driverDoorRef = useRef<THREE.Group>(null);
   const exhaustFlameRef = useRef<THREE.Group>(null);
   const driftSmokeRef = useRef<THREE.Group>(null);
+  const underglowLightRef = useRef<THREE.PointLight>(null);
+  const taillightMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
+  const taillightLightRef = useRef<THREE.PointLight>(null);
 
   // Wheel refs for zero-jitter, 60+ FPS direct rotation
   const flSteerRef = useRef<THREE.Group>(null);
@@ -191,6 +194,19 @@ export function QuatroMesh({
         driftSmokeRef.current.visible = false;
       }
     }
+
+    // ── Live 60 FPS Underglow & Taillight Dynamics ───────────────────────────
+    const liveDrift = live.driftFactor ?? 0;
+    const isBraking = live.isHandbraking || accel < -1.5;
+    if (underglowLightRef.current) {
+      underglowLightRef.current.intensity = 3.5 + liveDrift * 4.5;
+    }
+    if (taillightMaterialRef.current) {
+      taillightMaterialRef.current.emissiveIntensity = isBraking || liveDrift > 0.15 ? 4.2 : 1.4;
+    }
+    if (taillightLightRef.current) {
+      taillightLightRef.current.intensity = isBraking || liveDrift > 0.15 ? 4.8 : 1.5;
+    }
   });
 
   const accentColor = "#f8f4eb"; // Heritage warm off-white
@@ -212,7 +228,7 @@ export function QuatroMesh({
         <meshBasicMaterial
           color="#38bdf8"
           transparent
-          opacity={0.55 + (vehicleState.driftFactor ?? 0) * 0.4}
+          opacity={0.65}
           depthWrite={false}
         />
       </mesh>
@@ -222,11 +238,11 @@ export function QuatroMesh({
         <meshBasicMaterial
           color="#0284c7"
           transparent
-          opacity={0.28 + (vehicleState.driftFactor ?? 0) * 0.3}
+          opacity={0.35}
           depthWrite={false}
         />
       </mesh>
-      <pointLight position={[0, 0.15, 0]} color="#38bdf8" intensity={3.5 + (vehicleState.driftFactor ?? 0) * 3.0} distance={5.5} />
+      <pointLight ref={underglowLightRef} position={[0, 0.15, 0]} color="#38bdf8" intensity={3.5} distance={5.5} />
 
       {/* ========================================================
           DYNAMIC SUSPENSION CHASSIS GROUP
@@ -533,17 +549,19 @@ export function QuatroMesh({
         <mesh position={[0, 0.52, -1.78]}>
           <boxGeometry args={[1.5, 0.1, 0.02]} />
           <meshStandardMaterial
+            ref={taillightMaterialRef}
             color="#ef4444"
             emissive="#dc2626"
-            emissiveIntensity={vehicleState.isHandbraking || (vehicleState.driftFactor ?? 0) > 0.2 ? 3.5 : 1.4}
+            emissiveIntensity={1.4}
             roughness={0.2}
           />
         </mesh>
         {/* Rear taillight glow wash onto ground & road */}
         <pointLight
+          ref={taillightLightRef}
           position={[0, 0.52, -2.1]}
           color="#ef4444"
-          intensity={vehicleState.isHandbraking || (vehicleState.driftFactor ?? 0) > 0.15 ? 4.2 : 1.5}
+          intensity={1.5}
           distance={5.0}
         />
 

@@ -420,21 +420,130 @@ export function UnifiedWorld({
       {/* ========================================================
           5. LOCATION 4: CYBER ALLEYWAY & CASTLE OUTSKIRTS (Z = 130 to 220)
           ======================================================== */}
-      {/* Glowing Cyber Torii & Archways leading into Mystical Realm */}
+      {/* Primary Cyber Torii Gate at Z = 125 */}
       {[-8, 8].map((tx, ti) => (
-        <group key={`torii-${ti}`} position={[tx, 0, 125]}>
-          <mesh position={[0, 3.2, 0]}>
-            <cylinderGeometry args={[0.2, 0.24, 6.4]} />
+        <group key={`torii-1-${ti}`} position={[tx, 0, 125]}>
+          <mesh position={[0, 3.2, 0]} castShadow>
+            <cylinderGeometry args={[0.22, 0.26, 6.4, 8]} />
             <meshStandardMaterial color="#1e1b4b" emissive="#4338ca" emissiveIntensity={0.6} />
           </mesh>
-          <pointLight color="#818cf8" intensity={2.5} distance={10} />
+          <pointLight color="#818cf8" intensity={2.8} distance={12} />
         </group>
       ))}
-      {/* Torii Crossbeam */}
-      <mesh position={[0, 6.0, 125]}>
+      <mesh position={[0, 6.1, 125]}>
         <boxGeometry args={[18, 0.5, 0.8]} />
-        <meshStandardMaterial color="#4338ca" emissive="#6366f1" emissiveIntensity={1.2} />
+        <meshStandardMaterial color="#4338ca" emissive="#6366f1" emissiveIntensity={1.4} />
       </mesh>
+
+      {/* Secondary Inner Torii Gate at Z = 152 */}
+      {[-8, 8].map((tx, ti) => (
+        <group key={`torii-2-${ti}`} position={[tx, 0, 152]}>
+          <mesh position={[0, 3.0, 0]} castShadow>
+            <cylinderGeometry args={[0.2, 0.24, 6.0, 8]} />
+            <meshStandardMaterial color="#1e1b4b" emissive="#312e81" emissiveIntensity={0.6} />
+          </mesh>
+          <pointLight color="#a855f7" intensity={2.5} distance={10} />
+        </group>
+      ))}
+      <mesh position={[0, 5.8, 152]}>
+        <boxGeometry args={[17.5, 0.45, 0.7]} />
+        <meshStandardMaterial color="#6366f1" emissive="#818cf8" emissiveIntensity={1.3} />
+      </mesh>
+
+      {/* Cyber Alley Neon Roadside Bollards (Z = 128 to 175) */}
+      {[130, 140, 150, 160, 170].map((bz, bi) => (
+        <group key={`cyber-bollard-group-${bi}`}>
+          {/* Left bollard */}
+          <group position={[-8.6, 0, bz]}>
+            <mesh position={[0, 0.65, 0]} castShadow>
+              <cylinderGeometry args={[0.08, 0.1, 1.3, 8]} />
+              <meshStandardMaterial color="#1e293b" metalness={0.8} />
+            </mesh>
+            <mesh position={[0, 1.25, 0]}>
+              <cylinderGeometry args={[0.065, 0.065, 0.22, 8]} />
+              <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={2.8} />
+            </mesh>
+            <pointLight position={[0, 1.25, 0]} color="#38bdf8" intensity={1.8} distance={6} decay={2} />
+          </group>
+          {/* Right bollard */}
+          <group position={[8.6, 0, bz]}>
+            <mesh position={[0, 0.65, 0]} castShadow>
+              <cylinderGeometry args={[0.08, 0.1, 1.3, 8]} />
+              <meshStandardMaterial color="#1e293b" metalness={0.8} />
+            </mesh>
+            <mesh position={[0, 1.25, 0]}>
+              <cylinderGeometry args={[0.065, 0.065, 0.22, 8]} />
+              <meshStandardMaterial color="#c084fc" emissive="#9333ea" emissiveIntensity={2.8} />
+            </mesh>
+            <pointLight position={[0, 1.25, 0]} color="#c084fc" intensity={1.8} distance={6} decay={2} />
+          </group>
+        </group>
+      ))}
+
+      {/* Shinto Stone Lanterns (Toro) leading into Courtyard */}
+      {[-9.5, 9.5].map((sx, si) =>
+        [135, 155, 172].map((sz, zi) => (
+          <group key={`toro-${si}-${zi}`} position={[sx, 0, sz]}>
+            {/* Stone Base */}
+            <mesh position={[0, 0.25, 0]} castShadow>
+              <boxGeometry args={[0.6, 0.5, 0.6]} />
+              <meshStandardMaterial color="#334155" roughness={0.9} />
+            </mesh>
+            {/* Pillar */}
+            <mesh position={[0, 0.75, 0]} castShadow>
+              <cylinderGeometry args={[0.15, 0.18, 0.6, 6]} />
+              <meshStandardMaterial color="#334155" roughness={0.9} />
+            </mesh>
+            {/* Lantern Core (Glowing) */}
+            <mesh position={[0, 1.15, 0]}>
+              <boxGeometry args={[0.42, 0.32, 0.42]} />
+              <meshStandardMaterial color="#fef08a" emissive="#eab308" emissiveIntensity={2.2} />
+            </mesh>
+            {/* Stone Cap Roof */}
+            <mesh position={[0, 1.42, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+              <coneGeometry args={[0.5, 0.28, 4]} />
+              <meshStandardMaterial color="#1e293b" roughness={0.9} />
+            </mesh>
+            <pointLight position={[0, 1.15, 0]} color="#fef08a" intensity={1.8} distance={7} decay={2} />
+          </group>
+        ))
+      )}
+
+      {/* Stepping stone paths branching into East & West Outskirts Meadows */}
+      {Array.from({ length: 6 }).map((_, stepIdx) => (
+        <group key={`stepping-stones-${stepIdx}`}>
+          {/* East path to meadow wisps */}
+          <mesh
+            position={[8.5 + stepIdx * 1.6, 0.02, 142 + Math.sin(stepIdx * 0.8) * 0.9]}
+            rotation={[-Math.PI / 2, 0, stepIdx * 0.3]}
+            receiveShadow
+          >
+            <cylinderGeometry args={[0.65, 0.75, 0.05, 7]} />
+            <meshStandardMaterial color="#475569" roughness={0.9} />
+          </mesh>
+          {/* West path to meadow wisps */}
+          <mesh
+            position={[-8.5 - stepIdx * 1.6, 0.02, 142 + Math.cos(stepIdx * 0.8) * 0.9]}
+            rotation={[-Math.PI / 2, 0, -stepIdx * 0.3]}
+            receiveShadow
+          >
+            <cylinderGeometry args={[0.65, 0.75, 0.05, 7]} />
+            <meshStandardMaterial color="#475569" roughness={0.9} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Cyber Neon Guide Strips along road edge into castle */}
+      {[-6.8, 6.8].map((gx, gi) => (
+        <mesh
+          key={`cyber-guide-${gi}`}
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[gx, 0.02, 150]}
+        >
+          <planeGeometry args={[0.12, 55]} />
+          <meshBasicMaterial color={gi === 0 ? "#38bdf8" : "#c084fc"} transparent opacity={0.65} />
+        </mesh>
+      ))}
 
       {/* Castle Grounds & Courtyard (Jeffrey, Vespera, Barnaby, Fountain, Keep Door) */}
       <group position={[0, 0, 180]}>
