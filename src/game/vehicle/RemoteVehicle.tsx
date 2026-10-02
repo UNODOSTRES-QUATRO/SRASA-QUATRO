@@ -7,31 +7,38 @@ import { Html } from "@react-three/drei";
 import { RemotePlayer } from "../realtime/useGameRealtime";
 import { QuatroMesh } from "./QuatroMesh";
 import { VehicleState } from "./vehicleTypes";
+import { HumanPlayer } from "@/game/character/HumanPlayer";
 
 interface RemoteVehicleProps {
   player: RemotePlayer;
 }
 
 export function RemoteVehicle({ player }: RemoteVehicleProps) {
+  const rootRef = useRef<THREE.Group>(null);
   const currentPos = useRef(
     new THREE.Vector3(player.position.x, player.position.y, player.position.z)
   );
+  const targetPos = useRef(new THREE.Vector3());
   const currentHeading = useRef(player.heading);
 
   // Smooth lerp to target network position & heading to avoid jitter
   useFrame((_, delta) => {
-    const targetPos = new THREE.Vector3(
+    targetPos.current.set(
       player.position.x,
       player.position.y,
       player.position.z
     );
-    currentPos.current.lerp(targetPos, Math.min(1, delta * 12));
+    currentPos.current.lerp(targetPos.current, Math.min(1, delta * 12));
 
     // Angular lerp with wrap-around
     let angleDiff = player.heading - currentHeading.current;
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
     currentHeading.current += angleDiff * Math.min(1, delta * 12);
+    if (rootRef.current) {
+      rootRef.current.position.copy(currentPos.current);
+      rootRef.current.rotation.y = currentHeading.current;
+    }
   });
 
   const interpolatedState: VehicleState = {
@@ -53,18 +60,12 @@ export function RemoteVehicle({ player }: RemoteVehicleProps) {
   const isPocket = player.scaleMode === "POCKET";
 
   return (
-    <group
-      position={[
-        interpolatedState.position.x,
-        interpolatedState.position.y,
-        interpolatedState.position.z,
-      ]}
-    >
+    <group ref={rootRef} position={[player.position.x, player.position.y, player.position.z]}>
       {/* FLOATING 3D MULTIPLAYER NAMETAG */}
       <Html
-        position={[0, isPocket ? 0.7 : 1.8, 0]}
+        position={[0, player.status !== "DRIVING" ? 2.05 : isPocket ? 0.7 : 1.8, 0]}
         center
-        distanceFactor={15}
+        distanceFactor={player.status === "ON_FOOT" ? 3.5 : 6}
         className="pointer-events-none select-none"
       >
         <div className="flex flex-col items-center">
@@ -74,7 +75,7 @@ export function RemoteVehicle({ player }: RemoteVehicleProps) {
               {player.name || "Remote Driver"}
             </span>
             <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1 py-0.2 rounded uppercase">
-              {isPocket ? "Pocket" : "Big Car"}
+              {player.status !== "DRIVING" ? "On foot" : isPocket ? "Pocket" : "Big Car"}
             </span>
           </div>
           {/* Subtle triangle point */}
@@ -83,13 +84,21 @@ export function RemoteVehicle({ player }: RemoteVehicleProps) {
       </Html>
 
       {/* RENDER ACTUAL VEHICLE MESH */}
-      <QuatroMesh
-        vehicleState={{
-          ...interpolatedState,
-          position: { x: 0, y: 0, z: 0 }, // Position handled by parent group
-        }}
-        bodyColor="#2563eb" // Cobalt blue rally livery for other players
-      />
+      {player.status !== "DRIVING" ? (
+        <HumanPlayer
+          position={[0, 0, 0]}
+          heading={currentHeading.current}
+          isMoving={player.status === "WALKING"}
+        />
+      ) : (
+        <QuatroMesh
+          vehicleState={{
+            ...interpolatedState,
+            position: { x: 0, y: 0, z: 0 },
+          }}
+          bodyColor="#2563eb"
+        />
+      )}
     </group>
   );
 }

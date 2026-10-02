@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { VehicleState } from "../vehicle/vehicleTypes";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { DayPhase, LocationType } from "../core/gameStore";
 
 export interface RemotePlayer {
   id: string;
@@ -13,20 +14,34 @@ export interface RemotePlayer {
   speed: number;
   scaleMode: "BIG" | "POCKET";
   scaleFactor: number;
-  status: string;
+  status: "ON_FOOT" | "WALKING" | "DRIVING";
+  spaceId: string;
+  location: LocationType;
+  day: number;
+  phase: DayPhase;
   lastUpdated: number;
+}
+
+export interface RealtimePlayerState {
+  spaceId: string;
+  location: LocationType;
+  day: number;
+  phase: DayPhase;
+  status: "ON_FOOT" | "WALKING" | "DRIVING";
 }
 
 interface UseGameRealtimeProps {
   vehicleState: VehicleState;
   playerName?: string;
   isEnabled?: boolean;
+  playerState: RealtimePlayerState;
 }
 
 export function useGameRealtime({
   vehicleState,
   playerName = "Driver ;",
   isEnabled = true,
+  playerState,
 }: UseGameRealtimeProps) {
   const [remotePlayers, setRemotePlayers] = useState<Map<string, RemotePlayer>>(
     new Map()
@@ -53,11 +68,14 @@ export function useGameRealtime({
   const lastBroadcastRef = useRef<number>(0);
   const vehicleStateRef = useRef<VehicleState>(vehicleState);
   vehicleStateRef.current = vehicleState;
+  const playerStateRef = useRef<RealtimePlayerState>(playerState);
+  playerStateRef.current = playerState;
 
   // Initialize and subscribe to Supabase Realtime Channel
   useEffect(() => {
     if (!isEnabled) return;
 
+    setRemotePlayers(new Map());
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
       setConnectionStatus("OFFLINE");
@@ -66,7 +84,7 @@ export function useGameRealtime({
 
     setConnectionStatus("CONNECTING");
 
-    const channel = supabase.channel("room:quatro-world", {
+    const channel = supabase.channel(`room:quatro-world:${playerState.spaceId}`, {
       config: {
         broadcast: { self: false },
         presence: { key: playerIdRef.current },
@@ -78,7 +96,11 @@ export function useGameRealtime({
     // 1. Listen for position broadcasts from other cars
     channel.on("broadcast", { event: "player_move" }, ({ payload }) => {
       const data = payload as RemotePlayer;
-      if (!data || data.id === playerIdRef.current) return;
+      if (
+        !data ||
+        data.id === playerIdRef.current ||
+        data.spaceId !== playerStateRef.current.spaceId
+      ) return;
 
       setRemotePlayers((prev) => {
         const next = new Map(prev);
@@ -154,7 +176,7 @@ export function useGameRealtime({
       channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [isEnabled, playerName]);
+  }, [isEnabled, playerName, playerState.spaceId]);
 
   // 10Hz Broadcast Loop
   const broadcastMovement = useCallback(() => {
@@ -173,7 +195,11 @@ export function useGameRealtime({
         speed: currentVehicle.speed,
         scaleMode: currentVehicle.scaleMode,
         scaleFactor: currentVehicle.scaleFactor,
-        status: currentVehicle.scaleMode === "POCKET" ? "POCKET_CAR" : "DRIVING",
+        status: playerStateRef.current.status,
+        spaceId: playerStateRef.current.spaceId,
+        location: playerStateRef.current.location,
+        day: playerStateRef.current.day,
+        phase: playerStateRef.current.phase,
       },
     });
   }, [connectionStatus, playerName]);

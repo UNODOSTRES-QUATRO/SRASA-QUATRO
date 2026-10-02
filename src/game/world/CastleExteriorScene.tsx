@@ -10,11 +10,46 @@ interface CastleExteriorSceneProps {
   playerPos: [number, number, number];
 }
 
+function CastleBanner({ position, color }: { position: [number, number, number]; color: string }) {
+  const clothRef = useRef<THREE.Group>(null);
+
+  useFrame(({ clock }) => {
+    if (clothRef.current) {
+      clothRef.current.rotation.z = Math.sin(clock.elapsedTime * 0.8 + position[0]) * 0.045;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh position={[0, 1.7, 0]} castShadow>
+        <cylinderGeometry args={[0.045, 0.06, 3.4, 8]} />
+        <meshStandardMaterial color="#453a31" roughness={0.8} />
+      </mesh>
+      <group ref={clothRef} position={[0.04, 2.8, 0]}>
+        <mesh position={[0.5, -0.45, 0]} castShadow>
+          <boxGeometry args={[0.95, 1.25, 0.07]} />
+          <meshStandardMaterial color={color} roughness={0.9} />
+        </mesh>
+        <mesh position={[0.5, -0.45, 0.05]}>
+          <boxGeometry args={[0.16, 0.52, 0.015]} />
+          <meshStandardMaterial color="#d3ac65" metalness={0.25} roughness={0.6} />
+        </mesh>
+      </group>
+    </group>
+  );
+}
+
 export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSceneProps) {
   const clockRef = useRef(0);
   const waterRef = useRef<THREE.Mesh>(null);
   const torchLight1Ref = useRef<THREE.PointLight>(null);
   const torchLight2Ref = useRef<THREE.PointLight>(null);
+  const jeffreyRef = useRef<THREE.Group>(null);
+  const vesperaRef = useRef<THREE.Group>(null);
+  const barnabyRef = useRef<THREE.Group>(null);
+  const jeffreyHeadRef = useRef<THREE.Mesh>(null);
+  const vesperaHeadRef = useRef<THREE.Mesh>(null);
+  const barnabyHeadRef = useRef<THREE.Mesh>(null);
 
   useFrame((_, delta) => {
     clockRef.current += delta;
@@ -27,6 +62,21 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
     if (torchLight2Ref.current) {
       torchLight2Ref.current.intensity = 2.5 + Math.cos(clockRef.current * 12) * 0.3;
     }
+    if (jeffreyRef.current) {
+      jeffreyRef.current.position.y = Math.sin(clockRef.current * 1.8) * 0.025;
+      jeffreyRef.current.rotation.y = Math.sin(clockRef.current * 0.35) * 0.045;
+    }
+    if (vesperaRef.current) {
+      vesperaRef.current.position.y = Math.sin(clockRef.current * 1.4 + 1) * 0.035;
+      vesperaRef.current.rotation.y = Math.sin(clockRef.current * 0.5 + 1) * 0.06;
+    }
+    if (barnabyRef.current) {
+      barnabyRef.current.position.y = Math.sin(clockRef.current * 1.6 + 2) * 0.02;
+      barnabyRef.current.rotation.y = Math.sin(clockRef.current * 0.28 + 2) * 0.04;
+    }
+    if (jeffreyHeadRef.current) jeffreyHeadRef.current.rotation.y = Math.sin(clockRef.current * 0.8) * 0.1;
+    if (vesperaHeadRef.current) vesperaHeadRef.current.rotation.y = Math.sin(clockRef.current * 0.55 + 1) * 0.08;
+    if (barnabyHeadRef.current) barnabyHeadRef.current.rotation.x = Math.sin(clockRef.current * 0.65 + 2) * 0.07;
   });
 
   const stoneWall = "#334155";
@@ -43,6 +93,24 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
         <planeGeometry args={[26, 26]} />
         <meshStandardMaterial color={cobbleFloor} roughness={0.85} />
       </mesh>
+
+      <CastleBanner position={[-6.2, 0, -8.2]} color="#70433a" />
+      <CastleBanner position={[6.2, 0, -8.2]} color="#53634f" />
+
+      <group position={[-8.0, 0, 5.1]} rotation={[0, 0.16, 0]}>
+        <mesh position={[0, 0.45, 0]} castShadow>
+          <boxGeometry args={[1.2, 0.9, 1.0]} />
+          <meshStandardMaterial color="#684a32" roughness={0.9} />
+        </mesh>
+        <mesh position={[1.0, 0.3, -0.15]} castShadow>
+          <cylinderGeometry args={[0.28, 0.32, 0.6, 10]} />
+          <meshStandardMaterial color="#563d2b" roughness={0.92} />
+        </mesh>
+        <mesh position={[1.0, 0.62, -0.15]}>
+          <cylinderGeometry args={[0.3, 0.3, 0.06, 10]} />
+          <meshStandardMaterial color="#392b20" roughness={0.9} />
+        </mesh>
+      </group>
 
       {/* ========================================================
           2. MASSIVE MEDIEVAL CASTLE WALLS & TOWERS (HOGWARTS STYLE)
@@ -267,7 +335,7 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
           6. RANDOM TALKING NPCS (LORE KEEPERS)
           ======================================================== */}
       {/* NPC 1: SIR JEFFREY (Castle Sentinel Guard) at X=-3.5, Z=-4.0 */}
-      <group position={[-3.5, 0, -4.0]}>
+      <group ref={jeffreyRef} position={[-3.5, 0, -4.0]}>
         <mesh position={[0, 0.4, 0]} castShadow>
           <boxGeometry args={[0.3, 0.8, 0.25]} />
           <meshStandardMaterial color="#64748b" metalness={0.7} />
@@ -277,7 +345,7 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
           <meshStandardMaterial color="#475569" metalness={0.8} />
         </mesh>
         {/* Iron Helmet */}
-        <mesh position={[0, 1.5, 0]} castShadow>
+        <mesh ref={jeffreyHeadRef} position={[0, 1.5, 0]} castShadow>
           <boxGeometry args={[0.32, 0.35, 0.32]} />
           <meshStandardMaterial color="#94a3b8" metalness={0.9} />
         </mesh>
@@ -296,7 +364,7 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
       </group>
 
       {/* NPC 2: LADY VESPERA (Court Mage) at X=3.5, Z=-4.0 */}
-      <group position={[3.5, 0, -4.0]}>
+      <group ref={vesperaRef} position={[3.5, 0, -4.0]}>
         {/* Violet Robe */}
         <mesh position={[0, 0.6, 0]} castShadow>
           <coneGeometry args={[0.42, 1.2, 8]} />
@@ -306,7 +374,7 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
           <boxGeometry args={[0.35, 0.45, 0.25]} />
           <meshStandardMaterial color="#581c87" />
         </mesh>
-        <mesh position={[0, 1.45, 0]} castShadow>
+        <mesh ref={vesperaHeadRef} position={[0, 1.45, 0]} castShadow>
           <boxGeometry args={[0.26, 0.26, 0.26]} />
           <meshStandardMaterial color="#fed7aa" />
         </mesh>
@@ -334,7 +402,7 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
       </group>
 
       {/* NPC 3: BARNABY (Wandering Scholar) at X=-5.0, Z=0 */}
-      <group position={[-5.0, 0, 0]}>
+      <group ref={barnabyRef} position={[-5.0, 0, 0]}>
         <mesh position={[0, 0.4, 0]} castShadow>
           <boxGeometry args={[0.3, 0.8, 0.25]} />
           <meshStandardMaterial color="#713f12" />
@@ -343,7 +411,7 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
           <boxGeometry args={[0.42, 0.52, 0.28]} />
           <meshStandardMaterial color="#854d0e" />
         </mesh>
-        <mesh position={[0, 1.42, 0]} castShadow>
+        <mesh ref={barnabyHeadRef} position={[0, 1.42, 0]} castShadow>
           <boxGeometry args={[0.28, 0.28, 0.28]} />
           <meshStandardMaterial color="#fcd34d" />
         </mesh>

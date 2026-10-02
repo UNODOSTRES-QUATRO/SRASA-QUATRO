@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { soundManager } from "@/game/audio/SoundManager";
 import { KastilState } from "@/game/core/gameStore";
 import { Key, Lock, Unlock, Flame, Archive, Eye, Check } from "lucide-react";
@@ -26,6 +26,16 @@ export function CastleEscapeRoomModal({
   const [dial1, setDial1] = useState(0);
   const [dial2, setDial2] = useState(0);
   const [dial3, setDial3] = useState(0);
+  const [codeError, setCodeError] = useState(false);
+  const leaveTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setCodeError(false);
+  }, [inspectTarget]);
+
+  useEffect(() => () => {
+    if (leaveTimerRef.current !== null) window.clearTimeout(leaveTimerRef.current);
+  }, []);
 
   if (!isOpen || !inspectTarget) return null;
 
@@ -47,17 +57,19 @@ export function CastleEscapeRoomModal({
   const handleUnlockSafe = () => {
     if (dial1 === 7 && dial2 === 4 && dial3 === 2) {
       soundManager.playKeyPickup();
+      setCodeError(false);
       onUpdateEscapeRoom({ puzzleSolved: true, hasMasterKey: true });
     } else {
       soundManager.playClick();
-      alert("Kode kombinasi belum tepat! Periksa petunjuk dari Lemari, Kompor, dan Tembok Rahasia.");
+      setCodeError(true);
     }
   };
 
   const handleUnlockDoor = () => {
     soundManager.playDoorOpen();
     onUpdateEscapeRoom({ doorUnlocked: true });
-    onEscapeCastle();
+    onClose();
+    leaveTimerRef.current = window.setTimeout(onEscapeCastle, 1400);
   };
 
   return (
@@ -157,9 +169,12 @@ export function CastleEscapeRoomModal({
                 </p>
                 <button
                   onClick={handlePressSecretWall}
+                  disabled={!escapeRoomState.cabinetSearched || !escapeRoomState.stoveChecked}
                   className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer shadow"
                 >
-                  TEKAN BATU BATA RAHASIA →
+                  {!escapeRoomState.cabinetSearched || !escapeRoomState.stoveChecked
+                    ? "TEMUKAN PETUNJUK LEMARI DAN PERAPIAN DAHULU"
+                    : "TEKAN BATU BATA RAHASIA →"}
                 </button>
               </div>
             ) : !escapeRoomState.hasMasterKey ? (
@@ -194,6 +209,11 @@ export function CastleEscapeRoomModal({
                 >
                   BUKA BRANKAS RAHASIA →
                 </button>
+                {codeError && (
+                  <p role="alert" className="text-center text-xs text-rose-300">
+                    Mekanisme tidak bergerak. Periksa kembali urutan tiga petunjuk.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="p-4 bg-emerald-950/40 border border-emerald-400/40 rounded-2xl text-xs space-y-2 text-center">

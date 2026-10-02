@@ -5,11 +5,13 @@ import { soundManager } from "@/game/audio/SoundManager";
 
 interface RoadNavigationModalProps {
   isVoidHighway?: boolean;
+  allowedDestinations: Array<"RUMAH" | "TEMPAT_KERJA" | "BENGKEL" | "KASTIL">;
   onSelectDestination: (dest: "RUMAH" | "TEMPAT_KERJA" | "BENGKEL" | "KASTIL") => void;
 }
 
 export function RoadNavigationModal({
   isVoidHighway = false,
+  allowedDestinations,
   onSelectDestination,
 }: RoadNavigationModalProps) {
   const handleSelect = (dest: "RUMAH" | "TEMPAT_KERJA" | "BENGKEL" | "KASTIL") => {
@@ -41,6 +43,7 @@ export function RoadNavigationModal({
         {!isVoidHighway ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Ke Rumah */}
+            {allowedDestinations.includes("RUMAH") && (
             <button
               onClick={() => handleSelect("RUMAH")}
               className="group flex flex-col items-center p-4 bg-quatro-slate/40 hover:bg-quatro-amber/15 border border-quatro-cream/10 hover:border-quatro-amber rounded-2xl transition-all duration-200 text-center cursor-pointer shadow hover:scale-[1.02]"
@@ -55,8 +58,10 @@ export function RoadNavigationModal({
                 Kembali ke rumah untuk istirahat & rutinitas harian.
               </span>
             </button>
+            )}
 
             {/* Ke Tempat Kerja */}
+            {allowedDestinations.includes("TEMPAT_KERJA") && (
             <button
               onClick={() => handleSelect("TEMPAT_KERJA")}
               className="group flex flex-col items-center p-4 bg-quatro-slate/40 hover:bg-quatro-amber/15 border border-quatro-cream/10 hover:border-quatro-amber rounded-2xl transition-all duration-200 text-center cursor-pointer shadow hover:scale-[1.02]"
@@ -71,8 +76,10 @@ export function RoadNavigationModal({
                 Kantor 2000-an, selesaikan tugas pemrograman di PC.
               </span>
             </button>
+            )}
 
             {/* Ke Bengkel Mobil */}
+            {allowedDestinations.includes("BENGKEL") && (
             <button
               onClick={() => handleSelect("BENGKEL")}
               className="group flex flex-col items-center p-4 bg-quatro-slate/40 hover:bg-quatro-amber/15 border border-quatro-cream/10 hover:border-quatro-amber rounded-2xl transition-all duration-200 text-center cursor-pointer shadow hover:scale-[1.02]"
@@ -87,8 +94,9 @@ export function RoadNavigationModal({
                 Servis Quatro, periksa mesin, dan bincang dengan montir.
               </span>
             </button>
+            )}
           </div>
-        ) : (
+        ) : allowedDestinations.includes("KASTIL") ? (
           /* Dimensi Lain: HANYA ADA SATU PILIHAN: KE KASTIL! */
           <div className="w-full">
             <button
@@ -114,6 +122,8 @@ export function RoadNavigationModal({
               </span>
             </button>
           </div>
+        ) : (
+          <p className="text-center text-xs text-quatro-cream/60">Tidak ada tujuan yang tersedia.</p>
         )}
       </div>
     </div>

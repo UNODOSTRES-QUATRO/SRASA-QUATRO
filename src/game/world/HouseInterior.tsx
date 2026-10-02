@@ -9,20 +9,37 @@ interface HouseInteriorProps {
   rumahState: RumahState;
   dayNumber: number;
   playerPos: [number, number, number];
+  isEvening: boolean;
 }
 
-export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInteriorProps) {
+export function HouseInterior({ rumahState, dayNumber, playerPos, isEvening }: HouseInteriorProps) {
   const clockRef = useRef(0);
   const lampLightRef = useRef<THREE.PointLight>(null);
   const stoveFlameRef = useRef<THREE.PointLight>(null);
+  const frontDoorRef = useRef<THREE.Group>(null);
 
   useFrame((_, delta) => {
     clockRef.current += delta;
     if (lampLightRef.current) {
-      lampLightRef.current.intensity = 2.0 + Math.sin(clockRef.current * 3) * 0.1;
+      const targetIntensity = isEvening ? 2.4 : 0.18;
+      lampLightRef.current.intensity = THREE.MathUtils.damp(
+        lampLightRef.current.intensity,
+        targetIntensity + Math.sin(clockRef.current * 3) * (isEvening ? 0.1 : 0.015),
+        2,
+        delta
+      );
     }
     if (stoveFlameRef.current && rumahState.hasCooked) {
       stoveFlameRef.current.intensity = 1.5 + Math.sin(clockRef.current * 10) * 0.3;
+    }
+    if (frontDoorRef.current) {
+      const targetRotation = !isEvening && rumahState.canExitHouse ? -Math.PI * 0.42 : 0;
+      frontDoorRef.current.rotation.y = THREE.MathUtils.damp(
+        frontDoorRef.current.rotation.y,
+        targetRotation,
+        2.4,
+        delta
+      );
     }
   });
 
@@ -89,9 +106,17 @@ export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInterio
         <meshStandardMaterial color={wallColor} roughness={0.9} />
       </mesh>
 
-      {/* Bathroom Divider Wall (Z: -4.4 to -1.2, X = 1.75) */}
-      <mesh position={[1.75, 1.8, -2.8]} receiveShadow>
-        <boxGeometry args={[0.2, 3.6, 3.0]} />
+      {/* Bathroom divider with a walk-through opening */}
+      <mesh position={[1.75, 1.8, -3.78]} receiveShadow>
+        <boxGeometry args={[0.2, 3.6, 1.04]} />
+        <meshStandardMaterial color={wallColor} roughness={0.9} />
+      </mesh>
+      <mesh position={[1.75, 1.8, -1.57]} receiveShadow>
+        <boxGeometry args={[0.2, 3.6, 0.54]} />
+        <meshStandardMaterial color={wallColor} roughness={0.9} />
+      </mesh>
+      <mesh position={[1.75, 3.0, -2.6]} receiveShadow>
+        <boxGeometry args={[0.2, 1.2, 1.38]} />
         <meshStandardMaterial color={wallColor} roughness={0.9} />
       </mesh>
       {/* Bathroom Front Divider Wall (Z = -1.2, X: 1.75 to 4.4) with Door gap */}
@@ -149,16 +174,41 @@ export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInterio
         <meshStandardMaterial
           color="#ffeedb"
           emissive="#f6ad55"
-          emissiveIntensity={1.2}
+          emissiveIntensity={isEvening ? 1.2 : 0.12}
         />
       </mesh>
       <pointLight
         ref={lampLightRef}
         position={[-3.8, 1.1, -3.8]}
-        color="#f6ad55"
-        intensity={2.2}
+        color={isEvening ? "#f6ad55" : "#ffe6b7"}
+        intensity={isEvening ? 2.2 : 0.18}
         distance={7}
       />
+
+      <group position={[-2.1, 2.0, -4.27]}>
+        <mesh>
+          <planeGeometry args={[1.4, 1.05]} />
+          <meshBasicMaterial
+            color={isEvening ? "#27324a" : "#b9d6df"}
+            transparent
+            opacity={0.92}
+          />
+        </mesh>
+        <mesh position={[0, 0, 0.03]}>
+          <boxGeometry args={[1.55, 1.18, 0.06]} />
+          <meshStandardMaterial color="#5c4033" roughness={0.8} />
+        </mesh>
+        <mesh position={[0, 0, 0.02]}>
+          <boxGeometry args={[0.07, 1.05, 0.04]} />
+          <meshStandardMaterial color="#5c4033" />
+        </mesh>
+        <pointLight
+          position={[0, 0, 0.5]}
+          color={isEvening ? "#22314a" : "#c8e5ee"}
+          intensity={isEvening ? 0.25 : 1.1}
+          distance={5}
+        />
+      </group>
 
       {/* ========================================================
           4. DAPUR KECIL (KITCHEN: X: -4.2 to -1.5, Z: 0.5 to 3.5)
@@ -254,7 +304,7 @@ export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInterio
           <cylinderGeometry args={[0.18, 0.16, 0.02, 16]} />
           <meshStandardMaterial color="#edf2f7" />
         </mesh>
-        {rumahState.hasCooked && (
+        {rumahState.hasCooked && !(isEvening ? rumahState.hasEatenEvening : rumahState.hasEaten) && (
           <mesh position={[0, 0.83, 0]}>
             <cylinderGeometry args={[0.12, 0.12, 0.04, 12]} />
             <meshStandardMaterial color="#d69e2e" roughness={0.6} />
@@ -336,12 +386,32 @@ export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInterio
           <meshStandardMaterial color="#cbd5e0" metalness={0.9} />
         </mesh>
         {/* Water Stream when showered */}
-        {rumahState.hasShowered && (
+        {(isEvening ? rumahState.hasShoweredEvening : rumahState.hasShowered) && (
           <mesh position={[0.3, 1.0, 0.3]}>
             <cylinderGeometry args={[0.14, 0.18, 1.7, 8]} />
             <meshBasicMaterial color="#63b3ed" transparent opacity={0.35} />
           </mesh>
         )}
+      </group>
+
+      {/* Toilet facing the back wall, tucked beside the shower */}
+      <group position={[2.35, 0, -3.68]} rotation={[0, Math.PI, 0]}>
+        <mesh position={[0, 0.22, 0.08]} castShadow receiveShadow>
+          <boxGeometry args={[0.62, 0.34, 0.78]} />
+          <meshStandardMaterial color="#e8e4dc" roughness={0.32} />
+        </mesh>
+        <mesh position={[0, 0.42, 0.26]} castShadow>
+          <cylinderGeometry args={[0.27, 0.3, 0.4, 12]} />
+          <meshStandardMaterial color="#f5f2eb" roughness={0.3} />
+        </mesh>
+        <mesh position={[0, 0.68, -0.24]} castShadow>
+          <boxGeometry args={[0.52, 0.55, 0.18]} />
+          <meshStandardMaterial color="#f5f2eb" roughness={0.3} />
+        </mesh>
+        <mesh position={[0, 0.72, -0.14]}>
+          <boxGeometry args={[0.35, 0.08, 0.025]} />
+          <meshStandardMaterial color="#c8c2b7" metalness={0.35} roughness={0.4} />
+        </mesh>
       </group>
 
       {/* Bathroom Vanity Sink at X=2.2, Z=-1.8 */}
@@ -358,7 +428,7 @@ export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInterio
       {/* ========================================================
           7. PINTU DEPAN (FRONT DOOR: X=0, Z=4.3)
           ======================================================== */}
-      <group position={[0, 1.3, 4.3]}>
+      <group ref={frontDoorRef} position={[0, 1.3, 4.3]}>
         {/* Door Frame */}
         <mesh position={[0, 0, 0]}>
           <boxGeometry args={[1.2, 2.5, 0.1]} />
@@ -384,14 +454,24 @@ export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInterio
       {/* ========================================================
           8. CEILING CHANDELIER & AMBIENT WARM LIGHT
           ======================================================== */}
-      <pointLight position={[0, 2.8, 0]} color="#fffaf0" intensity={2.8} distance={14} />
-      <pointLight position={[2.4, 2.5, 2.0]} color="#feebc8" intensity={1.8} distance={8} />
+      <pointLight
+        position={[0, 2.8, 0]}
+        color={isEvening ? "#f4bd79" : "#fffaf0"}
+        intensity={isEvening ? 1.8 : 2.8}
+        distance={14}
+      />
+      <pointLight
+        position={[2.4, 2.5, 2.0]}
+        color={isEvening ? "#f6c07a" : "#feebc8"}
+        intensity={isEvening ? 2.2 : 1.1}
+        distance={8}
+      />
 
       {/* ========================================================
           9. 3D INTERACTIVE HIGHLIGHT BEACONS ABOVE OBJECTS
           ======================================================== */}
       {/* Bed Beacon (if waking up or evening sleep) */}
-      {(!rumahState.wokenUp || rumahState.canSleepEvening) && (
+      {((!isEvening && !rumahState.wokenUp) || (isEvening && rumahState.canSleepEvening)) && (
         <group position={[-2.4, 1.3, -3.2]}>
           <mesh position={[0, Math.sin(clockRef.current * 4) * 0.08, 0]}>
             <octahedronGeometry args={[0.15]} />
@@ -405,7 +485,7 @@ export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInterio
       )}
 
       {/* Stove Beacon (if needs to cook) */}
-      {rumahState.wokenUp && !rumahState.hasCooked && (
+      {!isEvening && rumahState.wokenUp && !rumahState.hasCooked && (
         <group position={[-3.8, 1.4, 1.0]}>
           <mesh position={[0, Math.sin(clockRef.current * 4) * 0.08, 0]}>
             <octahedronGeometry args={[0.15]} />
@@ -419,7 +499,7 @@ export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInterio
       )}
 
       {/* Dining Table Beacon (if cooked and needs to eat) */}
-      {rumahState.hasCooked && !rumahState.hasEaten && (
+      {!isEvening && rumahState.hasCooked && !rumahState.hasEaten && (
         <group position={[0.8, 1.3, 1.6]}>
           <mesh position={[0, Math.sin(clockRef.current * 4) * 0.08, 0]}>
             <octahedronGeometry args={[0.15]} />
@@ -433,7 +513,7 @@ export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInterio
       )}
 
       {/* Shower Beacon (if eaten and needs to shower) */}
-      {rumahState.hasEaten && !rumahState.hasShowered && (
+      {!isEvening && rumahState.hasEaten && !rumahState.hasShowered && (
         <group position={[3.4, 1.6, -3.4]}>
           <mesh position={[0, Math.sin(clockRef.current * 4) * 0.08, 0]}>
             <octahedronGeometry args={[0.15]} />
@@ -446,8 +526,26 @@ export function HouseInterior({ rumahState, dayNumber, playerPos }: HouseInterio
         </group>
       )}
 
+      {isEvening && rumahState.hasShoweredEvening && !rumahState.hasEatenEvening && (
+        <group position={[0.8, 1.3, 1.6]}>
+          <mesh position={[0, Math.sin(clockRef.current * 4) * 0.08, 0]}>
+            <octahedronGeometry args={[0.15]} />
+            <meshStandardMaterial color="#d8a45c" emissive="#a36c2d" emissiveIntensity={1.4} />
+          </mesh>
+        </group>
+      )}
+
+      {isEvening && !rumahState.hasShoweredEvening && (
+        <group position={[3.4, 1.6, -3.4]}>
+          <mesh position={[0, Math.sin(clockRef.current * 4) * 0.08, 0]}>
+            <octahedronGeometry args={[0.15]} />
+            <meshStandardMaterial color="#9bc8d3" emissive="#4b8d9a" emissiveIntensity={1.2} />
+          </mesh>
+        </group>
+      )}
+
       {/* Front Door Beacon (if ready to exit) */}
-      {rumahState.canExitHouse && (
+      {!isEvening && rumahState.canExitHouse && (
         <group position={[0, 2.0, 4.0]}>
           <mesh position={[0, Math.sin(clockRef.current * 4) * 0.08, 0]}>
             <octahedronGeometry args={[0.18]} />

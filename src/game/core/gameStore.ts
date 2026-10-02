@@ -8,9 +8,11 @@ export type LocationType =
   | "END_SCREEN";
 
 export type DayPhase =
+  | "MORNING_ROUTINE"
   | "COMMUTE_TO_WORK"
   | "AT_WORK"
   | "COMMUTE_HOME"
+  | "EVENING_ROUTINE"
   | "RESTING"
   | "PORTAL_APPROACH"
   | "CASTLE_EXPLORATION"
@@ -109,12 +111,12 @@ export function createInitialSessionState(): GameSessionState {
   return {
     currentLocation: "RUMAH", // Game begins at Home on Day 1!
     dayNumber: 1,
-    phase: "COMMUTE_TO_WORK",
+    phase: "MORNING_ROUTINE",
     isPaused: false,
     isAudioMuted: false,
     activePrompt: "Day 1 — Bangun dari tempat tidur [WASD/E] lalu siapkan sarapan.",
 
-    humanPosition: [-2.2, 0, -2.4], // Near the bed in bedroom
+    humanPosition: [-1.0, 0, -3.2], // Clear of the bed collider, beside its east edge
     humanHeading: 0,
 
     rumah: {
@@ -186,7 +188,55 @@ export function createInitialSessionState(): GameSessionState {
   };
 }
 
+export function getCurrentObjective(session: GameSessionState): string {
+  switch (session.phase) {
+    case "MORNING_ROUTINE":
+      if (session.currentLocation !== "RUMAH") return "Return home for the morning routine";
+      if (!session.rumah.wokenUp) return "Wake up";
+      if (!session.rumah.hasCooked) return "Cook breakfast";
+      if (!session.rumah.hasEaten) return "Eat breakfast";
+      if (!session.rumah.hasShowered) return "Take a shower";
+      return "Leave for work";
+    case "COMMUTE_TO_WORK":
+      return "Drive to work";
+    case "AT_WORK":
+      return session.workplace.allTasksDone ? "Leave the office" : "Complete today's work";
+    case "COMMUTE_HOME":
+      return "Drive home";
+    case "EVENING_ROUTINE":
+      if (!session.rumah.hasShoweredEvening) return "Take an evening shower";
+      if (!session.rumah.hasEatenEvening) return "Have dinner";
+      return "Sleep";
+    case "PORTAL_APPROACH":
+      return "Enter the portal";
+    case "CASTLE_EXPLORATION":
+      if (session.currentLocation === "DIMENSI_LAIN") return "Reach the castle";
+      if (session.currentLocation !== "KASTIL") return "Continue through the castle realm";
+      if (!session.kastil.insideEscapeRoom) return "Explore the keep";
+      if (!session.kastil.escapeRoom.cabinetSearched) return "Search the cabinet";
+      if (!session.kastil.escapeRoom.stoveChecked) return "Inspect the hearth";
+      if (!session.kastil.escapeRoom.secretWallRevealed) return "Find the loose stone";
+      if (!session.kastil.escapeRoom.hasMasterKey) return "Open the safe";
+      return "Unlock the exit";
+    case "SANCTUARY_REACHED":
+      return "Continue the journey";
+    case "RESTING":
+    default:
+      return "Take a moment";
+  }
+}
+
 export function advanceDay(current: GameSessionState): GameSessionState {
+  if (
+    current.phase !== "EVENING_ROUTINE" ||
+    !current.rumah.hasShoweredEvening ||
+    !current.rumah.hasEatenEvening ||
+    !current.rumah.canSleepEvening ||
+    current.dayNumber >= 3
+  ) {
+    return current;
+  }
+
   const nextDay = Math.min(3, current.dayNumber + 1);
   const prompt =
     nextDay === 2
@@ -197,9 +247,9 @@ export function advanceDay(current: GameSessionState): GameSessionState {
     ...current,
     currentLocation: "RUMAH",
     dayNumber: nextDay,
-    phase: nextDay === 3 ? "PORTAL_APPROACH" : "COMMUTE_TO_WORK",
+    phase: "MORNING_ROUTINE",
     activePrompt: prompt,
-    humanPosition: [-2.2, 0, -2.4],
+    humanPosition: [-1.0, 0, -3.2],
     humanHeading: 0,
     rumah: {
       wokenUp: false,
@@ -223,9 +273,246 @@ export function advanceDay(current: GameSessionState): GameSessionState {
     officeParkingUnlocked: false,
     catAlert: nextDay >= 2,
     homeReached: false,
+    portalEntered: false,
+    castleGateOpen: current.castleGateOpen,
+    puzzleSolved: current.puzzleSolved,
+    sanctuaryEntered: current.sanctuaryEntered,
+    currentRoadsideEvent: null,
     stats: {
       ...current.stats,
       daysCompleted: nextDay,
     },
+  };
+}
+
+export function beginCommuteToWork(current: GameSessionState): GameSessionState {
+  if (
+    current.currentLocation !== "RUMAH" ||
+    current.phase !== "MORNING_ROUTINE" ||
+    !current.rumah.canExitHouse
+  ) {
+    return current;
+  }
+
+  return {
+    ...current,
+    currentLocation: "JALAN",
+    phase: "COMMUTE_TO_WORK",
+    humanPosition: [0, 0, 0],
+    activePrompt: "Tujuan: kantor",
+  };
+}
+
+export function wakeUp(current: GameSessionState): GameSessionState {
+  if (
+    current.currentLocation !== "RUMAH" ||
+    current.phase !== "MORNING_ROUTINE" ||
+    current.rumah.wokenUp
+  ) {
+    return current;
+  }
+
+  return {
+    ...current,
+    rumah: { ...current.rumah, wokenUp: true },
+    activePrompt: "Sudah bangun. Siapkan sarapan.",
+  };
+}
+
+export function cookBreakfast(current: GameSessionState): GameSessionState {
+  if (
+    current.currentLocation !== "RUMAH" ||
+    current.phase !== "MORNING_ROUTINE" ||
+    !current.rumah.wokenUp ||
+    current.rumah.hasCooked
+  ) {
+    return current;
+  }
+
+  return {
+    ...current,
+    rumah: { ...current.rumah, hasCooked: true },
+    activePrompt: "Sarapan siap. Makan di meja.",
+  };
+}
+
+export function eatBreakfast(current: GameSessionState): GameSessionState {
+  if (
+    current.currentLocation !== "RUMAH" ||
+    current.phase !== "MORNING_ROUTINE" ||
+    !current.rumah.hasCooked ||
+    current.rumah.hasEaten
+  ) {
+    return current;
+  }
+
+  return {
+    ...current,
+    rumah: { ...current.rumah, hasEaten: true },
+    activePrompt: "Sarapan selesai. Mandi sebelum berangkat.",
+  };
+}
+
+export function takeMorningShower(current: GameSessionState): GameSessionState {
+  if (
+    current.currentLocation !== "RUMAH" ||
+    current.phase !== "MORNING_ROUTINE" ||
+    !current.rumah.hasEaten ||
+    current.rumah.hasShowered
+  ) {
+    return current;
+  }
+
+  return {
+    ...current,
+    rumah: { ...current.rumah, hasShowered: true, canExitHouse: true },
+    activePrompt: "Rutinitas selesai. Tujuan berikutnya: kantor.",
+  };
+}
+
+export function takeEveningShower(current: GameSessionState): GameSessionState {
+  if (
+    current.currentLocation !== "RUMAH" ||
+    current.phase !== "EVENING_ROUTINE" ||
+    current.rumah.hasShoweredEvening
+  ) {
+    return current;
+  }
+
+  return {
+    ...current,
+    rumah: {
+      ...current.rumah,
+      hasShoweredEvening: true,
+      canSleepEvening: current.rumah.hasEatenEvening,
+    },
+    activePrompt: "Mandi selesai. Siapkan makan malam.",
+  };
+}
+
+export function eatDinner(current: GameSessionState): GameSessionState {
+  if (
+    current.currentLocation !== "RUMAH" ||
+    current.phase !== "EVENING_ROUTINE" ||
+    !current.rumah.hasShoweredEvening ||
+    current.rumah.hasEatenEvening
+  ) {
+    return current;
+  }
+
+  return {
+    ...current,
+    rumah: {
+      ...current.rumah,
+      hasEatenEvening: true,
+      canSleepEvening: current.rumah.hasShoweredEvening,
+    },
+    activePrompt: "Hari selesai. Tidur untuk melanjutkan.",
+  };
+}
+
+export function arriveAtWork(current: GameSessionState): GameSessionState {
+  if (current.currentLocation !== "JALAN" || current.phase !== "COMMUTE_TO_WORK") {
+    return current;
+  }
+
+  return {
+    ...current,
+    currentLocation: "TEMPAT_KERJA",
+    phase: "AT_WORK",
+    humanPosition: [0, 0, 5.5],
+    activePrompt: "Tugas hari ini menunggu di workstation.",
+  };
+}
+
+export function completeWorkday(current: GameSessionState): GameSessionState {
+  if (current.currentLocation !== "TEMPAT_KERJA" || current.phase !== "AT_WORK") {
+    return current;
+  }
+
+  return {
+    ...current,
+    workDone: true,
+    phase: current.dayNumber === 3 ? "PORTAL_APPROACH" : "AT_WORK",
+    workplace: {
+      ...current.workplace,
+      allTasksDone: true,
+      codeTyped: true,
+      bugsCaught: current.workplace.bugsTarget,
+      repoPushed: true,
+    },
+    activePrompt:
+      current.dayNumber === 3
+        ? "Portal Semicolon terbuka di pintu kantor."
+        : "Tugas selesai. Keluar kantor untuk pulang.",
+  };
+}
+
+export function beginCommuteHome(current: GameSessionState): GameSessionState {
+  if (
+    current.currentLocation !== "TEMPAT_KERJA" ||
+    current.dayNumber === 3 ||
+    current.phase !== "AT_WORK" ||
+    !current.workplace.allTasksDone
+  ) {
+    return current;
+  }
+
+  return {
+    ...current,
+    currentLocation: "JALAN",
+    phase: "COMMUTE_HOME",
+    humanPosition: [0, 0, 0],
+    activePrompt: "Tujuan: rumah",
+  };
+}
+
+export function arriveHomeForEvening(current: GameSessionState): GameSessionState {
+  if (current.currentLocation !== "JALAN" || current.phase !== "COMMUTE_HOME") {
+    return current;
+  }
+
+  return {
+    ...current,
+    currentLocation: "RUMAH",
+    phase: "EVENING_ROUTINE",
+    homeReached: true,
+    humanPosition: [0, 0, 3.4],
+    activePrompt: "",
+  };
+}
+
+export function enterAlternateDimension(current: GameSessionState): GameSessionState {
+  if (
+    current.currentLocation !== "TEMPAT_KERJA" ||
+    current.dayNumber !== 3 ||
+    current.phase !== "PORTAL_APPROACH" ||
+    !current.workplace.allTasksDone
+  ) {
+    return current;
+  }
+
+  return {
+    ...current,
+    currentLocation: "DIMENSI_LAIN",
+    humanPosition: [0, 0, 0],
+    phase: "CASTLE_EXPLORATION",
+    portalEntered: true,
+    activePrompt: "",
+  };
+}
+
+export function enterCastle(current: GameSessionState): GameSessionState {
+  if (current.currentLocation !== "DIMENSI_LAIN" || !current.portalEntered) {
+    return current;
+  }
+
+  return {
+    ...current,
+    currentLocation: "KASTIL",
+    phase: "CASTLE_EXPLORATION",
+    humanPosition: [0, 0, 8],
+    kastil: { ...current.kastil, insideEscapeRoom: false },
+    activePrompt: "",
   };
 }

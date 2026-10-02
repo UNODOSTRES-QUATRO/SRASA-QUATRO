@@ -6,27 +6,25 @@ import * as THREE from "three";
 import { QuatroMesh } from "../vehicle/QuatroMesh";
 import { VehicleState } from "../vehicle/vehicleTypes";
 
-import { createInitialVehicleState } from "../vehicle/vehiclePhysics";
-
 interface HighwayDriveSceneProps {
   isVoidHighway?: boolean;
+  vehicleState: VehicleState;
 }
 
-export function HighwayDriveScene({ isVoidHighway = false }: HighwayDriveSceneProps) {
+export function HighwayDriveScene({ isVoidHighway = false, vehicleState }: HighwayDriveSceneProps) {
   const roadScrollRef = useRef(0);
   const roadSegment1Ref = useRef<THREE.Group>(null);
   const roadSegment2Ref = useRef<THREE.Group>(null);
   const sceneryGroupRef = useRef<THREE.Group>(null);
   const wheelsAngleRef = useRef(0);
 
-  const speed = 26; // Units per second forward drive simulation
   const segmentLength = 120;
 
   useFrame((_, delta) => {
-    roadScrollRef.current += speed * delta;
-    wheelsAngleRef.current += speed * delta * 2;
+    roadScrollRef.current += vehicleState.speed * delta;
+    wheelsAngleRef.current += vehicleState.speed * delta * 2;
 
-    const offset = roadScrollRef.current % segmentLength;
+    const offset = ((roadScrollRef.current % segmentLength) + segmentLength) % segmentLength;
 
     if (roadSegment1Ref.current) {
       roadSegment1Ref.current.position.z = -offset;
@@ -36,10 +34,9 @@ export function HighwayDriveScene({ isVoidHighway = false }: HighwayDriveScenePr
     }
   });
 
-  // Simulated vehicle state for the driving car
-  const mockVehicleState: VehicleState = {
-    ...createInitialVehicleState(),
-    speed: 18,
+  const renderedVehicleState: VehicleState = {
+    ...vehicleState,
+    position: { ...vehicleState.position, z: 0 },
   };
 
   const roadColor = isVoidHighway ? "#110b29" : "#2d3748";
@@ -199,7 +196,7 @@ export function HighwayDriveScene({ isVoidHighway = false }: HighwayDriveScenePr
           2. THE DRIVING CAR (QUATRO)
           ======================================================== */}
       <group position={[0, 0, 0]}>
-        <QuatroMesh vehicleState={mockVehicleState} isCatAlert={isVoidHighway} />
+        <QuatroMesh vehicleState={renderedVehicleState} isCatAlert={isVoidHighway} />
         {/* Headlights Beams Forward */}
         <spotLight
           position={[-0.7, 0.6, 2.2]}

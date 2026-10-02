@@ -17,6 +17,8 @@ export function CastleEscapeRoomScene({
   const clockRef = useRef(0);
   const hearthFireRef = useRef<THREE.PointLight>(null);
   const secretWallOffsetRef = useRef(0);
+  const secretStoneRef = useRef<THREE.Mesh>(null);
+  const exitDoorRef = useRef<THREE.Mesh>(null);
 
   useFrame((_, delta) => {
     clockRef.current += delta;
@@ -30,6 +32,18 @@ export function CastleEscapeRoomScene({
       targetOffset,
       delta * 3.0
     );
+    if (secretStoneRef.current) {
+      secretStoneRef.current.position.x = 1.4 - secretWallOffsetRef.current;
+    }
+    if (exitDoorRef.current) {
+      const targetRotation = escapeRoomState.doorUnlocked ? -Math.PI * 0.48 : 0;
+      exitDoorRef.current.rotation.y = THREE.MathUtils.damp(
+        exitDoorRef.current.rotation.y,
+        targetRotation,
+        2.4,
+        delta
+      );
+    }
   });
 
   const stoneDark = "#1e293b";
@@ -203,7 +217,7 @@ export function CastleEscapeRoomScene({
           </mesh>
         ))}
         {/* Displaced / Loose Secret Stone on Wall beside bookshelf */}
-        <mesh position={[1.4, 1.2, 0.05]} castShadow>
+        <mesh ref={secretStoneRef} position={[1.4, 1.2, 0.05]} castShadow>
           <boxGeometry args={[0.45, 0.3, 0.15]} />
           <meshStandardMaterial
             color={escapeRoomState.secretWallRevealed ? "#10b981" : "#64748b"}
@@ -255,7 +269,7 @@ export function CastleEscapeRoomScene({
           <meshStandardMaterial color={stoneDark} />
         </mesh>
         {/* Exit Door Leaf */}
-        <mesh position={[0, 0, 0.04]} castShadow>
+        <mesh ref={exitDoorRef} position={[0, 0, 0.04]} castShadow>
           <boxGeometry args={[2.1, 3.3, 0.12]} />
           <meshStandardMaterial color="#292524" roughness={0.7} />
         </mesh>

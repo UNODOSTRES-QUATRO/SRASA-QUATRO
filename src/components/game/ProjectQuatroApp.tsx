@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import * as THREE from "three";
 import { GameCanvas } from "./GameCanvas";
 import { HouseInterior } from "@/game/world/HouseInterior";
 import { HighwayDriveScene } from "@/game/world/HighwayDriveScene";
@@ -21,23 +22,95 @@ import { PauseOverlay } from "@/components/ui/PauseOverlay";
 import {
   createInitialSessionState,
   advanceDay,
+  arriveAtWork,
+  arriveHomeForEvening,
+  beginCommuteHome,
+  beginCommuteToWork,
+  completeWorkday,
+  cookBreakfast,
+  eatBreakfast,
+  eatDinner,
+  enterAlternateDimension,
+  enterCastle,
+  getCurrentObjective,
   GameSessionState,
   LocationType,
+  takeEveningShower,
+  takeMorningShower,
+  wakeUp,
 } from "@/game/core/gameStore";
 import { soundManager } from "@/game/audio/SoundManager";
+import { resolvePlayerPosition } from "@/game/core/playerCollision";
+import { createInitialVehicleState, updateVehiclePhysics } from "@/game/vehicle/vehiclePhysics";
+import { VehicleState } from "@/game/vehicle/vehicleTypes";
+import { useGameRealtime } from "@/game/realtime/useGameRealtime";
+
+function getSharedSpaceId(session: GameSessionState) {
+  if (session.currentLocation === "DIMENSI_LAIN") return "void:road";
+  if (session.currentLocation === "KASTIL") {
+    return session.kastil.insideEscapeRoom ? "castle:escape-room" : "castle:courtyard";
+  }
+  return `overworld:${session.currentLocation.toLowerCase()}`;
+}
 
 export default function ProjectQuatroApp() {
   const [session, setSession] = useState<GameSessionState>(createInitialSessionState);
   const [isHumanMoving, setIsHumanMoving] = useState(false);
+  const [vehicleState, setVehicleState] = useState<VehicleState>(createInitialVehicleState);
+  const sessionRef = useRef(session);
+  const isHumanMovingRef = useRef(false);
+  const vehicleStateRef = useRef(vehicleState);
+  sessionRef.current = session;
+  vehicleStateRef.current = vehicleState;
+  const isWalkableLocation = ["RUMAH", "TEMPAT_KERJA", "BENGKEL", "KASTIL"].includes(session.currentLocation);
+  const isRoadLocation = session.currentLocation === "JALAN" || session.currentLocation === "DIMENSI_LAIN";
+  const realtime = useGameRealtime({
+    vehicleState: {
+      ...(isRoadLocation ? vehicleState : createInitialVehicleState()),
+      position: isRoadLocation
+        ? { x: vehicleState.position.x, y: vehicleState.position.y, z: 0 }
+        : {
+            x: session.humanPosition[0],
+            y: 0,
+            z: session.humanPosition[2],
+          },
+      heading: isRoadLocation ? vehicleState.heading : session.humanHeading,
+      speed: isRoadLocation ? vehicleState.speed : isHumanMoving ? 1.5 : 0,
+    },
+    playerName: "Traveler",
+    isEnabled: session.currentLocation !== "END_SCREEN",
+    playerState: {
+      spaceId: getSharedSpaceId(session),
+      location: session.currentLocation,
+      day: session.dayNumber,
+      phase: session.phase,
+      status: isWalkableLocation ? isHumanMoving ? "WALKING" : "ON_FOOT" : "DRIVING",
+    },
+  });
 
   // Modals state
   const [isWorkModalOpen, setIsWorkModalOpen] = useState(false);
   const [isVoidCutsceneOpen, setIsVoidCutsceneOpen] = useState(false);
-  const [activeNpcId, setActiveNpcId] = useState<"jeffrey" | "vespera" | "barnaby" | null>(null);
+  const [activeNpcId, setActiveNpcId] = useState<"jeffrey" | "vespera" | "barnaby" | "mechanic" | null>(null);
   const [easterEggAlert, setEasterEggAlert] = useState<string | null>(null);
   const [escapeInspectTarget, setEscapeInspectTarget] = useState<
     "CABINET" | "STOVE" | "SECRET_WALL" | "EXIT_DOOR" | null
   >(null);
+  const keyboardStateRef = useRef({
+    isWorkModalOpen,
+    isVoidCutsceneOpen,
+    activeNpcId,
+    easterEggAlert,
+    escapeInspectTarget,
+  });
+  const interactionHandlerRef = useRef<() => void>(() => undefined);
+  keyboardStateRef.current = {
+    isWorkModalOpen,
+    isVoidCutsceneOpen,
+    activeNpcId,
+    easterEggAlert,
+    escapeInspectTarget,
+  };
 
   // Keyboard input state
   const inputRef = useRef({
@@ -45,6 +118,7 @@ export default function ProjectQuatroApp() {
     backward: false,
     left: false,
     right: false,
+    brake: false,
   });
 
   const lastFootstepTime = useRef(0);
@@ -65,34 +139,51 @@ export default function ProjectQuatroApp() {
     };
   }, []);
 
+  useEffect(() => {
+    soundManager.setMuted(session.isAudioMuted);
+  }, [session.isAudioMuted]);
+
   // Keyboard listeners for WASD / Arrows / E / Space / Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const keyboardState = keyboardStateRef.current;
+      const currentSession = sessionRef.current;
+
       if (e.code === "Escape") {
+        if (e.repeat) return;
         soundManager.playClick();
-        if (isWorkModalOpen) setIsWorkModalOpen(false);
-        else if (isVoidCutsceneOpen) setIsVoidCutsceneOpen(false);
-        else if (activeNpcId) setActiveNpcId(null);
-        else if (easterEggAlert) setEasterEggAlert(null);
-        else if (escapeInspectTarget) setEscapeInspectTarget(null);
+        if (keyboardState.isWorkModalOpen) setIsWorkModalOpen(false);
+        else if (keyboardState.isVoidCutsceneOpen) setIsVoidCutsceneOpen(false);
+        else if (keyboardState.activeNpcId) setActiveNpcId(null);
+        else if (keyboardState.easterEggAlert) setEasterEggAlert(null);
+        else if (keyboardState.escapeInspectTarget) setEscapeInspectTarget(null);
         else setSession((prev) => ({ ...prev, isPaused: !prev.isPaused }));
+        inputRef.current = { forward: false, backward: false, left: false, right: false, brake: false };
         return;
       }
 
       if (
-        session.isPaused ||
-        isWorkModalOpen ||
-        isVoidCutsceneOpen ||
-        activeNpcId ||
-        escapeInspectTarget ||
-        session.currentLocation === "END_SCREEN"
+        currentSession.isPaused ||
+        keyboardState.isWorkModalOpen ||
+        keyboardState.isVoidCutsceneOpen ||
+        keyboardState.activeNpcId ||
+        keyboardState.easterEggAlert ||
+        keyboardState.escapeInspectTarget ||
+        currentSession.currentLocation === "END_SCREEN"
       ) {
+        return;
+      }
+
+      const isRoad = currentSession.currentLocation === "JALAN" || currentSession.currentLocation === "DIMENSI_LAIN";
+      if (e.code === "Space" && isRoad) {
+        inputRef.current.brake = true;
         return;
       }
 
       // Interaction trigger with [E] or [Space]
       if (e.code === "KeyE" || e.code === "Space") {
-        handleContextInteraction();
+        if (e.repeat) return;
+        interactionHandlerRef.current();
         return;
       }
 
@@ -112,6 +203,10 @@ export default function ProjectQuatroApp() {
         case "KeyD":
         case "ArrowRight":
           inputRef.current.right = true;
+          break;
+        case "ShiftLeft":
+        case "ShiftRight":
+          inputRef.current.brake = true;
           break;
       }
     };
@@ -134,16 +229,29 @@ export default function ProjectQuatroApp() {
         case "ArrowRight":
           inputRef.current.right = false;
           break;
+        case "Space":
+        case "ShiftLeft":
+        case "ShiftRight":
+          inputRef.current.brake = false;
+          break;
       }
+    };
+
+    const clearMovement = () => {
+      inputRef.current = { forward: false, backward: false, left: false, right: false, brake: false };
     };
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", clearMovement);
+    document.addEventListener("visibilitychange", clearMovement);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", clearMovement);
+      document.removeEventListener("visibilitychange", clearMovement);
     };
-  });
+  }, []);
 
   // Main 60FPS Movement and Proximity loop
   useEffect(() => {
@@ -151,21 +259,27 @@ export default function ProjectQuatroApp() {
     let lastTime = performance.now();
 
     const loop = (currentTime: number) => {
+      if (currentTime - lastTime < 1000 / 30) {
+        animId = requestAnimationFrame(loop);
+        return;
+      }
       const dt = Math.min((currentTime - lastTime) / 1000, 0.05);
       lastTime = currentTime;
+      const currentSession = sessionRef.current;
 
       const isWalkable =
-        session.currentLocation === "RUMAH" ||
-        session.currentLocation === "TEMPAT_KERJA" ||
-        session.currentLocation === "BENGKEL" ||
-        session.currentLocation === "KASTIL";
+        currentSession.currentLocation === "RUMAH" ||
+        currentSession.currentLocation === "TEMPAT_KERJA" ||
+        currentSession.currentLocation === "BENGKEL" ||
+        currentSession.currentLocation === "KASTIL";
 
       if (
         isWalkable &&
-        !session.isPaused &&
+        !currentSession.isPaused &&
         !isWorkModalOpen &&
         !isVoidCutsceneOpen &&
         !activeNpcId &&
+        !easterEggAlert &&
         !escapeInspectTarget
       ) {
         let moveX = 0;
@@ -177,7 +291,10 @@ export default function ProjectQuatroApp() {
         if (inputRef.current.right) moveX += 1;
 
         const isMoving = moveX !== 0 || moveZ !== 0;
-        setIsHumanMoving(isMoving);
+        if (isHumanMovingRef.current !== isMoving) {
+          isHumanMovingRef.current = isMoving;
+          setIsHumanMoving(isMoving);
+        }
 
         if (isMoving) {
           const moveLen = Math.hypot(moveX, moveZ);
@@ -185,47 +302,36 @@ export default function ProjectQuatroApp() {
           const normZ = moveZ / moveLen;
 
           const walkSpeed = 4.2;
-          let nextX = session.humanPosition[0] + normX * walkSpeed * dt;
-          let nextZ = session.humanPosition[2] + normZ * walkSpeed * dt;
+          let nextX = currentSession.humanPosition[0] + normX * walkSpeed * dt;
+          let nextZ = currentSession.humanPosition[2] + normZ * walkSpeed * dt;
           const nextHeading = Math.atan2(normX, normZ);
 
           // Boundaries per room
-          if (session.currentLocation === "RUMAH") {
+          if (currentSession.currentLocation === "RUMAH") {
             nextX = Math.max(-3.8, Math.min(3.8, nextX));
             nextZ = Math.max(-3.8, Math.min(4.1, nextZ));
 
-            // Auto wake-up if moving away from bed
-            if (!session.rumah.wokenUp && Math.hypot(nextX - (-2.4), nextZ - (-3.2)) > 1.2) {
-              setSession((prev) => ({
-                ...prev,
-                rumah: { ...prev.rumah, wokenUp: true },
-                activePrompt: "Sudah bangun! Pergi ke kompor di dapur kecil untuk memasak.",
-              }));
-            }
-          } else if (session.currentLocation === "TEMPAT_KERJA") {
+          } else if (currentSession.currentLocation === "TEMPAT_KERJA") {
             nextX = Math.max(-6.2, Math.min(6.2, nextX));
             nextZ = Math.max(-6.2, Math.min(6.5, nextZ));
 
             // Check if walking into Day 3 Semicolon portal at exit door
             if (
-              session.dayNumber === 3 &&
-              session.workplace.allTasksDone &&
+              currentSession.dayNumber === 3 &&
+              currentSession.phase === "PORTAL_APPROACH" &&
+              currentSession.workplace.allTasksDone &&
               Math.hypot(nextX - 0, nextZ - 5.8) < 1.4
             ) {
               soundManager.playPortalWhoosh();
-              setSession((prev) => ({
-                ...prev,
-                currentLocation: "DIMENSI_LAIN",
-                dimensiLain: { ...prev.dimensiLain, cutsceneCompleted: false },
-              }));
+              setSession((prev) => enterAlternateDimension(prev));
               setIsVoidCutsceneOpen(true);
               return;
             }
-          } else if (session.currentLocation === "BENGKEL") {
+          } else if (currentSession.currentLocation === "BENGKEL") {
             nextX = Math.max(-5.2, Math.min(5.2, nextX));
             nextZ = Math.max(-5.2, Math.min(5.2, nextZ));
-          } else if (session.currentLocation === "KASTIL") {
-            if (session.kastil.insideEscapeRoom) {
+          } else if (currentSession.currentLocation === "KASTIL") {
+            if (currentSession.kastil.insideEscapeRoom) {
               nextX = Math.max(-5.5, Math.min(5.5, nextX));
               nextZ = Math.max(-5.8, Math.min(5.8, nextZ));
             } else {
@@ -250,6 +356,17 @@ export default function ProjectQuatroApp() {
             }
           }
 
+          const [resolvedX, , resolvedZ] = resolvePlayerPosition(
+            currentSession.humanPosition,
+            [nextX, 0, nextZ],
+            currentSession.currentLocation,
+            currentSession.kastil.insideEscapeRoom,
+            0.32,
+            currentSession.kastil.escapeRoom.doorUnlocked
+          );
+          nextX = resolvedX;
+          nextZ = resolvedZ;
+
           // Sound footstep throttle
           if (currentTime - lastFootstepTime.current > 320) {
             soundManager.playFootstep();
@@ -262,6 +379,36 @@ export default function ProjectQuatroApp() {
             humanHeading: nextHeading,
           }));
         }
+      } else if (
+        (currentSession.currentLocation === "JALAN" || currentSession.currentLocation === "DIMENSI_LAIN") &&
+        !currentSession.isPaused &&
+        !isVoidCutsceneOpen
+      ) {
+        const input = inputRef.current;
+        const nextVehicle = updateVehiclePhysics(
+          vehicleStateRef.current,
+          {
+            forward: input.forward,
+            backward: input.backward,
+            left: input.left,
+            right: input.right,
+            brake: input.brake,
+          },
+          dt
+        );
+        nextVehicle.position.x = THREE.MathUtils.clamp(nextVehicle.position.x, -3.8, 3.8);
+        nextVehicle.position.z = 0;
+        nextVehicle.heading = THREE.MathUtils.clamp(nextVehicle.heading, -0.8, 0.8);
+        vehicleStateRef.current = nextVehicle;
+        setVehicleState(nextVehicle);
+        soundManager.updateEngine(nextVehicle.speed);
+        if (isHumanMovingRef.current) {
+          isHumanMovingRef.current = false;
+          setIsHumanMoving(false);
+        }
+      } else if (isHumanMovingRef.current) {
+        isHumanMovingRef.current = false;
+        setIsHumanMoving(false);
       }
 
       animId = requestAnimationFrame(loop);
@@ -271,15 +418,11 @@ export default function ProjectQuatroApp() {
     return () => cancelAnimationFrame(animId);
   }, [
     session.currentLocation,
-    session.humanPosition,
     session.isPaused,
-    session.dayNumber,
-    session.workplace.allTasksDone,
-    session.kastil.insideEscapeRoom,
-    session.rumah.wokenUp,
     isWorkModalOpen,
     isVoidCutsceneOpen,
     activeNpcId,
+    easterEggAlert,
     escapeInspectTarget,
   ]);
 
@@ -296,99 +439,81 @@ export default function ProjectQuatroApp() {
       const distToDoor = Math.hypot(hx - 0, hz - 4.0);
 
       // Morning wake up
-      if (distToBed < 2.0 && !session.rumah.wokenUp) {
+      if (
+        distToBed < 2.0 &&
+        session.phase === "MORNING_ROUTINE" &&
+        !session.rumah.wokenUp
+      ) {
         soundManager.playClick();
-        setSession((prev) => ({
-          ...prev,
-          rumah: { ...prev.rumah, wokenUp: true },
-          activePrompt: "Sudah bangun! Pergi ke kompor di dapur kecil untuk memasak.",
-        }));
+        setSession((prev) => wakeUp(prev));
         return;
       }
 
       // Cook at stove
-      if (distToStove < 1.8 && session.rumah.wokenUp && !session.rumah.hasCooked) {
+      if (
+        distToStove < 1.8 &&
+        session.phase === "MORNING_ROUTINE" &&
+        session.rumah.wokenUp &&
+        !session.rumah.hasCooked
+      ) {
         soundManager.playCook();
-        setSession((prev) => ({
-          ...prev,
-          rumah: { ...prev.rumah, hasCooked: true },
-          activePrompt: "Sarapan telah matang! Nikmati makananmu di meja makan.",
-        }));
+        setSession((prev) => cookBreakfast(prev));
         return;
       }
 
       // Eat at dining table
       if (distToTable < 1.8) {
-        if (session.phase === "COMMUTE_HOME" || session.workDone) {
+        if (
+          session.phase === "EVENING_ROUTINE" &&
+          session.rumah.hasShoweredEvening &&
+          !session.rumah.hasEatenEvening
+        ) {
           // Evening dinner
           soundManager.playEat();
-          setSession((prev) => ({
-            ...prev,
-            rumah: {
-              ...prev.rumah,
-              hasEatenEvening: true,
-              canSleepEvening: prev.rumah.hasShoweredEvening,
-            },
-            activePrompt: prev.rumah.hasShoweredEvening
-              ? "Kenyang! Pergi ke kamar tidur untuk tidur dan lanjut hari."
-              : "Makan malam selesai. Jangan lupa mandi sebelum tidur.",
-          }));
+          setSession((prev) => eatDinner(prev));
           return;
-        } else if (session.rumah.hasCooked && !session.rumah.hasEaten) {
+        } else if (
+          session.phase === "MORNING_ROUTINE" &&
+          session.rumah.hasCooked &&
+          !session.rumah.hasEaten
+        ) {
           // Morning breakfast
           soundManager.playEat();
-          setSession((prev) => ({
-            ...prev,
-            rumah: { ...prev.rumah, hasEaten: true },
-            activePrompt: "Sarapan selesai! Pergi ke kamar mandi untuk mandi.",
-          }));
+          setSession((prev) => eatBreakfast(prev));
           return;
         }
       }
 
       // Shower in bathroom
       if (distToShower < 2.0) {
-        if (session.phase === "COMMUTE_HOME" || session.workDone) {
+        if (session.phase === "EVENING_ROUTINE" && !session.rumah.hasShoweredEvening) {
           // Evening shower
           soundManager.playWater();
-          setSession((prev) => ({
-            ...prev,
-            rumah: {
-              ...prev.rumah,
-              hasShoweredEvening: true,
-              canSleepEvening: prev.rumah.hasEatenEvening,
-            },
-            activePrompt: prev.rumah.hasEatenEvening
-              ? "Badan segar! Pergi ke tempat tidur untuk tidur dan lanjut hari."
-              : "Sudah mandi! Jangan lupa makan malam di ruang makan.",
-          }));
+          setSession((prev) => takeEveningShower(prev));
           return;
-        } else if (session.rumah.hasEaten && !session.rumah.hasShowered) {
+        } else if (
+          session.phase === "MORNING_ROUTINE" &&
+          session.rumah.hasEaten &&
+          !session.rumah.hasShowered
+        ) {
           // Morning shower
           soundManager.playWater();
-          setSession((prev) => ({
-            ...prev,
-            rumah: { ...prev.rumah, hasShowered: true, canExitHouse: true },
-            activePrompt: "Badan segar! Pintu depan sekarang terbuka. Siap berangkat ke mobil!",
-          }));
+          setSession((prev) => takeMorningShower(prev));
           return;
         }
       }
 
       // Front Door Exit to Jalan
-      if (distToDoor < 1.8 && session.rumah.canExitHouse) {
+      if (distToDoor < 1.8 && session.phase === "MORNING_ROUTINE" && session.rumah.canExitHouse) {
         soundManager.playDoorOpen();
-        setSession((prev) => ({
-          ...prev,
-          currentLocation: "JALAN",
-          activePrompt: "Sedang berkendara di jalan. Pilih tujuanmu pada sistem navigasi dashboard.",
-        }));
+        setVehicleState(createInitialVehicleState());
+        setSession((prev) => beginCommuteToWork(prev));
         return;
       }
 
       // Evening sleep in bed
-      if (distToBed < 2.0 && (session.phase === "COMMUTE_HOME" || session.workDone)) {
-        if (session.rumah.canSleepEvening) {
+      if (distToBed < 2.0 && session.phase === "EVENING_ROUTINE") {
+        if (session.rumah.canSleepEvening && session.currentLocation === "RUMAH") {
           soundManager.playPurr();
           const next = advanceDay(session);
           setSession(next);
@@ -417,24 +542,16 @@ export default function ProjectQuatroApp() {
 
       // Exit Doorway
       if (distToExit < 2.0 && session.workplace.allTasksDone) {
-        if (session.dayNumber === 3) {
+        if (session.dayNumber === 3 && session.phase === "PORTAL_APPROACH") {
           // Enter Portal
           soundManager.playPortalWhoosh();
-          setSession((prev) => ({
-            ...prev,
-            currentLocation: "DIMENSI_LAIN",
-          }));
+          setSession((prev) => enterAlternateDimension(prev));
           setIsVoidCutsceneOpen(true);
-        } else {
+        } else if (session.dayNumber < 3 && session.phase === "AT_WORK") {
           // Return to Jalan (Evening Commute Home)
           soundManager.playDoorOpen();
-          setSession((prev) => ({
-            ...prev,
-            currentLocation: "JALAN",
-            phase: "COMMUTE_HOME",
-            workDone: true,
-            activePrompt: "Pekerjaan selesai. Menyetir di jalan sore hari menuju rumah.",
-          }));
+          setVehicleState(createInitialVehicleState());
+          setSession((prev) => beginCommuteHome(prev));
         }
         return;
       }
@@ -447,12 +564,13 @@ export default function ProjectQuatroApp() {
 
       if (distToMontir < 2.0) {
         soundManager.playPurr();
-        alert("Pak Montir: 'Halo bung! Mobil Quatro-mu sudah ku-tune up dan dicuci bersih. Mesinnya bergemuruh mantap! Selamat melaju kembali!'");
+        setActiveNpcId("mechanic");
         return;
       }
 
       if (distToExit < 2.0) {
         soundManager.playDoorOpen();
+        setVehicleState(createInitialVehicleState());
         setSession((prev) => ({
           ...prev,
           currentLocation: "JALAN",
@@ -546,12 +664,16 @@ export default function ProjectQuatroApp() {
           setEscapeInspectTarget("CABINET");
           return;
         }
-        if (distToStove < 2.0) {
+        if (distToStove < 2.0 && session.kastil.escapeRoom.cabinetSearched) {
           soundManager.playClick();
           setEscapeInspectTarget("STOVE");
           return;
         }
-        if (distToSecretWall < 2.0) {
+        if (
+          distToSecretWall < 2.0 &&
+          session.kastil.escapeRoom.cabinetSearched &&
+          session.kastil.escapeRoom.stoveChecked
+        ) {
           soundManager.playClick();
           setEscapeInspectTarget("SECRET_WALL");
           return;
@@ -564,28 +686,19 @@ export default function ProjectQuatroApp() {
       }
     }
   }, [session]);
+  interactionHandlerRef.current = handleContextInteraction;
 
   // Destination Selection Handler from Jalan & Dimensi Lain
   const handleSelectDestination = (dest: "RUMAH" | "TEMPAT_KERJA" | "BENGKEL" | "KASTIL") => {
     soundManager.playDoorOpen();
     if (dest === "RUMAH") {
-      setSession((prev) => ({
-        ...prev,
-        currentLocation: "RUMAH",
-        humanPosition: [0, 0, 3.4],
-        activePrompt:
-          prev.workDone || prev.phase === "COMMUTE_HOME"
-            ? "Kembali ke rumah! Mandi dan santap makan malam sebelum tidur."
-            : "Di rumah. Selesaikan rutinitas harian.",
-      }));
+      setVehicleState(createInitialVehicleState());
+      setSession((prev) => arriveHomeForEvening(prev));
     } else if (dest === "TEMPAT_KERJA") {
-      setSession((prev) => ({
-        ...prev,
-        currentLocation: "TEMPAT_KERJA",
-        humanPosition: [0, 0, 5.5],
-        activePrompt: "Tiba di kantor. Berjalan ke meja PC [E] untuk mengerjakan task coding.",
-      }));
+      setVehicleState(createInitialVehicleState());
+      setSession((prev) => arriveAtWork(prev));
     } else if (dest === "BENGKEL") {
+      setVehicleState(createInitialVehicleState());
       setSession((prev) => ({
         ...prev,
         currentLocation: "BENGKEL",
@@ -593,34 +706,15 @@ export default function ProjectQuatroApp() {
         activePrompt: "Tiba di bengkel mobil. Bincang dengan Pak Montir [E] atau servis mobil.",
       }));
     } else if (dest === "KASTIL") {
-      setSession((prev) => ({
-        ...prev,
-        currentLocation: "KASTIL",
-        humanPosition: [0, 0, 8.0],
-        kastil: { ...prev.kastil, insideEscapeRoom: false },
-        activePrompt: "Tiba di pelataran Kastil Kuno! Jelajahi halaman kastil atau dekati gerbang aula besar.",
-      }));
+      setVehicleState(createInitialVehicleState());
+      setSession((prev) => enterCastle(prev));
     }
   };
 
   // Complete Workplace PC Tasks
   const handleCompleteOfficeWork = () => {
     setIsWorkModalOpen(false);
-    setSession((prev) => ({
-      ...prev,
-      workDone: true,
-      workplace: {
-        ...prev.workplace,
-        allTasksDone: true,
-        codeTyped: true,
-        bugsCaught: 5,
-        repoPushed: true,
-      },
-      activePrompt:
-        prev.dayNumber === 3
-          ? "✦ PERINGATAN: Portal Semicolon telah terbuka di pintu keluar kantor! Langkahkan kaki ke dalam portal."
-          : "Semua tugas di PC selesai! Keluar melalui pintu kantor untuk pulang ke rumah.",
-    }));
+    setSession((prev) => completeWorkday(prev));
   };
 
   // Escape Room Updates
@@ -655,21 +749,59 @@ export default function ProjectQuatroApp() {
   let nearbyHomeAction: "WAKE" | "COOK" | "EAT" | "SHOWER" | "SLEEP" | "EXIT" | null = null;
   if (session.currentLocation === "RUMAH") {
     const [hx, , hz] = session.humanPosition;
-    const isEvening = session.workDone || session.phase === "COMMUTE_HOME";
+    const isEvening = session.phase === "EVENING_ROUTINE";
     if (Math.hypot(hx - (-2.4), hz - (-3.2)) < 2.0) {
       if (isEvening && session.rumah.canSleepEvening) nearbyHomeAction = "SLEEP";
-      else if (!session.rumah.wokenUp) nearbyHomeAction = "WAKE";
-    } else if (Math.hypot(hx - (-3.8), hz - 1.0) < 1.8 && session.rumah.wokenUp && !session.rumah.hasCooked) {
+      else if (!isEvening && !session.rumah.wokenUp) nearbyHomeAction = "WAKE";
+    } else if (!isEvening && Math.hypot(hx - (-3.8), hz - 1.0) < 1.8 && session.rumah.wokenUp && !session.rumah.hasCooked) {
       nearbyHomeAction = "COOK";
     } else if (Math.hypot(hx - 0.8, hz - 1.6) < 1.8) {
       if (isEvening && !session.rumah.hasEatenEvening) nearbyHomeAction = "EAT";
-      else if (session.rumah.hasCooked && !session.rumah.hasEaten) nearbyHomeAction = "EAT";
+      else if (!isEvening && session.rumah.hasCooked && !session.rumah.hasEaten) nearbyHomeAction = "EAT";
     } else if (Math.hypot(hx - 3.4, hz - (-3.4)) < 2.0) {
       if (isEvening && !session.rumah.hasShoweredEvening) nearbyHomeAction = "SHOWER";
-      else if (session.rumah.hasEaten && !session.rumah.hasShowered) nearbyHomeAction = "SHOWER";
-    } else if (Math.hypot(hx - 0, hz - 4.0) < 1.8 && session.rumah.canExitHouse) {
+      else if (!isEvening && session.rumah.hasEaten && !session.rumah.hasShowered) nearbyHomeAction = "SHOWER";
+    } else if (!isEvening && Math.hypot(hx - 0, hz - 4.0) < 1.8 && session.rumah.canExitHouse) {
       nearbyHomeAction = "EXIT";
     }
+  }
+
+  let contextualAction: string | null = null;
+  const [playerX, , playerZ] = session.humanPosition;
+  if (nearbyHomeAction) {
+    contextualAction = {
+      WAKE: "Wake up",
+      COOK: "Cook",
+      EAT: "Eat",
+      SHOWER: "Shower",
+      SLEEP: "Sleep",
+      EXIT: "Leave home",
+    }[nearbyHomeAction];
+  } else if (session.currentLocation === "TEMPAT_KERJA") {
+    if (Math.hypot(playerX - 3.0, playerZ + 1.4) < 2 && !session.workplace.allTasksDone) {
+      contextualAction = "Workstation";
+    } else if (Math.hypot(playerX, playerZ - 6.2) < 2 && session.workplace.allTasksDone) {
+      contextualAction = session.dayNumber === 3 ? "Enter portal" : "Return home";
+    }
+  } else if (session.currentLocation === "BENGKEL") {
+    if (Math.hypot(playerX - 2.0, playerZ + 1.5) < 2) contextualAction = "Talk · Mechanic";
+    else if (Math.hypot(playerX, playerZ - 5.0) < 2) contextualAction = "Leave workshop";
+  } else if (session.currentLocation === "KASTIL") {
+    if (session.kastil.insideEscapeRoom) {
+      if (Math.hypot(playerX + 5.2, playerZ) < 2) contextualAction = "Inspect · Cabinet";
+      else if (session.kastil.escapeRoom.cabinetSearched && Math.hypot(playerX - 5.2, playerZ) < 2) contextualAction = "Inspect · Hearth";
+      else if (
+        session.kastil.escapeRoom.cabinetSearched &&
+        session.kastil.escapeRoom.stoveChecked &&
+        Math.hypot(playerX + 1.4, playerZ + 5.8) < 2
+      ) contextualAction = "Inspect · Loose stone";
+      else if (Math.hypot(playerX - 2.0, playerZ + 5.8) < 2) contextualAction = "Inspect · Exit door";
+    } else if (Math.hypot(playerX + 3.5, playerZ + 4.0) < 2) contextualAction = "Talk · Jeffrey";
+    else if (Math.hypot(playerX - 3.5, playerZ + 4.0) < 2) contextualAction = "Talk · Vespera";
+    else if (Math.hypot(playerX + 5.0, playerZ) < 2) contextualAction = "Talk · Barnaby";
+    else if (Math.hypot(playerX, playerZ + 8.0) < 2.2) contextualAction = "Enter keep";
+    else if (Math.hypot(playerX, playerZ - 1.0) < 2.2 && !session.kastil.easterEggs.fountain) contextualAction = "Inspect · Fountain";
+    else if (Math.hypot(playerX - 5.5, playerZ - 3.0) < 2.2 && !session.kastil.easterEggs.hayBales) contextualAction = "Inspect · Hay bales";
   }
 
   return (
@@ -678,10 +810,13 @@ export default function ProjectQuatroApp() {
       {session.currentLocation !== "END_SCREEN" && (
         <GameCanvas
           location={session.currentLocation}
-          humanPos={session.humanPosition}
-          humanHeading={session.humanHeading}
+          humanPos={isRoadLocation
+            ? [vehicleState.position.x, 0, 0]
+            : session.humanPosition}
+          humanHeading={isRoadLocation ? vehicleState.heading : session.humanHeading}
           isHumanMoving={isHumanMoving}
           isInsideEscapeRoom={session.kastil.insideEscapeRoom}
+          remotePlayers={realtime.remotePlayers}
         >
           {/* Location 1: RUMAH */}
           {session.currentLocation === "RUMAH" && (
@@ -689,12 +824,13 @@ export default function ProjectQuatroApp() {
               rumahState={session.rumah}
               dayNumber={session.dayNumber}
               playerPos={session.humanPosition}
+              isEvening={session.phase === "EVENING_ROUTINE"}
             />
           )}
 
           {/* Location 2: JALAN */}
           {session.currentLocation === "JALAN" && (
-            <HighwayDriveScene isVoidHighway={false} />
+            <HighwayDriveScene isVoidHighway={false} vehicleState={vehicleState} />
           )}
 
           {/* Location 3: TEMPAT KERJA */}
@@ -713,7 +849,7 @@ export default function ProjectQuatroApp() {
 
           {/* Location 4: DIMENSI LAIN */}
           {session.currentLocation === "DIMENSI_LAIN" && (
-            <HighwayDriveScene isVoidHighway={true} />
+            <HighwayDriveScene isVoidHighway={true} vehicleState={vehicleState} />
           )}
 
           {/* Location 5: KASTIL */}
@@ -736,12 +872,37 @@ export default function ProjectQuatroApp() {
       )}
 
       {/* Global Quest Banner */}
-      {session.activePrompt && session.currentLocation !== "END_SCREEN" && (
-        <div className="fixed top-4 right-4 z-40 max-w-md pointer-events-auto">
-          <div className="bg-quatro-navy/90 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-quatro-amber/40 shadow-xl flex items-center space-x-2.5 text-xs text-quatro-cream font-mono">
-            <span className="text-quatro-amber text-base animate-pulse">✦</span>
-            <span className="leading-snug">{session.activePrompt}</span>
-          </div>
+      {session.currentLocation !== "END_SCREEN" && (
+        <div
+          aria-live="polite"
+          className="fixed top-4 right-4 z-40 flex max-w-[min(22rem,calc(100vw-2rem))] items-center gap-3 border-l border-quatro-amber/70 bg-quatro-navy/80 px-3 py-2 text-quatro-cream shadow-lg backdrop-blur-sm"
+        >
+          <span className="shrink-0 font-mono text-[9px] uppercase tracking-wider text-quatro-amber">
+            Day {session.dayNumber}
+          </span>
+          <span className="h-5 w-px bg-quatro-cream/15" />
+          <span className="text-xs leading-snug">{getCurrentObjective(session)}</span>
+        </div>
+      )}
+
+      {contextualAction && session.currentLocation !== "END_SCREEN" && (
+        <button
+          type="button"
+          onClick={handleContextInteraction}
+          className="fixed bottom-7 left-1/2 z-40 -translate-x-1/2 border border-quatro-cream/20 bg-quatro-navy/75 px-4 py-2 text-[11px] font-mono tracking-wide text-quatro-cream/90 shadow-lg backdrop-blur-sm transition-colors hover:border-quatro-amber/50 hover:text-quatro-amber focus-visible:outline focus-visible:outline-1 focus-visible:outline-quatro-amber"
+        >
+          <span className="mr-2 text-quatro-amber">E</span>
+          <span className="mr-2 text-quatro-cream/45">/ CLICK</span>
+          {contextualAction}
+        </button>
+      )}
+
+      {session.currentLocation !== "END_SCREEN" && (
+        <div className="fixed bottom-3 right-4 z-30 pointer-events-none font-mono text-[9px] uppercase tracking-wider text-quatro-cream/55">
+          <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full align-middle ${realtime.connectionStatus === "CONNECTED" ? "bg-emerald-400" : realtime.connectionStatus === "CONNECTING" ? "bg-amber-300 animate-pulse" : "bg-quatro-cream/30"}`} />
+          {realtime.connectionStatus === "CONNECTED"
+            ? `${Math.max(0, realtime.onlineCount - 1)} nearby`
+            : realtime.connectionStatus.toLowerCase()}
         </div>
       )}
 
@@ -750,9 +911,7 @@ export default function ProjectQuatroApp() {
         <HomeRoutineOverlay
           dayNumber={session.dayNumber}
           rumahState={session.rumah}
-          isEvening={session.workDone || session.phase === "COMMUTE_HOME"}
-          onAction={(act) => handleContextInteraction()}
-          nearbyAction={nearbyHomeAction}
+          isEvening={session.phase === "EVENING_ROUTINE"}
         />
       )}
 
@@ -760,12 +919,22 @@ export default function ProjectQuatroApp() {
       {(session.currentLocation === "JALAN" || session.currentLocation === "DIMENSI_LAIN") && (
         <RoadNavigationModal
           isVoidHighway={session.currentLocation === "DIMENSI_LAIN"}
+          allowedDestinations={
+            session.currentLocation === "DIMENSI_LAIN"
+              ? session.phase === "CASTLE_EXPLORATION" ? ["KASTIL"] : []
+              : session.phase === "COMMUTE_TO_WORK"
+              ? ["TEMPAT_KERJA", "BENGKEL"]
+              : session.phase === "COMMUTE_HOME"
+              ? ["RUMAH", "BENGKEL"]
+              : ["BENGKEL"]
+          }
           onSelectDestination={handleSelectDestination}
         />
       )}
 
       {/* Location 3 Modal: Workplace PC Workstation Minigames */}
       <OfficeWorkstationModal
+        key={session.dayNumber}
         isOpen={isWorkModalOpen}
         dayNumber={session.dayNumber}
         onComplete={handleCompleteOfficeWork}
