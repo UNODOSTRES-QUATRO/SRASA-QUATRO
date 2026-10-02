@@ -357,7 +357,7 @@ export function UnifiedCamera({
 
     // ── First Frame Initializer or Teleport Discontinuity Snap ───────────────
     const distToTarget = currentLookAt.current.distanceTo(desiredLookAt);
-    if (!isInitialized.current || distToTarget > 32) {
+    if (!isInitialized.current || distToTarget > 45) {
       currentPos.current.copy(desiredPos);
       currentLookAt.current.copy(desiredLookAt);
       camera.position.copy(desiredPos);
@@ -368,8 +368,8 @@ export function UnifiedCamera({
 
     // ── Exponential Smoothing (1 - exp(-lambda * dt)) ────────────────────────
     // Softer lambda during transitions for a cinematic crane glide, tight lambda during gameplay
-    const basePosLambda = mode === "DRIVING_COCKPIT" ? 28.0 : mode === "DRIVING_CHASE" ? 9.5 : 8.5;
-    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 26.0 : mode === "DRIVING_CHASE" ? 10.5 : 9.0;
+    const basePosLambda = mode === "DRIVING_CHASE" ? 9.5 : 8.5;
+    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 28.0 : mode === "DRIVING_CHASE" ? 10.5 : 9.0;
 
     const posLambda = THREE.MathUtils.lerp(basePosLambda, 5.0, transitionProgress.current);
     const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 5.5, transitionProgress.current);
@@ -377,7 +377,18 @@ export function UnifiedCamera({
     const posAlpha = 1.0 - Math.exp(-posLambda * dt);
     const lookAlpha = 1.0 - Math.exp(-lookLambda * dt);
 
-    currentPos.current.lerp(desiredPos, posAlpha);
+    if (mode === "DRIVING_COCKPIT") {
+      // Pin cockpit camera tightly to interior cabin with zero lag, smooth glide only during mode transition
+      if (transitionProgress.current <= 0.02) {
+        currentPos.current.copy(desiredPos);
+      } else {
+        const cockpitPosAlpha = 1.0 - Math.exp(-14.0 * dt);
+        currentPos.current.lerp(desiredPos, cockpitPosAlpha);
+      }
+    } else {
+      currentPos.current.lerp(desiredPos, posAlpha);
+    }
+
     currentLookAt.current.lerp(desiredLookAt, lookAlpha);
 
     camera.position.copy(currentPos.current);

@@ -12,6 +12,8 @@ import { QuatroMesh } from "../vehicle/QuatroMesh";
 import { VehicleState, CameraMode } from "../vehicle/vehicleTypes";
 import { AstralMonsterSystem } from "../character/AstralEntity";
 import { RumahState, WorkplaceState, KastilState } from "../core/gameStore";
+import { VoxelScenery } from "./VoxelScenery";
+import { TrafficCar } from "../vehicle/TrafficCar";
 
 interface UnifiedWorldProps {
   playerMode: "ON_FOOT" | "DRIVING";
@@ -265,6 +267,35 @@ export function UnifiedWorld({
           <meshStandardMaterial color="#111827" roughness={0.9} />
         </mesh>
       ))}
+
+      {/* Atmospheric Day-Reactive Roadside Voxel Trees & Lamps */}
+      <VoxelScenery dayNumber={dayNumber} />
+
+      {/* Ambient AI Traffic Cars Cruising Along Highway */}
+      <TrafficCar
+        laneX={-2.6}
+        startZ={45}
+        speed={8.5}
+        color="#2a4a7f"
+        direction={-1}
+        isVoidHighway={dayNumber === 3}
+      />
+      <TrafficCar
+        laneX={-2.6}
+        startZ={-15}
+        speed={9.0}
+        color="#4a7a3a"
+        direction={-1}
+        isVoidHighway={dayNumber === 3}
+      />
+      <TrafficCar
+        laneX={2.6}
+        startZ={-40}
+        speed={8.0}
+        color="#7a5a1a"
+        direction={1}
+        isVoidHighway={dayNumber === 3}
+      />
 
       {/* ========================================================
           2. LOCATION 1: COZY HOME (RUMAH) AT [X = 20, Z = -60]

@@ -5,63 +5,48 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 interface TrafficCarProps {
-  laneX: number;           // lane X position (-3.2, -1.0, 1.0, 3.2)
-  startZ: number;          // initial Z position in world (ahead of player)
-  speed: number;           // this car's base cruising speed (units/s)
+  laneX: number;           // lane X position
+  startZ: number;          // initial Z position in world
+  speed: number;           // base cruising speed
   color: string;
+  direction?: 1 | -1;      // 1: heading +Z (northbound), -1: heading -Z (southbound)
   isVoidHighway?: boolean;
 }
 
 /**
- * Simple AI traffic car that loops along the highway.
- * Gives the player cars to overtake and adds interstate vibe.
+ * Continuous world AI traffic car that cruises smoothly along the highway.
+ * Adds relaxing ambience to the open world drive.
  */
 export function TrafficCar({
   laneX,
   startZ,
   speed,
   color,
+  direction = -1,
   isVoidHighway = false,
 }: TrafficCarProps) {
   const groupRef = useRef<THREE.Group>(null);
   const zRef = useRef(startZ);
   const wheelRef = useRef(0);
-  const laneChangeTimer = useRef(Math.random() * 12 + 5); // seconds until next lane change
   const currentLane = useRef(laneX);
-  const targetLane = useRef(laneX);
-
-  // Available lanes (right-side drive, player in center)
-  const LANES = [-3.2, -1.0, 1.0, 3.2];
 
   useFrame((_, delta) => {
     if (!groupRef.current) return;
     const dt = Math.min(delta, 0.05);
 
-    // Move forward (scroll toward camera)
-    zRef.current -= speed * dt;
+    // Move along continuous highway in specified direction
+    zRef.current += speed * direction * dt;
     wheelRef.current += (speed / 0.32) * dt;
 
-    // Loop when too far behind camera
-    if (zRef.current < -60) {
-      zRef.current = 80 + Math.random() * 40;
+    // Loop within continuous road boundaries (Z = -82 to 118)
+    if (direction === -1 && zRef.current < -82) {
+      zRef.current = 118;
+    } else if (direction === 1 && zRef.current > 118) {
+      zRef.current = -82;
     }
-
-    // Occasional lane change
-    laneChangeTimer.current -= dt;
-    if (laneChangeTimer.current <= 0) {
-      const otherLanes = LANES.filter((l) => l !== currentLane.current);
-      targetLane.current = otherLanes[Math.floor(Math.random() * otherLanes.length)];
-      laneChangeTimer.current = Math.random() * 15 + 8;
-    }
-
-    // Smooth lane transition
-    currentLane.current = THREE.MathUtils.lerp(
-      currentLane.current,
-      targetLane.current,
-      Math.min(1, dt * 1.2)
-    );
 
     groupRef.current.position.set(currentLane.current, 0, zRef.current);
+    groupRef.current.rotation.y = direction === -1 ? Math.PI : 0;
   });
 
   const trimColor = "#1a1c22";
