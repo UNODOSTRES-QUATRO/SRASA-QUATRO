@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { WeaponId } from "../weapons/weaponTypes";
@@ -45,6 +45,17 @@ export function HumanPlayer({
   const rightArmRot = useRef(new THREE.Vector3(0.2, 0, 0));
   const leftArmRot = useRef(new THREE.Vector3(0, 0, 0));
   const weaponSocketRot = useRef(new THREE.Vector3(0.5, 0, 0));
+
+  useEffect(() => {
+    if (rootRef.current) {
+      const pos = humanPosRef?.current
+        ? [humanPosRef.current.x, humanPosRef.current.y, humanPosRef.current.z]
+        : position;
+      const head = humanPosRef?.current ? humanPosRef.current.heading : heading;
+      rootRef.current.position.set(pos[0], pos[1], pos[2]);
+      rootRef.current.rotation.y = head;
+    }
+  }, []);
 
   useFrame(({ clock }, delta) => {
     const dt = Math.min(delta, 0.05);
@@ -221,7 +232,7 @@ export function HumanPlayer({
   const currentWeaponId = (weaponSystemStateRef?.current?.activeWeaponId ?? activeWeaponId) as WeaponId;
 
   return (
-    <group ref={rootRef} position={position} rotation={[0, heading, 0]}>
+    <group ref={rootRef}>
       {/* SHADOW BLOB */}
       <mesh position={[0, 0.02, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.34, 16]} />

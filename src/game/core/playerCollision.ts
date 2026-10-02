@@ -193,3 +193,31 @@ export function resolvePlayerWorldPosition(
 
   return [x, desired[1], z];
 }
+
+export function resolveVehicleWorldPosition(
+  current: { x: number; y: number; z: number },
+  desired: { x: number; y: number; z: number },
+  radius = 1.15
+): { position: { x: number; y: number; z: number }; collided: boolean } {
+  let x = desired.x;
+  let z = current.z;
+  let collided = false;
+
+  const testX = (fp: Footprint) => overlapsFootprint(x, z, radius, fp);
+  if (WORLD_COLLISION_FOOTPRINTS.some(testX)) {
+    x = current.x;
+    collided = true;
+  }
+
+  z = desired.z;
+  const testZ = (fp: Footprint) => overlapsFootprint(x, z, radius, fp);
+  if (WORLD_COLLISION_FOOTPRINTS.some(testZ)) {
+    z = current.z;
+    collided = true;
+  }
+
+  return {
+    position: { x, y: desired.y, z },
+    collided,
+  };
+}

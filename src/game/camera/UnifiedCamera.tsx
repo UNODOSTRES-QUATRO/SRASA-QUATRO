@@ -153,6 +153,12 @@ export function UnifiedCamera({
 
       if (mode === "ON_FOOT") {
         orbitAzimuth.current = isNaN(currentAngle) ? liveHeading : currentAngle;
+        const currentDist = Math.hypot(dx, dz);
+        if (!isNaN(currentDist) && currentDist > 1.5) {
+          const clamped = THREE.MathUtils.clamp(currentDist, 4.0, 10.0);
+          orbitDistance.current = clamped;
+          targetOrbitDistance.current = clamped;
+        }
         pointerVel.current = { x: 0, y: 0 };
       } else if (mode === "DRIVING_CHASE") {
         if (!isNaN(currentAngle)) {
@@ -342,7 +348,7 @@ export function UnifiedCamera({
       perspCamera.fov = THREE.MathUtils.lerp(perspCamera.fov, targetFov, fovAlpha);
       perspCamera.updateProjectionMatrix();
     }
-  });
+  }, 1);
 
   return null;
 }

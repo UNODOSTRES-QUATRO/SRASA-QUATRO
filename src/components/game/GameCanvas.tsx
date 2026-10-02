@@ -10,7 +10,7 @@ import { RemoteVehicle } from "@/game/vehicle/RemoteVehicle";
 import { RemotePlayer } from "@/game/realtime/useGameRealtime";
 import { VehicleState, CameraMode } from "@/game/vehicle/vehicleTypes";
 import { updateVehiclePhysics } from "@/game/vehicle/vehiclePhysics";
-import { resolvePlayerWorldPosition } from "@/game/core/playerCollision";
+import { resolvePlayerWorldPosition, resolveVehicleWorldPosition } from "@/game/core/playerCollision";
 import { soundManager } from "@/game/audio/SoundManager";
 import { WeaponSystem3D } from "@/game/weapons/WeaponSystem";
 import type { WeaponSystemState } from "@/game/weapons/WeaponSystem";
@@ -125,9 +125,20 @@ function ContinuousWorldPhysics({
       const input = inputRef.current;
       const nextVehicle = updateVehiclePhysics(vehicleStateRef.current, input, dt);
 
+      const prevPos = vehicleStateRef.current.position;
+      const { position: resolvedPos, collided } = resolveVehicleWorldPosition(prevPos, nextVehicle.position, 1.15);
+
+      if (collided) {
+        nextVehicle.speed *= -0.25; // soft bounce deceleration
+        nextVehicle.lateralSpeed *= 0.5;
+        if (Math.abs(vehicleStateRef.current.speed) > 4.5) {
+          soundManager.playExhaustPop();
+        }
+      }
+
       // Clamp to continuous map boundaries
-      nextVehicle.position.x = THREE.MathUtils.clamp(nextVehicle.position.x, -28.0, 28.0);
-      nextVehicle.position.z = THREE.MathUtils.clamp(nextVehicle.position.z, -85.0, 225.0);
+      nextVehicle.position.x = THREE.MathUtils.clamp(resolvedPos.x, -28.0, 28.0);
+      nextVehicle.position.z = THREE.MathUtils.clamp(resolvedPos.z, -85.0, 225.0);
 
       vehicleStateRef.current = nextVehicle;
 
