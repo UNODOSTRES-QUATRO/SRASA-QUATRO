@@ -27,6 +27,7 @@ interface UnifiedWorldProps {
   isAttacking: boolean;
   activeWeaponId: string;
   weaponStateRef?: React.MutableRefObject<any>;
+  humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
 }
 
 export function UnifiedWorld({
@@ -43,6 +44,7 @@ export function UnifiedWorld({
   isAttacking,
   activeWeaponId,
   weaponStateRef,
+  humanPosRef,
 }: UnifiedWorldProps) {
   // Roadway parameters
   const roadLength = 340; // From Z = -100 to Z = 240
@@ -422,6 +424,7 @@ export function UnifiedWorld({
           ======================================================== */}
       <AstralMonsterSystem
         playerPos={humanPos}
+        humanPosRef={humanPosRef}
         isAttacking={isAttacking}
         weaponType={activeWeaponId}
         weaponStateRef={weaponStateRef}

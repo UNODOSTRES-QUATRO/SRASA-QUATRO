@@ -43,6 +43,7 @@ export class SoundManager {
   private currentMode: "DRIVING" | "WALKING" | "COMBAT" = "WALKING";
 
   public ensureAudioContext() {
+    if (typeof window === "undefined") return;
     if (!this.isInitialized) {
       this.init();
     }
@@ -52,6 +53,7 @@ export class SoundManager {
   }
 
   public init() {
+    if (typeof window === "undefined") return;
     if (this.isInitialized) {
       if (this.ctx && this.ctx.state === "suspended") {
         this.ctx.resume().catch(() => {});

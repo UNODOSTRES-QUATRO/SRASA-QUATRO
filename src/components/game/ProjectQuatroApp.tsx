@@ -35,6 +35,7 @@ import { VehicleState, CameraMode } from "@/game/vehicle/vehicleTypes";
 import { useGameRealtime } from "@/game/realtime/useGameRealtime";
 import { useWeaponSystem } from "@/game/weapons/WeaponSystem";
 import { WEAPON_ORDER } from "@/game/weapons/weaponTypes";
+import { resolvePlayerWorldPosition } from "@/game/core/playerCollision";
 
 export type PlayerMode = "ON_FOOT" | "DRIVING";
 
@@ -191,9 +192,14 @@ export default function ProjectQuatroApp() {
     // Door swings open smoothly
     car.doorAngle = 0.95;
 
-    // Dismount left of driver door safely within world bounds
-    const dismountX = THREE.MathUtils.clamp(car.position.x - Math.cos(car.heading) * 1.8, -26, 26);
-    const dismountZ = THREE.MathUtils.clamp(car.position.z + Math.sin(car.heading) * 1.8, -80, 220);
+    // Dismount left of driver door safely within world bounds and collision walls
+    const rawX = THREE.MathUtils.clamp(car.position.x - Math.cos(car.heading) * 1.8, -26, 26);
+    const rawZ = THREE.MathUtils.clamp(car.position.z + Math.sin(car.heading) * 1.8, -80, 220);
+    const [dismountX, , dismountZ] = resolvePlayerWorldPosition(
+      [car.position.x, 0, car.position.z],
+      [rawX, 0, rawZ],
+      0.35
+    );
     const dismountHeading = car.heading - Math.PI / 2;
 
     humanPosRef.current = {
@@ -787,6 +793,7 @@ export default function ProjectQuatroApp() {
             humanHeading={session.humanHeading}
             vehicleState={vehicleState}
             vehicleStateRef={vehicleStateRef}
+            humanPosRef={humanPosRef}
             dayNumber={session.dayNumber}
             rumahState={session.rumah}
             workplaceState={session.workplace}
@@ -818,6 +825,46 @@ export default function ProjectQuatroApp() {
           onNextWeapon={() => { weaponSystem.nextWeapon(); setWeaponHUDTick((t) => t + 1); }}
           onPrevWeapon={() => { weaponSystem.prevWeapon(); setWeaponHUDTick((t) => t + 1); }}
         />
+      )}
+
+      {/* Top Left: Ambient Synth & Menu HUD */}
+      {session.currentLocation !== "END_SCREEN" && (
+        <div className="fixed top-4 left-4 z-40 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.init();
+              soundManager.ensureAudioContext();
+              setSession((prev) => ({ ...prev, isAudioMuted: !prev.isAudioMuted }));
+            }}
+            className="flex items-center gap-2 border border-quatro-cream/20 bg-quatro-navy/85 px-3 py-2 text-quatro-cream shadow-xl backdrop-blur-md transition-all hover:bg-quatro-navy hover:border-quatro-amber active:scale-95"
+            title={session.isAudioMuted ? "Unmute Ambient Audio" : "Mute Audio"}
+          >
+            {session.isAudioMuted ? (
+              <span className="text-red-400 font-mono text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+                🔇 Audio Off
+              </span>
+            ) : (
+              <span className="text-quatro-amber font-mono text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+                <span className="flex items-end gap-0.5 h-3">
+                  <span className="w-0.5 bg-quatro-amber h-1.5 animate-pulse" />
+                  <span className="w-0.5 bg-quatro-amber h-3 animate-pulse delay-75" />
+                  <span className="w-0.5 bg-quatro-amber h-2 animate-pulse delay-150" />
+                </span>
+                Synthwave Lo-fi
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSession((prev) => ({ ...prev, isPaused: !prev.isPaused }))}
+            className="border border-quatro-cream/20 bg-quatro-navy/85 px-2.5 py-2 text-[10px] font-mono uppercase tracking-wider text-quatro-cream/70 shadow-xl backdrop-blur-md transition-all hover:bg-quatro-navy hover:text-quatro-cream active:scale-95"
+            title="Pause [Esc]"
+          >
+            Esc · Menu
+          </button>
+        </div>
       )}
 
       {/* Global Quest Banner */}

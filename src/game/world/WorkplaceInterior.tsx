@@ -54,11 +54,47 @@ export function WorkplaceInterior({
         <meshStandardMaterial color={wallColor} roughness={0.8} />
       </mesh>
 
-      {/* Left Wall (X = -7) */}
-      <mesh position={[-7, 2.0, 0]} receiveShadow>
-        <boxGeometry args={[0.2, 4.0, 14]} />
+      {/* Left Wall (X = -7, facing Parking Lot & Highway) with Grand Glass Entrance */}
+      {/* North section of West wall */}
+      <mesh position={[-7, 2.0, -4.25]} receiveShadow>
+        <boxGeometry args={[0.2, 4.0, 5.5]} />
         <meshStandardMaterial color={wallColor} roughness={0.8} />
       </mesh>
+      {/* South section of West wall */}
+      <mesh position={[-7, 2.0, 4.25]} receiveShadow>
+        <boxGeometry args={[0.2, 4.0, 5.5]} />
+        <meshStandardMaterial color={wallColor} roughness={0.8} />
+      </mesh>
+      {/* Header above entrance door */}
+      <mesh position={[-7, 3.4, 0]} receiveShadow>
+        <boxGeometry args={[0.2, 1.2, 3.0]} />
+        <meshStandardMaterial color={wallColor} roughness={0.8} />
+      </mesh>
+      {/* West Parking Entrance Glass Doors (parted open for seamless entry from parking lot) */}
+      <group position={[-7, 1.4, 0]}>
+        <mesh position={[0, 1.4, 0]}>
+          <boxGeometry args={[0.15, 0.15, 3.0]} />
+          <meshStandardMaterial color="#1e293b" metalness={0.8} />
+        </mesh>
+        <mesh position={[0, 0, -1.05]} castShadow>
+          <boxGeometry args={[0.04, 2.65, 0.85]} />
+          <meshStandardMaterial color="#38bdf8" transparent opacity={0.35} roughness={0.1} />
+        </mesh>
+        <mesh position={[0, 0, 1.05]} castShadow>
+          <boxGeometry args={[0.04, 2.65, 0.85]} />
+          <meshStandardMaterial color="#38bdf8" transparent opacity={0.35} roughness={0.1} />
+        </mesh>
+        {/* Entrance Sign facing Parking Lot */}
+        <mesh position={[-0.12, 1.55, 0]}>
+          <boxGeometry args={[0.04, 0.24, 1.6]} />
+          <meshStandardMaterial color="#0284c7" emissive="#38bdf8" emissiveIntensity={2.0} />
+        </mesh>
+        {/* Welcome Entry Rug */}
+        <mesh position={[0.4, -1.38, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[1.6, 2.4]} />
+          <meshStandardMaterial color="#1e293b" roughness={0.9} />
+        </mesh>
+      </group>
 
       {/* Right Wall (X = 7) */}
       <mesh position={[7, 2.0, 0]} receiveShadow>

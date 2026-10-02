@@ -153,7 +153,8 @@ export const WORLD_COLLISION_FOOTPRINTS: Footprint[] = [
 
   // ── 3. TECH WORKPLACE AT [18, 0, 70] ──
   { minX: 11.0, maxX: 25.0, minZ: 62.8, maxZ: 63.2 },
-  { minX: 10.8, maxX: 11.2, minZ: 63.0, maxZ: 77.0 },
+  { minX: 10.8, maxX: 11.2, minZ: 63.0, maxZ: 68.5 }, // West wall north of entrance
+  { minX: 10.8, maxX: 11.2, minZ: 71.5, maxZ: 77.0 }, // West wall south of entrance
   { minX: 24.8, maxX: 25.2, minZ: 63.0, maxZ: 77.0 },
   { minX: 11.0, maxX: 17.0, minZ: 76.8, maxZ: 77.2 },
   { minX: 19.0, maxX: 25.0, minZ: 76.8, maxZ: 77.2 },

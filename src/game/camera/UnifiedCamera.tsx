@@ -257,10 +257,13 @@ export function UnifiedCamera({
       );
 
       const lookDist = 18;
+      const lookOffsetLateral = steerSway * 3.5;
+      const rotLookX = Math.sin(smoothedHeading.current) * lookDist + Math.cos(smoothedHeading.current) * lookOffsetLateral;
+      const rotLookZ = Math.cos(smoothedHeading.current) * lookDist - Math.sin(smoothedHeading.current) * lookOffsetLateral;
       desiredLookAt.set(
-        liveTargetPos[0] + Math.sin(smoothedHeading.current) * lookDist + steerSway * 3,
+        liveTargetPos[0] + rotLookX,
         liveTargetPos[1] + 0.9,
-        liveTargetPos[2] + Math.cos(smoothedHeading.current) * lookDist
+        liveTargetPos[2] + rotLookZ
       );
 
       targetFov = 62 + speedRatio * 7;

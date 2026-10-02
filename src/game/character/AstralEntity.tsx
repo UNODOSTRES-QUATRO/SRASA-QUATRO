@@ -26,6 +26,7 @@ interface AstralMonsterSystemProps {
   weaponType?: string;
   weaponStateRef?: React.MutableRefObject<WeaponSystemState>;
   onMonsterDefeated?: (monster: AstralMonsterData) => void;
+  humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
 }
 
 export function AstralMonsterSystem({
@@ -34,6 +35,7 @@ export function AstralMonsterSystem({
   weaponType = "BLUE_SHARD_SWORD",
   weaponStateRef,
   onMonsterDefeated,
+  humanPosRef,
 }: AstralMonsterSystemProps) {
   // Peaceful wandering astral entities along outskirts, cyber alley, and fields
   const [monsters, setMonsters] = useState<AstralMonsterData[]>([
@@ -194,7 +196,10 @@ export function AstralMonsterSystem({
   };
 
   const handleMeleeHitCheck = (monsterId: string, monsterPos: THREE.Vector3) => {
-    const playerVec = new THREE.Vector3(playerPos[0], playerPos[1] + 1.0, playerPos[2]);
+    const px = humanPosRef?.current?.x ?? playerPos[0];
+    const py = humanPosRef?.current?.y ?? playerPos[1];
+    const pz = humanPosRef?.current?.z ?? playerPos[2];
+    const playerVec = new THREE.Vector3(px, py + 1.0, pz);
     const dist = monsterPos.distanceTo(playerVec);
 
     // Melee range
@@ -241,6 +246,7 @@ export function AstralMonsterSystem({
           key={m.id}
           data={m}
           playerPos={playerPos}
+          humanPosRef={humanPosRef}
           isPlayerAttacking={isAttacking}
           weaponStateRef={weaponStateRef}
           onHitCheck={handleMeleeHitCheck}
@@ -254,6 +260,7 @@ export function AstralMonsterSystem({
 function SingleAstralEntity({
   data,
   playerPos,
+  humanPosRef,
   isPlayerAttacking,
   weaponStateRef,
   onHitCheck,
@@ -261,6 +268,7 @@ function SingleAstralEntity({
 }: {
   data: AstralMonsterData;
   playerPos: [number, number, number];
+  humanPosRef?: React.MutableRefObject<{ x: number; y: number; z: number; heading: number }>;
   isPlayerAttacking: boolean;
   weaponStateRef?: React.MutableRefObject<WeaponSystemState>;
   onHitCheck: (id: string, pos: THREE.Vector3) => void;
@@ -343,9 +351,11 @@ function SingleAstralEntity({
     currentPos.current.set(wanderX + shudderX, hoverY + shudderY, wanderZ);
 
     if (rootRef.current) {
-      // Soft orientation towards player if nearby
-      const dx = playerPos[0] - wanderX;
-      const dz = playerPos[2] - wanderZ;
+      // Soft orientation towards player if nearby (60+ FPS real-time tracking)
+      const px = humanPosRef?.current?.x ?? playerPos[0];
+      const pz = humanPosRef?.current?.z ?? playerPos[2];
+      const dx = px - wanderX;
+      const dz = pz - wanderZ;
       const distToPlayer = Math.hypot(dx, dz);
 
       if (distToPlayer < 14) {
