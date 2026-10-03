@@ -224,6 +224,7 @@ export default function ProjectQuatroApp() {
   useEffect(() => {
     const handleFirstInteraction = () => {
       soundManager.init();
+      soundManager.resumeAudio();
       soundManager.setMode(playerModeRef.current === "DRIVING" ? "DRIVING" : "WALKING");
       window.removeEventListener("keydown", handleFirstInteraction);
       window.removeEventListener("click", handleFirstInteraction);

@@ -58,6 +58,17 @@ export class SoundManager {
     }
   }
 
+  public resumeAudio() {
+    this.ensureAudioContext();
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume().then(() => {
+        if (this.activeVoices.length === 0) {
+          this.playNextPadChord();
+        }
+      }).catch(() => {});
+    }
+  }
+
   public init() {
     if (typeof window === "undefined") return;
     if (this.isInitialized) {

@@ -397,8 +397,9 @@ export function UnifiedCamera({
 
     // ── Exponential Smoothing (1 - exp(-lambda * dt)) ────────────────────────
     // High-performance lambdas eliminate rubber-banding and micro-stutter while keeping buttery rotational flow
-    const basePosLambda = mode === "DRIVING_CHASE" ? 18.0 : 15.0;
-    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 28.0 : mode === "DRIVING_CHASE" ? 14.0 : 18.0;
+    const isDragging = pointer.current.dragging;
+    const basePosLambda = mode === "DRIVING_CHASE" ? 18.0 : isDragging ? 34.0 : 16.0;
+    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 28.0 : mode === "DRIVING_CHASE" ? 14.0 : isDragging ? 34.0 : 18.0;
 
     const posLambda = THREE.MathUtils.lerp(basePosLambda, 6.0, transitionProgress.current);
     const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 7.0, transitionProgress.current);

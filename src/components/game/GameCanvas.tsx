@@ -173,7 +173,7 @@ function ContinuousWorldPhysics({
         lastSyncTime.current = now;
       }
     }
-  }, 0);
+  }, -1);
 
   return null;
 }
