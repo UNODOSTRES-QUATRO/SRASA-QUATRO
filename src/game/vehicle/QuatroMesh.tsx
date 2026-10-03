@@ -196,10 +196,11 @@ export function QuatroMesh({
 
     // ── Drift Tire Smoke & Friction Dynamics ─────────────────────────────────
     if (driftSmokeRef.current) {
-      if ((live.driftFactor ?? 0) > 0.10 && Math.abs(live.speed) > 2.0) {
+      if ((live.driftFactor ?? 0) > 0.08 && Math.abs(live.speed) > 2.0) {
         driftSmokeRef.current.visible = true;
-        const s = THREE.MathUtils.lerp(0.85, 2.0, live.driftFactor ?? 0);
-        driftSmokeRef.current.scale.set(s, s, s);
+        const billow = Math.sin(state.clock.getElapsedTime() * 18) * 0.12;
+        const s = THREE.MathUtils.lerp(0.85, 2.0, live.driftFactor ?? 0) + billow;
+        driftSmokeRef.current.scale.set(s, s * 0.8, s * 1.1);
       } else {
         driftSmokeRef.current.visible = false;
       }
@@ -518,8 +519,8 @@ export function QuatroMesh({
             <meshStandardMaterial color="#0f172a" roughness={0.8} />
           </mesh>
 
-          {/* Driver Silhouette (Visible through windows in chase/foot mode) */}
-          {!isCockpit && (
+          {/* Driver Silhouette (Visible inside car only when driving in chase mode) */}
+          {playerMode === "DRIVING" && !isCockpit && (
             <>
               <mesh position={[0, 0.28, -0.02]} rotation={[0.15, 0, 0]} castShadow>
                 <boxGeometry args={[0.32, 0.4, 0.2]} />
@@ -533,17 +534,17 @@ export function QuatroMesh({
                 <boxGeometry args={[0.22, 0.1, 0.22]} />
                 <meshStandardMaterial color="#4a2c11" roughness={0.9} />
               </mesh>
+              {/* Hands holding steering wheel */}
+              <mesh position={[-0.12, 0.26, 0.16]} rotation={[0.45, 0.2, 0]}>
+                <boxGeometry args={[0.07, 0.07, 0.26]} />
+                <meshStandardMaterial color="#2c7a7b" roughness={0.7} />
+              </mesh>
+              <mesh position={[0.12, 0.26, 0.16]} rotation={[0.45, -0.2, 0]}>
+                <boxGeometry args={[0.07, 0.07, 0.26]} />
+                <meshStandardMaterial color="#2c7a7b" roughness={0.7} />
+              </mesh>
             </>
           )}
-          {/* Hands holding steering wheel */}
-          <mesh position={[-0.12, 0.26, 0.16]} rotation={[0.45, 0.2, 0]}>
-            <boxGeometry args={[0.07, 0.07, 0.26]} />
-            <meshStandardMaterial color="#2c7a7b" roughness={0.7} />
-          </mesh>
-          <mesh position={[0.12, 0.26, 0.16]} rotation={[0.45, -0.2, 0]}>
-            <boxGeometry args={[0.07, 0.07, 0.26]} />
-            <meshStandardMaterial color="#2c7a7b" roughness={0.7} />
-          </mesh>
         </group>
 
         <SemicolonCat position={[0.35, 0.64, -0.1]} isAlert={isCatAlert} />

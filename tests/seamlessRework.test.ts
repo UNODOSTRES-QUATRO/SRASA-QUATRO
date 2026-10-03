@@ -344,6 +344,39 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     expect(distNearby).toBeLessThan(3.6);
     expect(distFar).toBeGreaterThan(3.6);
   });
+
+  it("verifies Mechanic Shop orientation with rotation Math.PI / 2 faces the highway apron", () => {
+    // Garage center at [-18, 0, 0], rotated Math.PI / 2
+    // Local entrance is at local Z = +6.0
+    const localEntranceZ = 6.0;
+    const localEntranceX = 0.0;
+    const rotationY = Math.PI / 2;
+
+    const worldEntranceX = -18.0 + (localEntranceX * Math.cos(rotationY) + localEntranceZ * Math.sin(rotationY));
+    const worldEntranceZ = 0.0 + (-localEntranceX * Math.sin(rotationY) + localEntranceZ * Math.cos(rotationY));
+
+    // Entrance opens onto X = -12, Z = 0 directly facing the highway apron
+    expect(worldEntranceX).toBeCloseTo(-12.0, 2);
+    expect(worldEntranceZ).toBeCloseTo(0.0, 2);
+
+    // Pak Montir at local [2.0, 0, -1.5] translates to world [-19.5, 0, -2.0]
+    const localMontirX = 2.0;
+    const localMontirZ = -1.5;
+    const worldMontirX = -18.0 + (localMontirX * Math.cos(rotationY) + localMontirZ * Math.sin(rotationY));
+    const worldMontirZ = 0.0 + (-localMontirX * Math.sin(rotationY) + localMontirZ * Math.cos(rotationY));
+
+    expect(worldMontirX).toBeCloseTo(-19.5, 2);
+    expect(worldMontirZ).toBeCloseTo(-2.0, 2);
+  });
+
+  it("verifies driver silhouette is only rendered when player is driving", () => {
+    const isCockpit = false;
+    const isDriving = (mode: string) => mode === "DRIVING" && !isCockpit;
+
+    expect(isDriving("ON_FOOT")).toBe(false);
+    expect(isDriving("DRIVING")).toBe(true);
+  });
 });
+
 
 

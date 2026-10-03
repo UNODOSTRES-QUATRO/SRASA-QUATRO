@@ -8,6 +8,7 @@ interface WeaponHUDProps {
   isAttacking: boolean;
   onNextWeapon: () => void;
   onPrevWeapon: () => void;
+  onSelectWeapon?: (index: number) => void;
 }
 
 /**
@@ -20,25 +21,29 @@ export function WeaponHUD({
   isAttacking,
   onNextWeapon,
   onPrevWeapon,
+  onSelectWeapon,
 }: WeaponHUDProps) {
   const def = WEAPON_DEFS[activeWeaponId];
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-40 z-30 flex flex-col items-end gap-2">
+    <div className="pointer-events-none fixed bottom-5 right-32 z-30 flex flex-col items-end gap-2">
       {/* Weapon slots */}
       <div className="flex gap-1.5 items-end">
         {WEAPON_ORDER.map((wId, i) => {
           const w = WEAPON_DEFS[wId];
           const isActive = wId === activeWeaponId;
           return (
-            <div
+            <button
               key={wId}
-              className={`flex flex-col items-center gap-0.5 transition-all duration-150 ${
-                isActive ? "scale-110" : "scale-90 opacity-50"
+              type="button"
+              onClick={() => onSelectWeapon?.(i)}
+              className={`pointer-events-auto flex flex-col items-center gap-0.5 transition-all duration-150 cursor-pointer ${
+                isActive ? "scale-110" : "scale-90 opacity-60 hover:opacity-100 hover:scale-95"
               }`}
+              title={`${w.name} [${i + 1}]`}
             >
               <div
-                className="w-9 h-9 flex items-center justify-center text-xl border"
+                className="w-9 h-9 flex items-center justify-center text-xl border rounded-sm"
                 style={{
                   borderColor: isActive ? w.color : "rgba(255,255,255,0.15)",
                   background: isActive
@@ -49,10 +54,10 @@ export function WeaponHUD({
               >
                 {w.emoji}
               </div>
-              <span className="font-mono text-[8px] text-white/40 uppercase tracking-wider">
+              <span className="font-mono text-[8px] text-white/50 uppercase tracking-wider">
                 {i + 1}
               </span>
-            </div>
+            </button>
           );
         })}
       </div>

@@ -144,7 +144,7 @@ export function UnifiedCamera({
 
   useFrame((state, delta) => {
     // Decouple delta to eliminate micro-stutters: sub-frame clamped
-    const dt = Math.min(delta, 0.05);
+    const dt = Math.min(delta, 0.0333);
 
     const liveVehicle = vehicleStateRef?.current ?? vehicleState;
     const liveTargetPos: [number, number, number] = mode === "ON_FOOT"
@@ -229,7 +229,8 @@ export function UnifiedCamera({
         liveTargetPos[2] - Math.cos(panAngle) * distance
       );
 
-      const lookAheadDist = isPocket ? 0.8 : 2.8;
+      const isReversing = (speed || 0) < -0.2;
+      const lookAheadDist = (isPocket ? 0.8 : 2.8) * (isReversing ? -0.4 : 1.0);
       desiredLookAt.set(
         liveTargetPos[0] + Math.sin(smoothedHeading.current) * lookAheadDist,
         liveTargetPos[1] + 0.65,
@@ -430,7 +431,7 @@ export function UnifiedCamera({
         perspCamera.updateProjectionMatrix();
       }
     }
-  });
+  }, 1);
 
   return null;
 }

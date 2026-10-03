@@ -176,7 +176,7 @@ export function AstralMonsterSystem({
     lastHitTimeRef.current = now;
     soundManager.playHarmonicChime();
 
-    const usedWeapon = specificWeapon || weaponType;
+    const usedWeapon = specificWeapon || weaponStateRef?.current?.activeWeaponId || weaponType;
     const damage =
       usedWeapon === "RPG"
         ? 75

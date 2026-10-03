@@ -46,7 +46,7 @@ function ContinuousWorldPhysics({
 
   useFrame((_, delta) => {
     if (isPaused) return;
-    const dt = Math.min(delta, 0.05);
+    const dt = Math.min(delta, 0.0333);
 
     if (playerMode === "ON_FOOT" && humanPosRef?.current && humanVelocityRef?.current && inputRef?.current) {
       const input = inputRef.current;
@@ -172,7 +172,7 @@ function ContinuousWorldPhysics({
         lastSyncTime.current = now;
       }
     }
-  });
+  }, 0);
 
   return null;
 }

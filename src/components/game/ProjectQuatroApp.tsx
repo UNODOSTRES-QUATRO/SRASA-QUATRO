@@ -971,6 +971,17 @@ export default function ProjectQuatroApp() {
           isAttacking={isAttackingRef.current}
           onNextWeapon={() => { weaponSystem.nextWeapon(); setWeaponHUDTick((t) => t + 1); }}
           onPrevWeapon={() => { weaponSystem.prevWeapon(); setWeaponHUDTick((t) => t + 1); }}
+          onSelectWeapon={(idx) => {
+            const ws = weaponSystem.stateRef.current;
+            weaponSystem.stateRef.current = {
+              ...ws,
+              activeWeaponIndex: idx,
+              activeWeaponId: WEAPON_ORDER[idx],
+              activeAttack: null,
+              chargeLevel: 0,
+            };
+            setWeaponHUDTick((t) => t + 1);
+          }}
         />
       )}
 

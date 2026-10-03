@@ -366,7 +366,7 @@ export function UnifiedWorld({
       </group>
 
       {/* Mechanic Shop Interior & Pak Montir */}
-      <group position={[-18, 0, 0]} rotation={[0, -Math.PI / 2, 0]}>
+      <group position={[-18, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
         <MechanicShopScene playerPos={humanPos} />
       </group>
 
