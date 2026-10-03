@@ -205,6 +205,8 @@ interface WeaponSystemState {
   projectiles: Projectile[];
   hitEffects: HitEffect[];
   chargeLevel: number;
+  comboIndex: number;
+  lastAttackTime: number;
 }
 
 let _projectileCounter = 0;
@@ -217,6 +219,8 @@ export function useWeaponSystem() {
     projectiles: [],
     hitEffects: [],
     chargeLevel: 0,
+    comboIndex: 0,
+    lastAttackTime: 0,
   });
 
   const nextWeapon = useCallback(() => {
@@ -228,6 +232,7 @@ export function useWeaponSystem() {
       activeWeaponId: WEAPON_ORDER[next],
       activeAttack: null,
       chargeLevel: 0,
+      comboIndex: 0,
     };
   }, []);
 
@@ -240,13 +245,20 @@ export function useWeaponSystem() {
       activeWeaponId: WEAPON_ORDER[prev],
       activeAttack: null,
       chargeLevel: 0,
+      comboIndex: 0,
     };
   }, []);
 
   const startAttack = useCallback((playerPos: [number, number, number], playerHeading: number) => {
     const s = stateRef.current;
     const def = WEAPON_DEFS[s.activeWeaponId];
-    if (s.activeAttack && s.activeAttack.progress < 0.9) return; // Busy
+    const now = performance.now();
+
+    // Responsive combo buffering for Katana (can cancel after 40% progress into next hit)
+    const minProgress = s.activeWeaponId === "BLUE_SHARD_SWORD" ? 0.38 : 0.85;
+    if (s.activeAttack && !s.activeAttack.isCharging && s.activeAttack.progress < minProgress) {
+      return;
+    }
 
     if (def.type === "CHARGE") {
       // Start charging
@@ -261,17 +273,24 @@ export function useWeaponSystem() {
           chargeLevel: s.chargeLevel,
           isCharging: true,
         },
+        lastAttackTime: now,
       };
     } else {
-      // Instant attack SFX
-      if (s.activeWeaponId === "BLUE_SHARD_SWORD" || s.activeWeaponId === "SCYTHE") {
-        soundManager.playSwordSlash();
+      let comboIndex = 0;
+      if (s.activeWeaponId === "BLUE_SHARD_SWORD") {
+        const isChained = now - s.lastAttackTime < 750 && (s.activeAttack ? s.activeAttack.progress >= 0.35 : true);
+        comboIndex = isChained ? (s.comboIndex + 1) % 3 : 0;
+        soundManager.playSwordSlash(comboIndex);
+      } else if (s.activeWeaponId === "SCYTHE") {
+        soundManager.playSwordSlash(0);
       }
+
       const newAttack: ActiveAttack = {
         weaponId: s.activeWeaponId,
         progress: 0,
         chargeLevel: 1.0,
         isCharging: false,
+        comboIndex,
       };
 
       // Spawn projectiles for ranged

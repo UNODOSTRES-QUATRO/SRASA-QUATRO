@@ -109,6 +109,7 @@ export interface ActiveAttack {
   progress: number;
   chargeLevel: number; // 0..1 for charge weapons
   isCharging: boolean;
+  comboIndex?: number; // 0, 1, 2 for fluid combos
 }
 
 export interface Projectile {

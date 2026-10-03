@@ -108,7 +108,7 @@ export function HumanPlayer({
 
     if (liveIsAttacking) {
       if (liveWeaponId === "BLUE_SHARD_SWORD") {
-        // Multi-phase dynamic cutting stroke (windup -> swift cutting arc -> ease-out follow-through)
+        const combo = liveAttack?.comboIndex ?? 0;
         let armX: number;
         let armY: number;
         let armZ: number;
@@ -116,38 +116,77 @@ export function HumanPlayer({
         let wY: number;
         let wZ: number;
 
-        if (liveProgress < 0.22) {
-          // Phase 1: High coiled windup (raising blade up to right shoulder)
-          const p = liveProgress / 0.22;
-          armX = THREE.MathUtils.lerp(0.2, -1.1, p);
-          armY = THREE.MathUtils.lerp(-0.12, -0.5, p);
-          armZ = THREE.MathUtils.lerp(0.1, 0.45, p);
-          wX = THREE.MathUtils.lerp(0.55, -0.4, p);
-          wY = THREE.MathUtils.lerp(0.1, 0.35, p);
-          wZ = THREE.MathUtils.lerp(-0.15, -0.5, p);
-        } else if (liveProgress < 0.72) {
-          // Phase 2: High-speed cutting slash diagonally downward across torso
-          const p = (liveProgress - 0.22) / 0.50;
-          const easeSwing = Math.sin(p * Math.PI * 0.5); // fast start, accelerating through contact
-          armX = THREE.MathUtils.lerp(-1.1, 1.25, easeSwing);
-          armY = THREE.MathUtils.lerp(-0.5, 0.65, easeSwing);
-          armZ = THREE.MathUtils.lerp(0.45, -0.35, easeSwing);
-          wX = THREE.MathUtils.lerp(-0.4, 0.85, easeSwing);
-          wY = THREE.MathUtils.lerp(0.35, -0.65, easeSwing);
-          wZ = THREE.MathUtils.lerp(-0.5, 0.4, easeSwing);
+        if (combo === 0) {
+          // Combo 1: Downward diagonal cutting stroke (right shoulder to left hip)
+          if (liveProgress < 0.22) {
+            const p = liveProgress / 0.22;
+            armX = THREE.MathUtils.lerp(0.2, -1.1, p);
+            armY = THREE.MathUtils.lerp(-0.12, -0.5, p);
+            armZ = THREE.MathUtils.lerp(0.1, 0.45, p);
+            wX = THREE.MathUtils.lerp(0.55, -0.4, p);
+            wY = THREE.MathUtils.lerp(0.1, 0.35, p);
+            wZ = THREE.MathUtils.lerp(-0.15, -0.5, p);
+          } else if (liveProgress < 0.72) {
+            const p = (liveProgress - 0.22) / 0.50;
+            const easeSwing = Math.sin(p * Math.PI * 0.5);
+            armX = THREE.MathUtils.lerp(-1.1, 1.25, easeSwing);
+            armY = THREE.MathUtils.lerp(-0.5, 0.65, easeSwing);
+            armZ = THREE.MathUtils.lerp(0.45, -0.35, easeSwing);
+            wX = THREE.MathUtils.lerp(-0.4, 0.85, easeSwing);
+            wY = THREE.MathUtils.lerp(0.35, -0.65, easeSwing);
+            wZ = THREE.MathUtils.lerp(-0.5, 0.4, easeSwing);
+          } else {
+            const p = (liveProgress - 0.72) / 0.28;
+            armX = THREE.MathUtils.lerp(1.25, 0.2, p);
+            armY = THREE.MathUtils.lerp(0.65, -0.12, p);
+            armZ = THREE.MathUtils.lerp(-0.35, 0.1, p);
+            wX = THREE.MathUtils.lerp(0.85, 0.55, p);
+            wY = THREE.MathUtils.lerp(-0.65, 0.1, p);
+            wZ = THREE.MathUtils.lerp(0.4, -0.15, p);
+          }
+          targetLeftArm.set(0.15, 0.25, -0.15);
+        } else if (combo === 1) {
+          // Combo 2: Swift upward diagonal backhand slice (left hip slicing up towards right)
+          if (liveProgress < 0.20) {
+            const p = liveProgress / 0.20;
+            armX = THREE.MathUtils.lerp(0.2, 0.95, p);
+            armY = THREE.MathUtils.lerp(-0.12, 0.55, p);
+            armZ = THREE.MathUtils.lerp(0.1, -0.35, p);
+            wX = THREE.MathUtils.lerp(0.55, 0.8, p);
+            wY = THREE.MathUtils.lerp(0.1, -0.5, p);
+            wZ = THREE.MathUtils.lerp(-0.15, 0.35, p);
+          } else if (liveProgress < 0.68) {
+            const p = (liveProgress - 0.20) / 0.48;
+            const easeSwing = Math.sin(p * Math.PI * 0.5);
+            armX = THREE.MathUtils.lerp(0.95, -1.35, easeSwing);
+            armY = THREE.MathUtils.lerp(0.55, -0.45, easeSwing);
+            armZ = THREE.MathUtils.lerp(-0.35, 0.5, easeSwing);
+            wX = THREE.MathUtils.lerp(0.8, -0.55, easeSwing);
+            wY = THREE.MathUtils.lerp(-0.5, 0.4, easeSwing);
+            wZ = THREE.MathUtils.lerp(0.35, -0.45, easeSwing);
+          } else {
+            const p = (liveProgress - 0.68) / 0.32;
+            armX = THREE.MathUtils.lerp(-1.35, 0.2, p);
+            armY = THREE.MathUtils.lerp(-0.45, -0.12, p);
+            armZ = THREE.MathUtils.lerp(0.5, 0.1, p);
+            wX = THREE.MathUtils.lerp(-0.55, 0.55, p);
+            wY = THREE.MathUtils.lerp(0.4, 0.1, p);
+            wZ = THREE.MathUtils.lerp(-0.45, -0.15, p);
+          }
+          targetLeftArm.set(-0.25, 0.15, 0.2);
         } else {
-          // Phase 3: Deceleration, follow-through & return to guard
-          const p = (liveProgress - 0.72) / 0.28;
-          armX = THREE.MathUtils.lerp(1.25, 0.2, p);
-          armY = THREE.MathUtils.lerp(0.65, -0.12, p);
-          armZ = THREE.MathUtils.lerp(-0.35, 0.1, p);
-          wX = THREE.MathUtils.lerp(0.85, 0.55, p);
-          wY = THREE.MathUtils.lerp(-0.65, 0.1, p);
-          wZ = THREE.MathUtils.lerp(0.4, -0.15, p);
+          // Combo 3: Broad 360-degree spinning crescent finisher
+          const p = Math.sin(liveProgress * Math.PI);
+          armX = -1.45 + p * 0.25;
+          armY = -0.15 + (liveProgress - 0.5) * 2.8;
+          armZ = 0.25 - p * 0.5;
+          wX = -0.15 + p * 0.3;
+          wY = 0.1;
+          wZ = -0.25;
+          targetLeftArm.set(-1.25, 0.45 - (liveProgress - 0.5) * 2.0, 0.2);
         }
 
         targetRightArm.set(armX, armY, armZ);
-        targetLeftArm.set(0.15, 0.25, -0.15); // Left arm balances natural swing
         targetWeapon.set(wX, wY, wZ);
       } else if (liveWeaponId === "BOW") {
         // Left arm extends bow forward, right arm draws string back
@@ -234,11 +273,23 @@ export function HumanPlayer({
 
     // ── 5. Dynamic Slash Energy Ribbon ──
     if (slashRibbonRef.current) {
-      if (liveIsAttacking && liveWeaponId === "BLUE_SHARD_SWORD" && liveProgress >= 0.20 && liveProgress <= 0.75) {
+      if (liveIsAttacking && liveWeaponId === "BLUE_SHARD_SWORD" && liveProgress >= 0.18 && liveProgress <= 0.80) {
         slashRibbonRef.current.visible = true;
-        const slashP = (liveProgress - 0.20) / 0.55;
-        slashRibbonRef.current.rotation.set(0.35 + slashP * 0.35, -slashP * 0.9, -0.65 + slashP * 1.4);
-        slashRibbonRef.current.scale.set(0.85 + slashP * 0.45, 0.85 + slashP * 0.45, 1.0);
+        const combo = liveAttack?.comboIndex ?? 0;
+        const slashP = (liveProgress - 0.18) / 0.62;
+        if (combo === 0) {
+          slashRibbonRef.current.position.set(0.38, 1.05, 0.65);
+          slashRibbonRef.current.rotation.set(0.35 + slashP * 0.35, -slashP * 0.9, -0.65 + slashP * 1.4);
+          slashRibbonRef.current.scale.set(0.85 + slashP * 0.45, 0.85 + slashP * 0.45, 1.0);
+        } else if (combo === 1) {
+          slashRibbonRef.current.position.set(-0.35, 1.0, 0.65);
+          slashRibbonRef.current.rotation.set(-0.35 - slashP * 0.35, slashP * 0.9, 0.65 - slashP * 1.4);
+          slashRibbonRef.current.scale.set(0.85 + slashP * 0.45, 0.85 + slashP * 0.45, 1.0);
+        } else {
+          slashRibbonRef.current.position.set(0, 1.05, 0.55);
+          slashRibbonRef.current.rotation.set(Math.PI / 2, 0, slashP * Math.PI * 2);
+          slashRibbonRef.current.scale.set(1.25 + slashP * 0.35, 1.25 + slashP * 0.35, 1.2);
+        }
         (slashRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = Math.sin(slashP * Math.PI) * 0.95;
       } else {
         slashRibbonRef.current.visible = false;

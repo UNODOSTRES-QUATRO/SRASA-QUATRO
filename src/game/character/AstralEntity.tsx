@@ -314,6 +314,7 @@ function SingleAstralEntity({
   const shadowTailRef = useRef<THREE.Group>(null);
   const defeatBloomRef = useRef<THREE.Group>(null);
   const rippleRingRef = useRef<THREE.Mesh>(null);
+  const motesGroupRef = useRef<THREE.Group>(null);
 
   const prevHpRef = useRef(data.hp);
   const hitShudderRef = useRef(0);
@@ -368,6 +369,7 @@ function SingleAstralEntity({
       if (leftWingRef.current) leftWingRef.current.visible = false;
       if (rightWingRef.current) rightWingRef.current.visible = false;
       if (shadowTailRef.current) shadowTailRef.current.visible = false;
+      if (motesGroupRef.current) motesGroupRef.current.visible = false;
       return;
     }
 
@@ -377,6 +379,11 @@ function SingleAstralEntity({
     if (leftWingRef.current) leftWingRef.current.visible = true;
     if (rightWingRef.current) rightWingRef.current.visible = true;
     if (shadowTailRef.current) shadowTailRef.current.visible = true;
+    if (motesGroupRef.current) {
+      motesGroupRef.current.visible = true;
+      motesGroupRef.current.rotation.y = t * 0.55;
+      motesGroupRef.current.position.y = Math.sin(t * 1.5) * 0.08;
+    }
     if (defeatBloomRef.current) {
       defeatBloomRef.current.visible = false;
       defeatBloomRef.current.scale.set(1, 1, 1);
@@ -582,6 +589,27 @@ function SingleAstralEntity({
             <meshStandardMaterial color={data.accentColor} emissive={data.color} emissiveIntensity={3} />
           </mesh>
         ))}
+      </group>
+
+      {/* Floating Ambient Starlight Motes (Low-Cortisol Breathing Aura) */}
+      <group ref={motesGroupRef}>
+        {[0, 1, 2, 3, 4, 5].map((i) => {
+          const angle = (i * Math.PI * 2) / 6;
+          const r = 0.85 + (i % 2) * 0.25;
+          return (
+            <mesh
+              key={`mote-${i}`}
+              position={[
+                Math.sin(angle) * r,
+                ((i - 2.5) / 2.5) * 0.38,
+                Math.cos(angle) * r,
+              ]}
+            >
+              <sphereGeometry args={[0.035, 8, 8]} />
+              <meshBasicMaterial color={data.accentColor} transparent opacity={0.7} />
+            </mesh>
+          );
+        })}
       </group>
 
       {/* Harmonic Resonance Ripple Ring (Triggered on Hit) */}

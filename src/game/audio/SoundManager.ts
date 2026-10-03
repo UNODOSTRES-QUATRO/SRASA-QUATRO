@@ -677,18 +677,18 @@ export class SoundManager {
   }
 
   // ── Weapon SFX: Crisp & Low-Cortisol ───────────────────────────────────────
-  // Katana Whoosh (smooth resonant aerodynamic sweep)
-  public playSwordSlash() {
+  // Katana Whoosh with 3-hit fluid combo pitch scaling & Solfeggio harmonics
+  public playSwordSlash(comboIndex: number = 0) {
     this.ensureAudioContext();
     this.triggerCombatStance();
     if (!this.ctx || !this.compressor || this.isMuted) return;
     const now = this.ctx.currentTime;
 
-    const bufferSize = Math.floor(this.ctx.sampleRate * 0.22);
+    const bufferSize = Math.floor(this.ctx.sampleRate * (comboIndex === 2 ? 0.32 : 0.22));
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * 0.8;
+      data[i] = (Math.random() * 2 - 1) * (comboIndex === 2 ? 0.95 : 0.8);
     }
 
     const noise = this.ctx.createBufferSource();
@@ -696,28 +696,50 @@ export class SoundManager {
 
     const filter = this.ctx.createBiquadFilter();
     filter.type = "bandpass";
-    filter.frequency.setValueAtTime(1200, now);
-    filter.frequency.exponentialRampToValueAtTime(350, now + 0.2);
-    filter.Q.setValueAtTime(4.0, now);
+
+    // Combo-specific filter sweeps
+    const startFreq = comboIndex === 0 ? 1200 : comboIndex === 1 ? 1550 : 1850;
+    const endFreq = comboIndex === 0 ? 350 : comboIndex === 1 ? 520 : 280;
+    const duration = comboIndex === 2 ? 0.30 : 0.20;
+
+    filter.frequency.setValueAtTime(startFreq, now);
+    filter.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+    filter.Q.setValueAtTime(comboIndex === 2 ? 5.0 : 4.0, now);
 
     const gain = this.ctx.createGain();
     gain.gain.setValueAtTime(0.001, now);
-    gain.gain.linearRampToValueAtTime(0.58, now + 0.04);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    gain.gain.linearRampToValueAtTime(comboIndex === 2 ? 0.72 : 0.58, now + 0.035);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration + 0.02);
 
-    // High crystal blade sheen
+    // High crystal blade sheen (tuned to Solfeggio 528Hz, 660Hz, 880Hz harmonic overtone)
+    const sheenFreq = comboIndex === 0 ? 1760 : comboIndex === 1 ? 2112 : 2640;
     const sheen = this.ctx.createOscillator();
     const sheenGain = this.ctx.createGain();
     sheen.type = "sine";
-    sheen.frequency.setValueAtTime(1760, now);
-    sheen.frequency.exponentialRampToValueAtTime(1046, now + 0.18);
-    sheenGain.gain.setValueAtTime(0.35, now);
-    sheenGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+    sheen.frequency.setValueAtTime(sheenFreq, now);
+    sheen.frequency.exponentialRampToValueAtTime(sheenFreq * 0.58, now + duration * 0.9);
+    sheenGain.gain.setValueAtTime(comboIndex === 2 ? 0.45 : 0.35, now);
+    sheenGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.9);
 
     sheen.connect(sheenGain);
     sheenGain.connect(this.compressor);
     sheen.start(now);
-    sheen.stop(now + 0.18);
+    sheen.stop(now + duration * 0.9);
+
+    // For combo 3 (finisher spin), add a rich low sub-harmonic punch (132Hz Solfeggio fundamental)
+    if (comboIndex === 2) {
+      const sub = this.ctx.createOscillator();
+      const subGain = this.ctx.createGain();
+      sub.type = "triangle";
+      sub.frequency.setValueAtTime(132, now);
+      sub.frequency.exponentialRampToValueAtTime(66, now + 0.28);
+      subGain.gain.setValueAtTime(0.38, now);
+      subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+      sub.connect(subGain);
+      subGain.connect(this.compressor);
+      sub.start(now);
+      sub.stop(now + 0.28);
+    }
 
     noise.connect(filter);
     filter.connect(gain);

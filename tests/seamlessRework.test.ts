@@ -419,4 +419,35 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
       expect(wrongAlpha).toBeLessThan(0);
     }
   });
+
+  it("triggers Katana combo strikes (combo 0, 1, 2) without throwing errors", () => {
+    expect(() => soundManager.playSwordSlash(0)).not.toThrow();
+    expect(() => soundManager.playSwordSlash(1)).not.toThrow();
+    expect(() => soundManager.playSwordSlash(2)).not.toThrow();
+  });
+
+  it("initiates power-over drift with throttle and hard steering without handbrake", () => {
+    const initial = createInitialVehicleState();
+    initial.speed = 10.0;
+    initial.steeringAngle = 0;
+
+    // Throttle held and steering hard right without brake
+    const input = {
+      forward: true,
+      backward: false,
+      left: false,
+      right: true,
+      brake: false,
+    };
+
+    // Run a few physics steps
+    let current = initial;
+    for (let i = 0; i < 8; i++) {
+      current = updateVehiclePhysics(current, input, 0.033);
+    }
+
+    // Vehicle enters dynamic slip angle
+    expect(current.angularVelocity).toBeLessThan(0); // Turning right
+    expect(Math.abs(current.lateralSpeed)).toBeGreaterThan(0);
+  });
 });

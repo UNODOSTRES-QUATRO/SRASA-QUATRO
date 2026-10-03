@@ -105,17 +105,22 @@ export function updateVehiclePhysics(
 
   // ─── 3. DRIFT PHYSICS (True slip-angle bicycle model with FR Legends flow) ───
   const isWeightTransferFlick =
-    Math.abs(speed) > 8.5 &&
-    Math.abs(steeringAngle) > config.maxSteerAngle * 0.65;
+    Math.abs(speed) > 7.5 &&
+    Math.abs(steeringAngle) > config.maxSteerAngle * 0.58;
+
+  const isPowerOver =
+    input.forward &&
+    Math.abs(steeringAngle) > config.maxSteerAngle * 0.65 &&
+    Math.abs(speed) > 4.2;
 
   const isSustainedDrift =
-    (current.driftFactor > 0.08 || Math.abs(current.lateralSpeed) > 0.6) &&
+    (current.driftFactor > 0.08 || Math.abs(current.lateralSpeed) > 0.5) &&
     input.forward &&
-    Math.abs(speed) > 3.0;
+    Math.abs(speed) > 2.8;
 
   const effectiveGrip = isHandbraking
     ? config.handbrakeGrip
-    : isWeightTransferFlick || isSustainedDrift
+    : isWeightTransferFlick || isSustainedDrift || isPowerOver
     ? config.gripFactor * 0.32
     : config.gripFactor;
 

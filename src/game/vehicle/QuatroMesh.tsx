@@ -21,20 +21,24 @@ interface QuatroMeshProps {
 // Deep-dish rally wheel with visible rotor, caliper, and camber
 function RallyWheel({
   isLeft = false,
+  isFront = false,
   steerRef,
   spinRef,
   initialRotation = 0,
   initialSteering = 0,
 }: {
   isLeft?: boolean;
+  isFront?: boolean;
   steerRef?: React.RefObject<THREE.Group>;
   spinRef?: React.RefObject<THREE.Group>;
   initialRotation?: number;
   initialSteering?: number;
 }) {
   const wheelRadius = 0.34;
-  const wheelWidth = 0.26;
-  const camber = isLeft ? 0.055 : -0.055; // Subtle FR Legends negative camber (-3.5 deg)
+  const wheelWidth = isFront ? 0.25 : 0.28;
+  // FR Legends aggressive drift stance: Front -6.2° (-0.108 rad), Rear -2.6° (-0.045 rad)
+  const camberAngle = isFront ? 0.108 : 0.045;
+  const camber = isLeft ? camberAngle : -camberAngle;
 
   return (
     <group ref={steerRef} rotation={[0, initialSteering, camber]}>
@@ -47,10 +51,10 @@ function RallyWheel({
             <meshStandardMaterial color="#14171d" roughness={0.85} metalness={0.15} />
           </mesh>
 
-          {/* Deep Dish Rim Lip (Polished Bronze/Silver) */}
-          <mesh position={[0, isLeft ? 0.06 : -0.06, 0]}>
-            <cylinderGeometry args={[0.27, 0.25, 0.08, 20]} />
-            <meshStandardMaterial color="#e2e8f0" roughness={0.25} metalness={0.85} />
+          {/* Deep Dish Rim Lip (Polished Bronze/Silver stepped lip) */}
+          <mesh position={[0, isLeft ? 0.065 : -0.065, 0]}>
+            <cylinderGeometry args={[0.27, isFront ? 0.25 : 0.23, isFront ? 0.08 : 0.11, 20]} />
+            <meshStandardMaterial color="#e2e8f0" roughness={0.2} metalness={0.9} />
           </mesh>
 
           {/* 5-Spoke Star Design */}
@@ -61,27 +65,27 @@ function RallyWheel({
               position={[0, isLeft ? 0.1 : -0.1, 0]}
             >
               <boxGeometry args={[0.045, 0.03, 0.22]} />
-              <meshStandardMaterial color="#cbd5e1" roughness={0.3} metalness={0.8} />
+              <meshStandardMaterial color="#cbd5e1" roughness={0.25} metalness={0.85} />
             </mesh>
           ))}
 
-          {/* Center Nut */}
+          {/* Center Anodized Nut */}
           <mesh position={[0, isLeft ? 0.12 : -0.12, 0]}>
             <cylinderGeometry args={[0.07, 0.07, 0.04, 12]} />
-            <meshStandardMaterial color="#1e293b" roughness={0.4} metalness={0.9} />
+            <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={1.2} roughness={0.3} metalness={0.9} />
           </mesh>
         </group>
       </group>
 
-      {/* Non-rotating Brake Rotor */}
+      {/* Non-rotating Slotted Brake Rotor */}
       <mesh rotation={[0, 0, Math.PI / 2]} position={[isLeft ? -0.04 : 0.04, 0, 0]}>
         <cylinderGeometry args={[0.23, 0.23, 0.02, 16]} />
         <meshStandardMaterial color="#94a3b8" roughness={0.35} metalness={0.9} />
       </mesh>
-      {/* Sport Caliper (Crimson Red) */}
+      {/* Sport Caliper (Crimson Red with Heat Glow) */}
       <mesh position={[isLeft ? -0.04 : 0.04, 0.14, 0]}>
         <boxGeometry args={[0.05, 0.09, 0.07]} />
-        <meshStandardMaterial color="#ef4444" emissive="#b91c1c" emissiveIntensity={0.2} roughness={0.3} />
+        <meshStandardMaterial color="#ef4444" emissive="#b91c1c" emissiveIntensity={0.35} roughness={0.3} />
       </mesh>
     </group>
   );
@@ -442,6 +446,15 @@ export function QuatroMesh({
             depthWrite={!isCockpit}
           />
         </mesh>
+        {/* Windshield Sun Visor Banner (Quatro Cyber Livery) */}
+        <mesh position={[0, 1.05, 0.44]} rotation={[-0.42, 0, 0]}>
+          <boxGeometry args={[1.32, 0.12, 0.045]} />
+          <meshStandardMaterial color="#0f172a" roughness={0.6} />
+        </mesh>
+        <mesh position={[0, 1.05, 0.465]} rotation={[-0.42, 0, 0]}>
+          <boxGeometry args={[0.55, 0.035, 0.01]} />
+          <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={3.2} />
+        </mesh>
         {/* Passenger Side Windows */}
         <mesh position={[0.67, 0.86, -0.2]}>
           <boxGeometry args={[0.04, 0.42, 1.5]} />
@@ -462,6 +475,15 @@ export function QuatroMesh({
           <mesh position={[0, -0.05, -0.48]} castShadow receiveShadow>
             <boxGeometry args={[0.08, 0.46, 0.94]} />
             <meshStandardMaterial color={bodyColor} roughness={0.38} metalness={0.25} />
+          </mesh>
+          {/* Cyber Racing Livery Stripe & #04 Decal on Door */}
+          <mesh position={[-0.042, -0.04, -0.48]}>
+            <boxGeometry args={[0.005, 0.14, 0.45]} />
+            <meshStandardMaterial color="#1e293b" roughness={0.6} />
+          </mesh>
+          <mesh position={[-0.045, -0.04, -0.48]}>
+            <boxGeometry args={[0.004, 0.04, 0.18]} />
+            <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={3.0} />
           </mesh>
           {/* Driver Window glass */}
           <mesh position={[0.02, 0.28, -0.48]}>
@@ -697,6 +719,7 @@ export function QuatroMesh({
           initialRotation={vehicleState.wheelRotation}
           initialSteering={vehicleState.steeringAngle}
           isLeft={true}
+          isFront={true}
         />
       </group>
 
@@ -708,6 +731,7 @@ export function QuatroMesh({
           initialRotation={vehicleState.wheelRotation}
           initialSteering={vehicleState.steeringAngle}
           isLeft={false}
+          isFront={true}
         />
       </group>
 
@@ -717,6 +741,7 @@ export function QuatroMesh({
           spinRef={rlSpinRef}
           initialRotation={vehicleState.wheelRotation}
           isLeft={true}
+          isFront={false}
         />
       </group>
 
@@ -726,6 +751,7 @@ export function QuatroMesh({
           spinRef={rrSpinRef}
           initialRotation={vehicleState.wheelRotation}
           isLeft={false}
+          isFront={false}
         />
       </group>
 
