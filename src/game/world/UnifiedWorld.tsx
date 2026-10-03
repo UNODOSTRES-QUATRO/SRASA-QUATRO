@@ -1,6 +1,4 @@
-"use client";
-
-import { useRef, useMemo } from "react";
+import React, { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { HouseInterior } from "./HouseInterior";
@@ -33,7 +31,7 @@ interface UnifiedWorldProps {
   cameraMode?: CameraMode;
 }
 
-export function UnifiedWorld({
+export const UnifiedWorld = React.memo(function UnifiedWorld({
   playerMode,
   humanPos,
   humanHeading,
@@ -336,7 +334,6 @@ export function UnifiedWorld({
         <HouseInterior
           rumahState={rumahState}
           dayNumber={dayNumber}
-          playerPos={humanPos}
           isEvening={isEvening}
         />
       </group>
@@ -367,7 +364,7 @@ export function UnifiedWorld({
 
       {/* Mechanic Shop Interior & Pak Montir */}
       <group position={[-18, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <MechanicShopScene playerPos={humanPos} />
+        <MechanicShopScene />
       </group>
 
       {/* ========================================================
@@ -413,7 +410,6 @@ export function UnifiedWorld({
         <WorkplaceInterior
           workplaceState={workplaceState}
           dayNumber={dayNumber}
-          playerPos={humanPos}
         />
       </group>
 
@@ -549,7 +545,6 @@ export function UnifiedWorld({
       <group position={[0, 0, 180]}>
         <CastleExteriorScene
           kastilState={kastilState}
-          playerPos={humanPos}
         />
       </group>
 
@@ -557,7 +552,6 @@ export function UnifiedWorld({
       <group position={[0, 0, 205]} rotation={[0, Math.PI, 0]}>
         <CastleEscapeRoomScene
           escapeRoomState={kastilState.escapeRoom}
-          playerPos={humanPos}
         />
       </group>
 
@@ -596,7 +590,7 @@ export function UnifiedWorld({
       />
     </group>
   );
-}
+});
 
 function CarHeadlights({
   vehicleState,

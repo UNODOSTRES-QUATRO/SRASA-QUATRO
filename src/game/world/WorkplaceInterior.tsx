@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import React, { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { WorkplaceState } from "../core/gameStore";
@@ -8,13 +8,12 @@ import { WorkplaceState } from "../core/gameStore";
 interface WorkplaceInteriorProps {
   workplaceState: WorkplaceState;
   dayNumber: number;
-  playerPos: [number, number, number];
+  playerPos?: [number, number, number];
 }
 
-export function WorkplaceInterior({
+export const WorkplaceInterior = React.memo(function WorkplaceInterior({
   workplaceState,
   dayNumber,
-  playerPos,
 }: WorkplaceInteriorProps) {
   const clockRef = useRef(0);
   const portalGlowRef = useRef<THREE.PointLight>(null);
@@ -394,4 +393,4 @@ export function WorkplaceInterior({
       )}
     </group>
   );
-}
+});

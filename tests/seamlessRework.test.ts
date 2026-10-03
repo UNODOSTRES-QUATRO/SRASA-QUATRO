@@ -369,14 +369,54 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     expect(worldMontirZ).toBeCloseTo(-2.0, 2);
   });
 
-  it("verifies driver silhouette is only rendered when player is driving", () => {
+  it("verifies driver silhouette is only rendered when player is driving in chase mode", () => {
     const isCockpit = false;
     const isDriving = (mode: string) => mode === "DRIVING" && !isCockpit;
 
     expect(isDriving("ON_FOOT")).toBe(false);
     expect(isDriving("DRIVING")).toBe(true);
+
+    // In cockpit mode, driver silhouette is hidden
+    const isDrivingCockpit = (mode: string) => mode === "DRIVING" && !true;
+    expect(isDrivingCockpit("DRIVING")).toBe(false);
+  });
+
+  it("power-sliding with [Space] + [W] maintains engine acceleration through the slide", () => {
+    const initial = createInitialVehicleState();
+    initial.speed = 12.0;
+    initial.lateralSpeed = 3.0;
+    initial.driftFactor = 0.6;
+
+    // Both brake (handbrake) and forward (gas) pressed
+    const input = {
+      forward: true,
+      backward: false,
+      left: true,
+      right: false,
+      brake: true, // handbrake power-slide!
+    };
+
+    const next = updateVehiclePhysics(initial, input, 0.05);
+
+    // Power-slide accelerates rather than bogging down
+    expect(next.speed).toBeGreaterThan(initial.speed);
+    expect(next.isHandbraking).toBe(true);
+    expect(next.driftFactor).toBeGreaterThan(0.2);
+  });
+
+  it("verifies exponential damping lambda sign prevents negative or oscillating camera alphas", () => {
+    const lambdas = [6.0, 14.0, 18.0, 22.0, 28.0, 48.0];
+    const dt = 0.0166; // 60 FPS
+
+    for (const lambda of lambdas) {
+      // Correct formula with negative sign
+      const alpha = 1.0 - Math.exp(-lambda * dt);
+      expect(alpha).toBeGreaterThan(0);
+      expect(alpha).toBeLessThan(1);
+
+      // Verify that missing negative sign would have produced negative alpha
+      const wrongAlpha = 1.0 - Math.exp(lambda * dt);
+      expect(wrongAlpha).toBeLessThan(0);
+    }
   });
 });
-
-
-

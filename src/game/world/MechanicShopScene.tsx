@@ -1,14 +1,14 @@
 "use client";
 
-import { useRef } from "react";
+import React, { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 interface MechanicShopSceneProps {
-  playerPos: [number, number, number];
+  playerPos?: [number, number, number];
 }
 
-export function MechanicShopScene({ playerPos }: MechanicShopSceneProps) {
+export const MechanicShopScene = React.memo(function MechanicShopScene() {
   const lampLightRef = useRef<THREE.PointLight>(null);
 
   return (
@@ -184,4 +184,4 @@ export function MechanicShopScene({ playerPos }: MechanicShopSceneProps) {
       <pointLight position={[3, 2.8, -4]} color="#fef08a" intensity={2.0} distance={8} />
     </group>
   );
-}
+});

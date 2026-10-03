@@ -259,11 +259,11 @@ export function UnifiedCamera({
       const lateralSway = THREE.MathUtils.clamp(lateralSpeed * 0.032, -0.09, 0.09);
       const steerSway = steeringAngle * -0.045;
 
-      // Left driver seat offset inside cabin (eye level directly above bucket seat)
+      // Left driver seat offset inside cabin (eye level directly above bucket seat, comfortably below roof)
       const cockpitOffset = new THREE.Vector3(
         -0.34 + steerSway + lateralSway,
-        1.10 + bob + gPitch,
-        0.04
+        0.86 + bob + gPitch,
+        0.05
       );
       const rotMatrix = new THREE.Matrix4().makeRotationY(liveVehicle.heading);
       cockpitOffset.applyMatrix4(rotMatrix);
@@ -280,7 +280,7 @@ export function UnifiedCamera({
       const rotLookZ = Math.cos(liveVehicle.heading) * lookDist - Math.sin(liveVehicle.heading) * lookOffsetLateral;
       desiredLookAt.set(
         liveTargetPos[0] + rotLookX,
-        liveTargetPos[1] + 1.05 + gPitch * 2.0,
+        liveTargetPos[1] + 0.82 + gPitch * 2.0,
         liveTargetPos[2] + rotLookZ
       );
 
@@ -419,8 +419,8 @@ export function UnifiedCamera({
 
     if (mode === "DRIVING_COCKPIT") {
       const isTransitioning = transitionProgress.current > 0.001;
-      const cockpitPosAlpha = 1.0 - Math.exp((isTransitioning ? 22.0 : 48.0) * dt);
-      const cockpitLookAlpha = 1.0 - Math.exp((isTransitioning ? 26.0 : 48.0) * dt);
+      const cockpitPosAlpha = 1.0 - Math.exp(-(isTransitioning ? 22.0 : 48.0) * dt);
+      const cockpitLookAlpha = 1.0 - Math.exp(-(isTransitioning ? 26.0 : 48.0) * dt);
       currentPos.current.lerp(desiredPos, cockpitPosAlpha);
       currentLookAt.current.lerp(desiredLookAt, cockpitLookAlpha);
     } else {

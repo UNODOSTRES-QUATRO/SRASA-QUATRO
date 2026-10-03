@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef } from "react";
+import React, { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { KastilState } from "../core/gameStore";
 
 interface CastleExteriorSceneProps {
   kastilState: KastilState;
-  playerPos: [number, number, number];
+  playerPos?: [number, number, number];
 }
 
 function CastleBanner({ position, color }: { position: [number, number, number]; color: string }) {
@@ -39,7 +39,7 @@ function CastleBanner({ position, color }: { position: [number, number, number];
   );
 }
 
-export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSceneProps) {
+export const CastleExteriorScene = React.memo(function CastleExteriorScene({ kastilState }: CastleExteriorSceneProps) {
   const clockRef = useRef(0);
   const waterRef = useRef<THREE.Mesh>(null);
   const torchLight1Ref = useRef<THREE.PointLight>(null);
@@ -439,4 +439,4 @@ export function CastleExteriorScene({ kastilState, playerPos }: CastleExteriorSc
       <directionalLight position={[10, 20, 10]} intensity={1.5} color="#fed7aa" castShadow />
     </group>
   );
-}
+});

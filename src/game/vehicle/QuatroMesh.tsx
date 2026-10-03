@@ -433,12 +433,26 @@ export function QuatroMesh({
         {/* Front Windshield */}
         <mesh position={[0, 0.88, 0.52]} rotation={[-0.42, 0, 0]}>
           <boxGeometry args={[1.3, 0.55, 0.04]} />
-          <meshStandardMaterial color={glassColor} roughness={0.1} metalness={0.85} />
+          <meshStandardMaterial
+            color="#38bdf8"
+            roughness={0.05}
+            metalness={0.3}
+            transparent
+            opacity={isCockpit ? 0.10 : 0.35}
+            depthWrite={!isCockpit}
+          />
         </mesh>
         {/* Passenger Side Windows */}
         <mesh position={[0.67, 0.86, -0.2]}>
           <boxGeometry args={[0.04, 0.42, 1.5]} />
-          <meshStandardMaterial color={glassColor} roughness={0.15} metalness={0.8} />
+          <meshStandardMaterial
+            color="#38bdf8"
+            roughness={0.1}
+            metalness={0.3}
+            transparent
+            opacity={isCockpit ? 0.15 : 0.4}
+            depthWrite={!isCockpit}
+          />
         </mesh>
 
         {/* ── SEAMLESS ANIMATED DRIVER DOOR (LEFT SIDE) ───────────────────── */}
@@ -452,7 +466,14 @@ export function QuatroMesh({
           {/* Driver Window glass */}
           <mesh position={[0.02, 0.28, -0.48]}>
             <boxGeometry args={[0.03, 0.38, 0.88]} />
-            <meshStandardMaterial color={glassColor} roughness={0.15} metalness={0.8} />
+            <meshStandardMaterial
+              color="#38bdf8"
+              roughness={0.1}
+              metalness={0.3}
+              transparent
+              opacity={isCockpit ? 0.15 : 0.4}
+              depthWrite={!isCockpit}
+            />
           </mesh>
           {/* Driver Side Mirror */}
           <mesh position={[-0.12, 0.18, -0.08]} castShadow>
@@ -488,7 +509,14 @@ export function QuatroMesh({
         {/* Rear Windshield */}
         <mesh position={[0, 0.86, -0.98]} rotation={[0.42, 0, 0]}>
           <boxGeometry args={[1.26, 0.48, 0.04]} />
-          <meshStandardMaterial color={glassColor} roughness={0.1} metalness={0.85} />
+          <meshStandardMaterial
+            color="#38bdf8"
+            roughness={0.1}
+            metalness={0.3}
+            transparent
+            opacity={isCockpit ? 0.2 : 0.45}
+            depthWrite={!isCockpit}
+          />
         </mesh>
 
         {/* 5. INTERIOR & COMPANION CAT */}

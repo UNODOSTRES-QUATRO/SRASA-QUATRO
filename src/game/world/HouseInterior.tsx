@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import React, { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { RumahState } from "../core/gameStore";
@@ -8,11 +8,15 @@ import { RumahState } from "../core/gameStore";
 interface HouseInteriorProps {
   rumahState: RumahState;
   dayNumber: number;
-  playerPos: [number, number, number];
+  playerPos?: [number, number, number];
   isEvening: boolean;
 }
 
-export function HouseInterior({ rumahState, dayNumber, playerPos, isEvening }: HouseInteriorProps) {
+export const HouseInterior = React.memo(function HouseInterior({
+  rumahState,
+  dayNumber,
+  isEvening,
+}: HouseInteriorProps) {
   const clockRef = useRef(0);
   const lampLightRef = useRef<THREE.PointLight>(null);
   const stoveFlameRef = useRef<THREE.PointLight>(null);
@@ -559,4 +563,4 @@ export function HouseInterior({ rumahState, dayNumber, playerPos, isEvening }: H
       )}
     </group>
   );
-}
+});

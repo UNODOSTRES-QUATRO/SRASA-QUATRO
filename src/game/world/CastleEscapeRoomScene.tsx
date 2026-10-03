@@ -1,18 +1,17 @@
 "use client";
 
-import { useRef } from "react";
+import React, { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { KastilState } from "../core/gameStore";
 
 interface CastleEscapeRoomSceneProps {
   escapeRoomState: KastilState["escapeRoom"];
-  playerPos: [number, number, number];
+  playerPos?: [number, number, number];
 }
 
-export function CastleEscapeRoomScene({
+export const CastleEscapeRoomScene = React.memo(function CastleEscapeRoomScene({
   escapeRoomState,
-  playerPos,
 }: CastleEscapeRoomSceneProps) {
   const clockRef = useRef(0);
   const hearthFireRef = useRef<THREE.PointLight>(null);
@@ -305,4 +304,4 @@ export function CastleEscapeRoomScene({
       <pointLight position={[0, 3.5, -4]} color="#fde047" intensity={2.0} distance={12} />
     </group>
   );
-}
+});

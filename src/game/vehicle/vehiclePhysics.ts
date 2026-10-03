@@ -3,18 +3,18 @@ import { VehicleConfig, VehicleInput, VehicleState } from "./vehicleTypes";
 export const DEFAULT_VEHICLE_CONFIG: VehicleConfig = {
   maxSpeed: 28.0,          // Punchy, satisfying highway top speed
   maxReverseSpeed: 8.5,
-  acceleration: 18.0,      // Responsive instant torque
+  acceleration: 19.0,      // Responsive instant torque
   reverseAcceleration: 7.5,
-  brakingDeceleration: 19.0,
+  brakingDeceleration: 20.0,
   naturalDrag: 2.2,
-  maxSteerAngle: Math.PI / 4.6, // ~39.1 degrees – quick and agile
-  steerSpeed: 9.5,
-  steerReturnSpeed: 12.0,
+  maxSteerAngle: Math.PI / 4.4, // ~40.9 degrees – quick and agile
+  steerSpeed: 10.5,
+  steerReturnSpeed: 14.0,
   wheelbase: 2.2,
   // Drift physics (FR Legends Flow)
-  gripFactor: 0.86,        // Solid straight grip, smooth break-away
-  handbrakeGrip: 0.10,     // Instant, loose initiation on handbrake flick
-  driftAngularMomentum: 0.90, // Smooth momentum carry through corners
+  gripFactor: 0.88,        // Solid straight grip, smooth break-away
+  handbrakeGrip: 0.08,     // Instant, loose initiation on handbrake flick
+  driftAngularMomentum: 0.92, // Smooth momentum carry through corners
 };
 
 export function createInitialVehicleState(): VehicleState {
@@ -69,10 +69,15 @@ export function updateVehiclePhysics(
   const isHandbraking = input.brake && Math.abs(speed) > 2.5;
 
   if (input.brake) {
-    // If fast, handbrake initiates drift while preserving momentum
     if (isHandbraking) {
-      const brakeRate = config.brakingDeceleration * 0.45 * clampedDt;
-      speed = speed > 0 ? Math.max(2.0, speed - brakeRate) : Math.min(-2.0, speed + brakeRate);
+      if (input.forward) {
+        // Power-slide! Holding gas while handbraking spins up the rear wheels and maintains speed
+        const accelRate = config.acceleration * 0.75 * clampedDt;
+        speed = Math.min(config.maxSpeed, speed + accelRate);
+      } else {
+        const brakeRate = config.brakingDeceleration * 0.35 * clampedDt;
+        speed = speed > 0 ? Math.max(2.0, speed - brakeRate) : Math.min(-2.0, speed + brakeRate);
+      }
     } else {
       // Full stop brake
       if (speed > 0) {
@@ -100,18 +105,18 @@ export function updateVehiclePhysics(
 
   // ─── 3. DRIFT PHYSICS (True slip-angle bicycle model with FR Legends flow) ───
   const isWeightTransferFlick =
-    Math.abs(speed) > 5.5 &&
-    Math.abs(steeringAngle) > config.maxSteerAngle * 0.35;
+    Math.abs(speed) > 8.5 &&
+    Math.abs(steeringAngle) > config.maxSteerAngle * 0.65;
 
   const isSustainedDrift =
-    (current.driftFactor > 0.10 || Math.abs(current.lateralSpeed) > 0.8) &&
+    (current.driftFactor > 0.08 || Math.abs(current.lateralSpeed) > 0.6) &&
     input.forward &&
-    Math.abs(speed) > 3.5;
+    Math.abs(speed) > 3.0;
 
   const effectiveGrip = isHandbraking
     ? config.handbrakeGrip
     : isWeightTransferFlick || isSustainedDrift
-    ? config.gripFactor * 0.35
+    ? config.gripFactor * 0.32
     : config.gripFactor;
 
   const effectiveWheelbase = current.scaleMode === "POCKET" ? config.wheelbase * 0.35 : config.wheelbase;
