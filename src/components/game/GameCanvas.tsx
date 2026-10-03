@@ -253,14 +253,10 @@ export function GameCanvas({
 
   return (
     <Canvas
-      shadows
-      dpr={[1, 2]}
-      frameloop="always"
-      camera={{ position: [-6, 6, 12], fov: 48, near: 0.1, far: 450 }}
+      dpr={1}
+      camera={{ position: [-6, 6, 12], fov: 48, near: 0.1, far: 350 }}
       gl={{
-        antialias: true,
-        toneMapping: THREE.ACESFilmicToneMapping,
-        toneMappingExposure: 1.18,
+        antialias: false,
         powerPreference: "high-performance",
       }}
       className="w-full h-full"

@@ -17,16 +17,6 @@ export function SceneLighting() {
         color="#fed7aa"
         intensity={1.9}
         position={[45, 32, -20]}
-        castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-near={0.5}
-        shadow-camera-far={220}
-        shadow-camera-left={-40}
-        shadow-camera-right={40}
-        shadow-camera-top={40}
-        shadow-camera-bottom={-40}
-        shadow-bias={-0.0003}
       />
 
       {/* Gentle upward bounce light simulating warm asphalt / dusk ground radiation */}

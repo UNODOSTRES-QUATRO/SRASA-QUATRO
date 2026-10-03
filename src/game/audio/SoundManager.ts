@@ -262,32 +262,8 @@ export class SoundManager {
   }
 
   private initTapeHiss() {
-    if (!this.ctx || !this.compressor) return;
-
-    const bufferSize = this.ctx.sampleRate * 2;
-    const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-
-    for (let i = 0; i < bufferSize; i++) {
-      output[i] = (Math.random() * 2 - 1) * 0.012;
-    }
-
-    const whiteNoise = this.ctx.createBufferSource();
-    whiteNoise.buffer = noiseBuffer;
-    whiteNoise.loop = true;
-
-    const noiseFilter = this.ctx.createBiquadFilter();
-    noiseFilter.type = "lowpass";
-    noiseFilter.frequency.setValueAtTime(650, this.ctx.currentTime);
-
-    this.noiseGain = this.ctx.createGain();
-    this.noiseGain.gain.setValueAtTime(0.035, this.ctx.currentTime);
-
-    whiteNoise.connect(noiseFilter);
-    noiseFilter.connect(this.noiseGain);
-    this.noiseGain.connect(this.compressor);
-
-    whiteNoise.start();
+    // Disabled buzzing tape hiss for clean, silent, low-cortisol audio
+    return;
   }
 
   // ── Procedural Ambient Synthwave / Lofi Pads ───────────────────────────────

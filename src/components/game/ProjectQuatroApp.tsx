@@ -103,12 +103,7 @@ export default function ProjectQuatroApp() {
   const [isCharacterSelectOpen, setIsCharacterSelectOpen] = useState(false);
 
   // Cinematic sequence state (starts on first load, skippable)
-  const [showOpeningCinematic, setShowOpeningCinematic] = useState(() => {
-    if (typeof window !== "undefined") {
-      return !sessionStorage.getItem("quatro_seen_cinematic");
-    }
-    return false;
-  });
+  const [showOpeningCinematic, setShowOpeningCinematic] = useState(false);
 
   const handleCompleteCinematic = useCallback(() => {
     if (typeof window !== "undefined") {
