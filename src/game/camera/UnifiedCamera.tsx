@@ -164,6 +164,7 @@ export function UnifiedCamera({
 
       if (mode === "ON_FOOT") {
         orbitAzimuth.current = isNaN(currentAngle) ? liveHeading : currentAngle;
+        smoothedOrbitAzimuth.current = orbitAzimuth.current;
         const currentDist = Math.hypot(dx, dz);
         if (!isNaN(currentDist) && currentDist > 1.5) {
           const clamped = THREE.MathUtils.clamp(currentDist, 4.0, 10.0);
@@ -231,7 +232,8 @@ export function UnifiedCamera({
       );
 
       const targetLookAhead = (isPocket ? 0.8 : 2.8) * ((speed || 0) < -0.3 ? -0.35 : 1.0);
-      smoothedLookAhead.current = THREE.MathUtils.damp(smoothedLookAhead.current, targetLookAhead, 4.0, dt);
+      const lookAheadAlpha = 1.0 - Math.exp(-6.0 * dt);
+      smoothedLookAhead.current = THREE.MathUtils.lerp(smoothedLookAhead.current, targetLookAhead, lookAheadAlpha);
 
       desiredLookAt.set(
         liveTargetPos[0] + Math.sin(smoothedHeading.current) * smoothedLookAhead.current,
@@ -394,22 +396,22 @@ export function UnifiedCamera({
     }
 
     // ── Exponential Smoothing (1 - exp(-lambda * dt)) ────────────────────────
-    // Softer lambda during transitions for a cinematic crane glide, tight lambda during gameplay
-    const basePosLambda = mode === "DRIVING_CHASE" ? 9.5 : 8.5;
-    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 28.0 : mode === "DRIVING_CHASE" ? 10.5 : 9.0;
+    // High-performance lambdas eliminate rubber-banding and micro-stutter while keeping buttery rotational flow
+    const basePosLambda = mode === "DRIVING_CHASE" ? 18.0 : 15.0;
+    const baseLookLambda = mode === "DRIVING_COCKPIT" ? 28.0 : mode === "DRIVING_CHASE" ? 14.0 : 18.0;
 
-    const posLambda = THREE.MathUtils.lerp(basePosLambda, 5.0, transitionProgress.current);
-    const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 5.5, transitionProgress.current);
+    const posLambda = THREE.MathUtils.lerp(basePosLambda, 6.0, transitionProgress.current);
+    const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 7.0, transitionProgress.current);
 
     const posAlpha = 1.0 - Math.exp(-posLambda * dt);
     const lookAlpha = 1.0 - Math.exp(-lookLambda * dt);
 
     if (mode === "DRIVING_COCKPIT") {
-      if (transitionProgress.current > 0.01) {
-        const cockpitPosAlpha = 1.0 - Math.exp(-14.0 * dt);
+      if (transitionProgress.current > 0.001) {
+        const cockpitPosAlpha = 1.0 - Math.exp(-22.0 * dt);
         currentPos.current.lerp(desiredPos, cockpitPosAlpha);
 
-        const cockpitLookAlpha = 1.0 - Math.exp(-18.0 * dt);
+        const cockpitLookAlpha = 1.0 - Math.exp(-26.0 * dt);
         currentLookAt.current.lerp(desiredLookAt, cockpitLookAlpha);
       } else {
         // Locked inside cabin: 100% synchronized with car motion, zero lag behind moving vehicle
@@ -424,12 +426,12 @@ export function UnifiedCamera({
     camera.position.copy(currentPos.current);
     camera.lookAt(currentLookAt.current);
 
-    // Dynamic FOV smoothing (only update projection matrix when changed)
+    // Dynamic FOV smoothing (continuous silky smooth projection, zero stepped jumps)
     const perspCamera = camera as THREE.PerspectiveCamera;
     if (perspCamera.isPerspectiveCamera) {
-      const fovAlpha = 1.0 - Math.exp(-5.0 * dt);
+      const fovAlpha = 1.0 - Math.exp(-5.5 * dt);
       const nextFov = THREE.MathUtils.lerp(perspCamera.fov, targetFov, fovAlpha);
-      if (Math.abs(perspCamera.fov - nextFov) > 0.015) {
+      if (Math.abs(perspCamera.fov - nextFov) > 0.002) {
         perspCamera.fov = nextFov;
         perspCamera.updateProjectionMatrix();
       }

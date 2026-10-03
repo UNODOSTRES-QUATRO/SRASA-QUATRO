@@ -482,6 +482,8 @@ export default function ProjectQuatroApp() {
         }
       }
 
+      if (isDismountingRef.current) return;
+
       switch (e.code) {
         case "KeyW":
         case "ArrowUp":

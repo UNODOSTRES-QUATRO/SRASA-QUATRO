@@ -124,27 +124,28 @@ export function VoxelScenery({ dayNumber = 1 }: VoxelSceneryProps) {
 
   const treePositions = useMemo<[number, number, number][]>(() => {
     return [
-      [-8 - treeDisplacement, 0, -80],
-      [-10 + treeDisplacement * 0.5, 0, -50],
-      [-7.5, 0, -20 - treeDisplacement],
-      [-9 + treeDisplacement, 0, 10],
-      [-8, 0, 40 + treeDisplacement],
-      [-11 - treeDisplacement, 0, 70],
-      [8 + treeDisplacement, 0, -75],
-      [9.5 - treeDisplacement * 0.5, 0, -45],
-      [8, 0, -10 + treeDisplacement],
-      [10 - treeDisplacement, 0, 25],
-      [7.5, 0, 55 - treeDisplacement],
-      [9 + treeDisplacement, 0, 85],
+      [-12.0 - treeDisplacement, 0, -80],
+      [-13.5 + treeDisplacement * 0.5, 0, -50],
+      [-12.5, 0, -25 - treeDisplacement],
+      [-12.0 + treeDisplacement, 0, 15],
+      [-12.5, 0, 45 + treeDisplacement],
+      [-14.0 - treeDisplacement, 0, 85],
+      [12.0 + treeDisplacement, 0, -75],
+      [13.5 - treeDisplacement * 0.5, 0, -35],
+      [12.5, 0, -10 + treeDisplacement],
+      [13.0 - treeDisplacement, 0, 25],
+      [12.5, 0, 50 - treeDisplacement],
+      [13.5 + treeDisplacement, 0, 95],
     ];
   }, [treeDisplacement]);
 
+  // Decorative verge lamps set comfortably along the outer footpaths
   const lampPositions: Array<{ pos: [number, number, number]; side: "left" | "right" }> = [
-    { pos: [-5.5, 0, -60], side: "left" },
-    { pos: [5.5, 0, -30], side: "right" },
-    { pos: [-5.5, 0, 0], side: "left" },
-    { pos: [5.5, 0, 30], side: "right" },
-    { pos: [-5.5, 0, 60], side: "left" },
+    { pos: [-11.5, 0, -65], side: "left" },
+    { pos: [11.5, 0, -30], side: "right" },
+    { pos: [-11.5, 0, 20], side: "left" },
+    { pos: [11.5, 0, 45], side: "right" },
+    { pos: [-11.5, 0, 95], side: "left" },
   ];
 
   return (
