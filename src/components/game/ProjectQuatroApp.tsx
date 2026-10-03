@@ -1042,8 +1042,8 @@ export default function ProjectQuatroApp() {
           <LanguageSelector />
         )}
 
-        {/* 3D Canvas Rendering Active Continuous Exploration Scene */}
-        {session.currentLocation !== "END_SCREEN" && (
+        {/* 3D Canvas Rendering Active Continuous Exploration Scene (only mount after cinematic completes) */}
+        {!showOpeningCinematic && session.currentLocation !== "END_SCREEN" && (
           <GameCanvas
             playerMode={playerMode}
             humanPos={session.humanPosition}

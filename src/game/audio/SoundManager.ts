@@ -107,19 +107,19 @@ export class SoundManager {
       this.compressor.connect(this.masterGain);
       this.masterGain.connect(this.ctx.destination);
 
-      // 1. 5-Cylinder Heavy Bass Engine Synth
-      this.initEngineSynth();
+      // 1. 5-Cylinder Heavy Bass Engine Synth (initialized lazily when driving starts)
+      // this.initEngineSynth();
 
-      // 2. Continuous Tire Drift / Skid Synth
-      this.initTireSkidSynth();
+      // 2. Continuous Tire Drift / Skid Synth (initialized lazily)
+      // this.initTireSkidSynth();
 
-      // 3. High-Speed Aerodynamic Wind Rush Synth
-      this.initWindRushSynth();
+      // 3. High-Speed Aerodynamic Wind Rush Synth (initialized lazily)
+      // this.initWindRushSynth();
 
       // 4. Analog Tape Hiss / Ambient Air
       this.initTapeHiss();
 
-      // 5. Procedural Ambient Synthwave / Lofi Pad Engine
+      // 5. Procedural Ambient Synthwave / Lofi Pads
       this.initAmbientPads();
 
       this.isInitialized = true;
@@ -474,14 +474,21 @@ export class SoundManager {
   // ── Engine & Drift Physics Updates ─────────────────────────────────────────
   public updateEngine(speed: number, isDriving: boolean = true) {
     this.ensureAudioContext();
-    if (!this.ctx || !this.engineSubOsc || !this.engineMidOsc || !this.engineGain || this.isMuted) return;
+    if (!this.ctx || this.isMuted) return;
 
     if (!isDriving) {
-      this.engineGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+      if (this.engineGain) {
+        this.engineGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
+      }
       if (this.turboGain) this.turboGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
       if (this.windGain) this.windGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1);
       return;
     }
+
+    if (!this.engineSubOsc) {
+      this.initEngineSynth();
+    }
+    if (!this.engineSubOsc || !this.engineMidOsc || !this.engineGain) return;
 
     const absSpeed = Math.abs(speed);
     const accel = (absSpeed - this.prevEngineSpeed) / 0.05;
@@ -567,7 +574,12 @@ export class SoundManager {
 
   public updateTireDrift(driftFactor: number, speed: number) {
     this.ensureAudioContext();
-    if (!this.ctx || !this.tireGain || !this.tireFilter || this.isMuted) return;
+    if (!this.ctx || this.isMuted) return;
+
+    if (!this.tireNoiseNode) {
+      this.initTireSkidSynth();
+    }
+    if (!this.tireGain || !this.tireFilter) return;
 
     const absSpeed = Math.abs(speed);
     if (driftFactor > 0.06 && absSpeed > 1.8) {
