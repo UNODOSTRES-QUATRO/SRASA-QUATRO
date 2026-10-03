@@ -410,19 +410,24 @@ export function UnifiedCamera({
     const isTransitioning = transitionProgress.current > 0.001;
 
     if (mode === "DRIVING_COCKPIT") {
-      if (isTransitioning) {
-        const cockpitPosAlpha = 1.0 - Math.exp(-24.0 * dt);
-        const cockpitLookAlpha = 1.0 - Math.exp(-26.0 * dt);
-        currentPos.current.lerp(desiredPos, cockpitPosAlpha);
-        currentLookAt.current.lerp(desiredLookAt, cockpitLookAlpha);
-      } else {
-        // Locked tightly to eye socket in cockpit mode (zero sideways drift/detachment)
-        currentPos.current.copy(desiredPos);
-        currentLookAt.current.copy(desiredLookAt);
-      }
+      const posLambda = isTransitioning ? 24.0 : 48.0;
+      const lookLambda = isTransitioning ? 26.0 : 38.0;
+      const cockpitPosAlpha = 1.0 - Math.exp(-posLambda * dt);
+      const cockpitLookAlpha = 1.0 - Math.exp(-lookLambda * dt);
+      currentPos.current.lerp(desiredPos, cockpitPosAlpha);
+      currentLookAt.current.lerp(desiredLookAt, cockpitLookAlpha);
     } else {
-      const basePosLambda = mode === "DRIVING_CHASE" ? 22.0 : isDragging ? 36.0 : 18.0;
-      const baseLookLambda = mode === "DRIVING_CHASE" ? 20.0 : isDragging ? 36.0 : 20.0;
+      const speedRatio = liveVehicle ? Math.min(1.0, Math.abs(liveVehicle.speed) / 22) : 0;
+      const basePosLambda = mode === "DRIVING_CHASE"
+        ? THREE.MathUtils.lerp(20.0, 26.0, speedRatio)
+        : isDragging
+        ? 36.0
+        : 18.0;
+      const baseLookLambda = mode === "DRIVING_CHASE"
+        ? THREE.MathUtils.lerp(18.0, 24.0, speedRatio)
+        : isDragging
+        ? 36.0
+        : 20.0;
 
       const posLambda = THREE.MathUtils.lerp(basePosLambda, 7.5, transitionProgress.current);
       const lookLambda = THREE.MathUtils.lerp(baseLookLambda, 8.5, transitionProgress.current);

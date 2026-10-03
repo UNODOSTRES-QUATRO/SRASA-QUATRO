@@ -35,13 +35,15 @@ export function FollowCamera({ vehicleState }: FollowCameraProps) {
 
     // Faster follow at low drift, more lag during drift for FR side-pan feel
     const headingLag = driftFactor > 0.25 ? 3.2 : 5.0;
-    smoothedHeading.current += angleDiff * Math.min(1, clampedDelta * headingLag);
+    const headingAlpha = 1.0 - Math.exp(-headingLag * clampedDelta);
+    smoothedHeading.current += angleDiff * headingAlpha;
 
     // ── 2. Smooth drift factor ────────────────────────────────────────────────
+    const driftAlpha = 1.0 - Math.exp(-5.0 * clampedDelta);
     smoothedDrift.current = THREE.MathUtils.lerp(
       smoothedDrift.current,
       driftFactor,
-      Math.min(1, clampedDelta * 5.0)
+      driftAlpha
     );
 
     const isPocket = scaleFactor < 0.5;

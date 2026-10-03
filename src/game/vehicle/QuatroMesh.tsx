@@ -57,6 +57,12 @@ function RallyWheel({
             <meshStandardMaterial color="#e2e8f0" roughness={0.2} metalness={0.9} />
           </mesh>
 
+          {/* Cyber Rim Lip Neon Ring */}
+          <mesh position={[0, isLeft ? 0.075 : -0.075, 0]}>
+            <cylinderGeometry args={[0.272, 0.272, 0.015, 20, 1, true]} />
+            <meshBasicMaterial color="#38bdf8" />
+          </mesh>
+
           {/* 5-Spoke Star Design */}
           {[0, 1, 2, 3, 4].map((i) => (
             <mesh
@@ -121,6 +127,12 @@ export function QuatroMesh({
   const rlSpinRef = useRef<THREE.Group>(null);
   const rrSpinRef = useRef<THREE.Group>(null);
 
+  // Wheel suspension travel mount refs
+  const mountFLRef = useRef<THREE.Group>(null);
+  const mountFRRef = useRef<THREE.Group>(null);
+  const mountRLRef = useRef<THREE.Group>(null);
+  const mountRRRef = useRef<THREE.Group>(null);
+
   // Suspension & dynamics state
   const prevSpeed = useRef(vehicleState.speed);
   const chassisPitch = useRef(0);
@@ -175,6 +187,15 @@ export function QuatroMesh({
       0.11
     );
     chassisRoll.current = THREE.MathUtils.damp(chassisRoll.current, targetRoll, 8.5, dt);
+
+    // Dynamic wheel suspension travel (squat / dive / roll compression)
+    const pitchTravel = chassisPitch.current * 0.28;
+    const rollTravel = chassisRoll.current * 0.24;
+
+    if (mountFLRef.current) mountFLRef.current.position.y = 0.32 - pitchTravel - rollTravel;
+    if (mountFRRef.current) mountFRRef.current.position.y = 0.32 - pitchTravel + rollTravel;
+    if (mountRLRef.current) mountRLRef.current.position.y = 0.32 + pitchTravel - rollTravel;
+    if (mountRRRef.current) mountRRRef.current.position.y = 0.32 + pitchTravel + rollTravel;
 
     // Subtle road surface vibration
     const bounce = Math.sin(state.clock.getElapsedTime() * 24) * Math.min(0.015, Math.abs(live.speed) * 0.0009);
@@ -351,6 +372,22 @@ export function QuatroMesh({
           <meshStandardMaterial color="#0c0e12" roughness={0.9} />
         </mesh>
 
+        {/* Front Anodized Red Racing Tow Hook */}
+        <group position={[0.62, 0.21, 1.86]}>
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[0.045, 0.012, 8, 16]} />
+            <meshStandardMaterial color="#ef4444" metalness={0.9} roughness={0.2} />
+          </mesh>
+        </group>
+
+        {/* Front Splitter Aero Struts */}
+        {[-0.32, 0.32].map((sx, si) => (
+          <mesh key={`strut-${si}`} position={[sx, 0.32, 1.82]} rotation={[0.3, 0, 0]}>
+            <cylinderGeometry args={[0.008, 0.008, 0.18]} />
+            <meshStandardMaterial color="#cbd5e1" metalness={0.9} />
+          </mesh>
+        ))}
+
         {/* Front Amber Fog Projectors */}
         {[-0.66, 0.66].map((fx, fi) => (
           <group key={`fog-${fi}`} position={[fx, 0.25, 1.82]} rotation={[Math.PI / 2, 0, 0]}>
@@ -423,6 +460,20 @@ export function QuatroMesh({
           <boxGeometry args={[0.015, 0.02, 1.15]} />
           <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={2.5} />
         </mesh>
+
+        {/* Rally Hood Quick-Release Pins */}
+        {[-0.52, 0.52].map((px, pi) => (
+          <group key={`hood-pin-${pi}`} position={[px, 0.69, 1.38]} rotation={[-0.08, 0, 0]}>
+            <mesh>
+              <cylinderGeometry args={[0.035, 0.035, 0.012, 12]} />
+              <meshStandardMaterial color="#38bdf8" emissive="#0284c7" emissiveIntensity={2.2} />
+            </mesh>
+            <mesh position={[0, 0.015, 0]} rotation={[0, 0, Math.PI / 2]}>
+              <torusGeometry args={[0.025, 0.006, 6, 12]} />
+              <meshStandardMaterial color="#e2e8f0" metalness={0.9} />
+            </mesh>
+          </group>
+        ))}
 
         {/* 4. CABIN & ROOF */}
         <mesh position={[0, 1.05, -0.22]} castShadow receiveShadow>
@@ -712,7 +763,7 @@ export function QuatroMesh({
           7. HIGH-DETAIL DEEP-DISH RALLY WHEELS (FR LEGENDS STANCE)
           ======================================================== */}
       {/* Front Left Wheel with Steering (direct ref updates) */}
-      <group position={[0.9, 0.32, 1.1]}>
+      <group ref={mountFLRef} position={[0.9, 0.32, 1.1]}>
         <RallyWheel
           steerRef={flSteerRef}
           spinRef={flSpinRef}
@@ -724,7 +775,7 @@ export function QuatroMesh({
       </group>
 
       {/* Front Right Wheel with Steering (direct ref updates) */}
-      <group position={[-0.9, 0.32, 1.1]}>
+      <group ref={mountFRRef} position={[-0.9, 0.32, 1.1]}>
         <RallyWheel
           steerRef={frSteerRef}
           spinRef={frSpinRef}
@@ -736,7 +787,7 @@ export function QuatroMesh({
       </group>
 
       {/* Rear Left Wheel (direct ref updates) */}
-      <group position={[0.92, 0.32, -1.1]}>
+      <group ref={mountRLRef} position={[0.92, 0.32, -1.1]}>
         <RallyWheel
           spinRef={rlSpinRef}
           initialRotation={vehicleState.wheelRotation}
@@ -746,7 +797,7 @@ export function QuatroMesh({
       </group>
 
       {/* Rear Right Wheel (direct ref updates) */}
-      <group position={[-0.92, 0.32, -1.1]}>
+      <group ref={mountRRRef} position={[-0.92, 0.32, -1.1]}>
         <RallyWheel
           spinRef={rrSpinRef}
           initialRotation={vehicleState.wheelRotation}

@@ -25,11 +25,12 @@ export function CockpitCamera({ vehicleState }: CockpitCameraProps) {
     const { position, heading, speed, steeringAngle, driftFactor, lateralSpeed } = vehicleState;
     const clampedDelta = Math.min(delta, 0.05);
 
-    // Smooth heading (shortest-arc)
+    // Smooth heading (shortest-arc with exponential damping)
     let angleDiff = heading - smoothedHeading.current;
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-    smoothedHeading.current += angleDiff * Math.min(1, clampedDelta * 8);
+    const headingAlpha = 1.0 - Math.exp(-8.0 * clampedDelta);
+    smoothedHeading.current += angleDiff * headingAlpha;
 
     // ── Head bob tied to speed ────────────────────────────────────────────────
     bobTime.current += clampedDelta * Math.abs(speed) * 0.8;

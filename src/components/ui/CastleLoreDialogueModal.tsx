@@ -103,7 +103,9 @@ export function CastleLoreDialogueModal({
                 <div className="text-xs font-bold text-amber-400 uppercase tracking-wider">
                   {currentNpc.name}
                 </div>
-                <div className="text-[10px] text-gray-400">PENGHUNI KASTIL SEMICOLON</div>
+                <div className="text-[10px] text-gray-400">
+                  {npcId === "mechanic" ? "BENGKEL MEKANIK QUATRO" : "PENGHUNI KASTIL SEMICOLON"}
+                </div>
               </div>
             </div>
             <button

@@ -235,11 +235,18 @@ export default function ProjectQuatroApp() {
     window.addEventListener("click", handleFirstInteraction);
     window.addEventListener("pointerdown", handleFirstInteraction);
     window.addEventListener("touchstart", handleFirstInteraction);
+
+    const handleFocus = () => {
+      soundManager.ensureAudioContext();
+    };
+    window.addEventListener("focus", handleFocus);
+
     return () => {
       window.removeEventListener("keydown", handleFirstInteraction);
       window.removeEventListener("click", handleFirstInteraction);
       window.removeEventListener("pointerdown", handleFirstInteraction);
       window.removeEventListener("touchstart", handleFirstInteraction);
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 
@@ -363,6 +370,7 @@ export default function ProjectQuatroApp() {
   // ── Keyboard listeners for WASD / Arrows / E / Space / Escape / C / F / Q ──
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      soundManager.ensureAudioContext();
       const keyboardState = keyboardStateRef.current;
       const currentSession = sessionRef.current;
       const currentMode = playerModeRef.current;

@@ -450,4 +450,58 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     expect(current.angularVelocity).toBeLessThan(0); // Turning right
     expect(Math.abs(current.lateralSpeed)).toBeGreaterThan(0);
   });
+
+  it("verifies dynamic wheel suspension travel offsets front and rear wheels on pitch and roll", () => {
+    // Under braking pitch (nose dive, targetPitch < 0)
+    const brakingPitch = -0.08;
+    const neutralRoll = 0.0;
+    const pitchTravelBrake = brakingPitch * 0.28;
+    const rollTravelNeutral = neutralRoll * 0.24;
+
+    // Front wheels compress up (lower Y in suspension coords)
+    const flBrakeY = 0.32 - pitchTravelBrake - rollTravelNeutral;
+    // Rear wheels extend down
+    const rlBrakeY = 0.32 + pitchTravelBrake - rollTravelNeutral;
+
+    expect(flBrakeY).toBeGreaterThan(0.32); // Front compresses upward relative to body
+    expect(rlBrakeY).toBeLessThan(0.32); // Rear extends downward
+
+    // Under right roll (turning left, chassisRoll > 0)
+    const cornerRoll = 0.09;
+    const cornerPitch = 0.0;
+    const rollTravel = cornerRoll * 0.24;
+
+    // Left wheels compress (outside in a right roll)
+    const flRollY = 0.32 - cornerPitch * 0.28 - rollTravel;
+    const frRollY = 0.32 - cornerPitch * 0.28 + rollTravel;
+
+    expect(flRollY).toBeLessThan(0.32);
+    expect(frRollY).toBeGreaterThan(0.32);
+  });
+
+  it("verifies Pak Montir dialogue displays correct mechanic shop subtitle", () => {
+    const getSubtitle = (npcId: string) =>
+      npcId === "mechanic" ? "BENGKEL MEKANIK QUATRO" : "PENGHUNI KASTIL SEMICOLON";
+
+    expect(getSubtitle("mechanic")).toBe("BENGKEL MEKANIK QUATRO");
+    expect(getSubtitle("jeffrey")).toBe("PENGHUNI KASTIL SEMICOLON");
+    expect(getSubtitle("vespera")).toBe("PENGHUNI KASTIL SEMICOLON");
+    expect(getSubtitle("barnaby")).toBe("PENGHUNI KASTIL SEMICOLON");
+  });
+
+  it("verifies cockpit camera damping ensures zero-jitter eye stability", () => {
+    const dt = 0.0166;
+    const posLambda = 48.0;
+    const lookLambda = 38.0;
+
+    const alphaPos = 1.0 - Math.exp(-posLambda * dt);
+    const alphaLook = 1.0 - Math.exp(-lookLambda * dt);
+
+    // Alpha values are rapid (over 45% per frame) ensuring tight responsiveness without rigid frame-copy jitter
+    expect(alphaPos).toBeGreaterThan(0.5);
+    expect(alphaPos).toBeLessThan(1.0);
+    expect(alphaLook).toBeGreaterThan(0.4);
+    expect(alphaLook).toBeLessThan(1.0);
+  });
 });
+

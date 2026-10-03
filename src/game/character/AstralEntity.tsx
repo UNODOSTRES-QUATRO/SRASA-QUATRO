@@ -357,9 +357,19 @@ function SingleAstralEntity({
       if (defeatBloomRef.current) {
         if (defeatProgressRef.current < 3.2) {
           defeatBloomRef.current.visible = true;
-          defeatBloomRef.current.scale.addScalar(dt * 1.2);
-          defeatBloomRef.current.position.y += dt * 1.8;
-          defeatBloomRef.current.rotation.y += dt * 1.6;
+          defeatBloomRef.current.scale.addScalar(dt * 0.9);
+          defeatBloomRef.current.position.y += dt * 1.5;
+          defeatBloomRef.current.rotation.y += dt * 1.4;
+          const fade = Math.max(0, 1.0 - defeatProgressRef.current / 3.2);
+          defeatBloomRef.current.children.forEach((child) => {
+            const mesh = child as THREE.Mesh;
+            if (mesh.material) {
+              const mat = mesh.material as THREE.MeshBasicMaterial;
+              if (mat.opacity !== undefined) {
+                mat.opacity = fade * 0.85;
+              }
+            }
+          });
         } else {
           defeatBloomRef.current.visible = false;
         }
@@ -388,6 +398,15 @@ function SingleAstralEntity({
       defeatBloomRef.current.visible = false;
       defeatBloomRef.current.scale.set(1, 1, 1);
       defeatBloomRef.current.position.set(0, 0, 0);
+      defeatBloomRef.current.children.forEach((child) => {
+        const mesh = child as THREE.Mesh;
+        if (mesh.material) {
+          const mat = mesh.material as THREE.MeshBasicMaterial;
+          if (mat.opacity !== undefined) {
+            mat.opacity = 0.85;
+          }
+        }
+      });
     }
 
     // Gentle wandering sinusoidal path around base position (deterministic phase per monster)
