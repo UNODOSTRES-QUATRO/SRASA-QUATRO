@@ -54,8 +54,9 @@ export function UnifiedCamera({
   const prevSpeed = useRef(0);
   const bobTime = useRef(0);
 
-  // Transition smoothing between modes
+  // Transition smoothing between modes and environments
   const transitionProgress = useRef(0);
+  const smoothedInteriorRatio = useRef(isInsideEscapeRoom ? 1.0 : 0.0);
   const prevDesiredPos = useRef(new THREE.Vector3());
 
   // Inertial pointer dragging velocity for ON_FOOT
@@ -323,10 +324,17 @@ export function UnifiedCamera({
 
       const isInterior = isInsideEscapeRoom || isInsideHome || isInsideWorkplace || isInsideBengkel || liveTargetPos[2] > 198.0;
 
+      // Smooth interior transition factor (exponential damp to eliminate stepped jump when crossing thresholds)
+      const interiorTarget = isInterior ? 1.0 : 0.0;
+      const interiorAlpha = 1.0 - Math.exp(-6.0 * dt);
+      smoothedInteriorRatio.current += (interiorTarget - smoothedInteriorRatio.current) * interiorAlpha;
+
       // Smart interior distance clamping to prevent clipping through exterior walls/roofs
-      const effectiveTargetDistance = isInterior
-        ? THREE.MathUtils.clamp(targetOrbitDistance.current, 2.8, 4.2)
-        : targetOrbitDistance.current;
+      const effectiveTargetDistance = THREE.MathUtils.lerp(
+        targetOrbitDistance.current,
+        THREE.MathUtils.clamp(targetOrbitDistance.current, 2.8, 4.2),
+        smoothedInteriorRatio.current
+      );
 
       // Smooth orbit distance damping
       const distAlpha = 1.0 - Math.exp(-6.5 * dt);
@@ -340,10 +348,12 @@ export function UnifiedCamera({
       if (!pointer.current.dragging) {
         if (Math.abs(pointerVel.current.x) > 0.0001 || Math.abs(pointerVel.current.y) > 0.0001) {
           orbitAzimuth.current -= pointerVel.current.x * dt;
+          const minPolar = THREE.MathUtils.lerp(0.22, 0.35, smoothedInteriorRatio.current);
+          const maxPolar = THREE.MathUtils.lerp(Math.PI / 2 - 0.08, 1.25, smoothedInteriorRatio.current);
           orbitPolar.current = THREE.MathUtils.clamp(
             orbitPolar.current + pointerVel.current.y * dt,
-            isInterior ? 0.35 : 0.22,
-            isInterior ? 1.25 : Math.PI / 2 - 0.08
+            minPolar,
+            maxPolar
           );
           const decay = Math.exp(-8.0 * dt);
           pointerVel.current.x *= decay;
@@ -364,10 +374,10 @@ export function UnifiedCamera({
       const hDist = orbitDistance.current * Math.sin(smoothedOrbitPolar.current);
       const vDist = orbitDistance.current * Math.cos(smoothedOrbitPolar.current);
 
-      const calculatedCamY = liveTargetPos[1] + vDist + (isInterior ? 0.35 : 0.85);
-      const clampedCamY = isInterior
-        ? Math.min(2.85, Math.max(0.65, calculatedCamY))
-        : Math.max(0.55, calculatedCamY);
+      const vOffset = THREE.MathUtils.lerp(0.85, 0.35, smoothedInteriorRatio.current);
+      const maxCamY = THREE.MathUtils.lerp(24.0, 2.85, smoothedInteriorRatio.current);
+      const calculatedCamY = liveTargetPos[1] + vDist + vOffset;
+      const clampedCamY = Math.min(maxCamY, Math.max(0.55, calculatedCamY));
 
       desiredPos.set(
         liveTargetPos[0] - Math.sin(smoothedOrbitAzimuth.current) * hDist,
@@ -377,11 +387,11 @@ export function UnifiedCamera({
 
       desiredLookAt.set(
         liveTargetPos[0],
-        liveTargetPos[1] + (isInterior ? 1.0 : 1.15),
+        liveTargetPos[1] + THREE.MathUtils.lerp(1.15, 1.0, smoothedInteriorRatio.current),
         liveTargetPos[2]
       );
 
-      targetFov = isInterior ? 52 : 48;
+      targetFov = THREE.MathUtils.lerp(48, 52, smoothedInteriorRatio.current);
     }
 
     // ── First Frame Initializer or Teleport Discontinuity Snap ───────────────
@@ -408,17 +418,11 @@ export function UnifiedCamera({
     const lookAlpha = 1.0 - Math.exp(-lookLambda * dt);
 
     if (mode === "DRIVING_COCKPIT") {
-      if (transitionProgress.current > 0.001) {
-        const cockpitPosAlpha = 1.0 - Math.exp(-22.0 * dt);
-        currentPos.current.lerp(desiredPos, cockpitPosAlpha);
-
-        const cockpitLookAlpha = 1.0 - Math.exp(-26.0 * dt);
-        currentLookAt.current.lerp(desiredLookAt, cockpitLookAlpha);
-      } else {
-        // Locked inside cabin: 100% synchronized with car motion, zero lag behind moving vehicle
-        currentPos.current.copy(desiredPos);
-        currentLookAt.current.copy(desiredLookAt);
-      }
+      const isTransitioning = transitionProgress.current > 0.001;
+      const cockpitPosAlpha = 1.0 - Math.exp((isTransitioning ? 22.0 : 48.0) * dt);
+      const cockpitLookAlpha = 1.0 - Math.exp((isTransitioning ? 26.0 : 48.0) * dt);
+      currentPos.current.lerp(desiredPos, cockpitPosAlpha);
+      currentLookAt.current.lerp(desiredLookAt, cockpitLookAlpha);
     } else {
       currentPos.current.lerp(desiredPos, posAlpha);
       currentLookAt.current.lerp(desiredLookAt, lookAlpha);

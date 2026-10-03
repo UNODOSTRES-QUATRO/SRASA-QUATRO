@@ -157,6 +157,8 @@ export const WORLD_COLLISION_FOOTPRINTS: Footprint[] = [
   { minX: -24.2, maxX: -23.8, minZ: -6.0, maxZ: 6.0 },
   { minX: -24.0, maxX: -12.0, minZ: 5.8, maxZ: 6.2 },
   { minX: -24.0, maxX: -12.0, minZ: -6.2, maxZ: -5.8 },
+  { minX: -12.2, maxX: -11.8, minZ: 1.8, maxZ: 6.0 },  // Front north pillar
+  { minX: -12.2, maxX: -11.8, minZ: -6.0, maxZ: -1.8 }, // Front south pillar
   { minX: -16.0, maxX: -13.0, minZ: -5.4, maxZ: -4.2 },
 
   // ── 3. TECH WORKPLACE AT [18, 0, 70] ──
@@ -170,7 +172,9 @@ export const WORLD_COLLISION_FOOTPRINTS: Footprint[] = [
   { minX: 19.6, maxX: 22.4, minZ: 66.7, maxZ: 69.3 },
 
   // ── 4. CASTLE WALLS & KEEP AT Z = 170 to 215 ──
-  { minX: -13.2, maxX: 13.2, minZ: 169.4, maxZ: 170.6 },
+  // Courtyard south walls flanking the central highway entrance archway (opening from X = -5.0 to 5.0)
+  { minX: -14.0, maxX: -5.0, minZ: 169.4, maxZ: 170.6 },
+  { minX: 5.0, maxX: 14.0, minZ: 169.4, maxZ: 170.6 },
   { minX: -14.0, maxX: -12.0, minZ: 170.0, maxZ: 215.0 },
   { minX: 12.0, maxX: 14.0, minZ: 170.0, maxZ: 215.0 },
   { minX: -7.0, maxX: 7.0, minZ: 211.5, maxZ: 212.5 },

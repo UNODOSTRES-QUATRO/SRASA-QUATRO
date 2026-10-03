@@ -1111,6 +1111,26 @@ export default function ProjectQuatroApp() {
             };
             setWeaponHUDTick((t) => t + 1);
           }}
+          onStartAttack={() => {
+            const pos: [number, number, number] = humanPosRef.current
+              ? [humanPosRef.current.x, humanPosRef.current.y, humanPosRef.current.z]
+              : sessionRef.current.humanPosition;
+            const heading = humanPosRef.current ? humanPosRef.current.heading : sessionRef.current.humanHeading;
+            isAttackingRef.current = true;
+            weaponSystem.startAttack(pos, heading);
+            setWeaponHUDTick((t) => t + 1);
+          }}
+          onReleaseAttack={() => {
+            isAttackingRef.current = false;
+            if (weaponSystem.stateRef.current.activeAttack?.isCharging) {
+              const pos: [number, number, number] = humanPosRef.current
+                ? [humanPosRef.current.x, humanPosRef.current.y, humanPosRef.current.z]
+                : sessionRef.current.humanPosition;
+              const heading = humanPosRef.current ? humanPosRef.current.heading : sessionRef.current.humanHeading;
+              weaponSystem.releaseAttack(pos, heading);
+              setWeaponHUDTick((t) => t + 1);
+            }
+          }}
         />
       )}
 

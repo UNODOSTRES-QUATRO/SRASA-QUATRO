@@ -9,6 +9,8 @@ interface WeaponHUDProps {
   onNextWeapon: () => void;
   onPrevWeapon: () => void;
   onSelectWeapon?: (index: number) => void;
+  onStartAttack?: () => void;
+  onReleaseAttack?: () => void;
 }
 
 /**
@@ -22,11 +24,40 @@ export function WeaponHUD({
   onNextWeapon,
   onPrevWeapon,
   onSelectWeapon,
+  onStartAttack,
+  onReleaseAttack,
 }: WeaponHUDProps) {
   const def = WEAPON_DEFS[activeWeaponId];
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-32 z-30 flex flex-col items-end gap-2">
+    <div className="pointer-events-none fixed bottom-5 right-28 z-30 flex flex-col items-end gap-2.5">
+      {/* Quick Attack Button (interactive for touch & mouse) */}
+      <button
+        type="button"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          onStartAttack?.();
+        }}
+        onPointerUp={(e) => {
+          e.preventDefault();
+          onReleaseAttack?.();
+        }}
+        onPointerLeave={() => {
+          if (isAttacking) onReleaseAttack?.();
+        }}
+        className="pointer-events-auto flex items-center gap-2 border border-quatro-amber/60 bg-quatro-navy/90 px-3.5 py-1.5 text-xs font-mono uppercase tracking-wider text-quatro-cream shadow-xl backdrop-blur-md transition-all hover:bg-quatro-navy hover:scale-105 active:scale-95"
+        style={{
+          boxShadow: isAttacking ? `0 0 14px ${def.color}` : "none",
+          borderColor: isAttacking ? def.color : undefined,
+        }}
+      >
+        <span className="rounded bg-quatro-amber/20 px-1.5 py-0.5 text-[10px] font-bold text-quatro-amber">
+          F
+        </span>
+        <span style={{ color: def.color }}>
+          {def.type === "CHARGE" ? (isAttacking ? "Melepas Serangan..." : "Tahan / Lepas") : "Serang"}
+        </span>
+      </button>
       {/* Weapon slots */}
       <div className="flex gap-1.5 items-end">
         {WEAPON_ORDER.map((wId, i) => {
