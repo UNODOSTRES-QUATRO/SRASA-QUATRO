@@ -405,12 +405,17 @@ export function UnifiedCamera({
     const lookAlpha = 1.0 - Math.exp(-lookLambda * dt);
 
     if (mode === "DRIVING_COCKPIT") {
-      const posRate = transitionProgress.current > 0.01 ? 14.0 : 36.0;
-      const cockpitPosAlpha = 1.0 - Math.exp(-posRate * dt);
-      currentPos.current.lerp(desiredPos, cockpitPosAlpha);
+      if (transitionProgress.current > 0.01) {
+        const cockpitPosAlpha = 1.0 - Math.exp(-14.0 * dt);
+        currentPos.current.lerp(desiredPos, cockpitPosAlpha);
 
-      const cockpitLookAlpha = 1.0 - Math.exp(-24.0 * dt);
-      currentLookAt.current.lerp(desiredLookAt, cockpitLookAlpha);
+        const cockpitLookAlpha = 1.0 - Math.exp(-18.0 * dt);
+        currentLookAt.current.lerp(desiredLookAt, cockpitLookAlpha);
+      } else {
+        // Locked inside cabin: 100% synchronized with car motion, zero lag behind moving vehicle
+        currentPos.current.copy(desiredPos);
+        currentLookAt.current.copy(desiredLookAt);
+      }
     } else {
       currentPos.current.lerp(desiredPos, posAlpha);
       currentLookAt.current.lerp(desiredLookAt, lookAlpha);

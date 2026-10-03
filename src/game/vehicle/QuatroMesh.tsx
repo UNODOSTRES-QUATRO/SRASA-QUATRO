@@ -106,6 +106,7 @@ export function QuatroMesh({
   const taillightMaterialRef = useRef<THREE.MeshStandardMaterial>(null);
   const taillightLightRef = useRef<THREE.PointLight>(null);
   const reverseLightRef = useRef<THREE.MeshStandardMaterial>(null);
+  const reverseLightRightRef = useRef<THREE.MeshStandardMaterial>(null);
   const mountPromptRef = useRef<THREE.Group>(null);
 
   // Wheel refs for zero-jitter, 60+ FPS direct rotation
@@ -220,6 +221,9 @@ export function QuatroMesh({
     }
     if (reverseLightRef.current) {
       reverseLightRef.current.emissiveIntensity = live.isReversing ? 3.5 : 0;
+    }
+    if (reverseLightRightRef.current) {
+      reverseLightRightRef.current.emissiveIntensity = live.isReversing ? 3.5 : 0;
     }
 
     // ── Proximity 3D Mount Hologram Indicator (On foot, within 3.6m) ──
@@ -603,7 +607,7 @@ export function QuatroMesh({
           <mesh key={`rev-light-${ri}`} position={[rx, 0.52, -1.785]}>
             <boxGeometry args={[0.18, 0.06, 0.015]} />
             <meshStandardMaterial
-              ref={ri === 0 ? reverseLightRef : undefined}
+              ref={ri === 0 ? reverseLightRef : reverseLightRightRef}
               color="#ffffff"
               emissive="#f8fafc"
               emissiveIntensity={0}

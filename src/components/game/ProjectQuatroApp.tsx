@@ -31,7 +31,7 @@ import {
   wakeUp,
 } from "@/game/core/gameStore";
 import { soundManager } from "@/game/audio/SoundManager";
-import { createInitialVehicleState } from "@/game/vehicle/vehiclePhysics";
+import { createInitialVehicleState, toggleVehicleScale } from "@/game/vehicle/vehiclePhysics";
 import { VehicleState, CameraMode } from "@/game/vehicle/vehicleTypes";
 import { useGameRealtime } from "@/game/realtime/useGameRealtime";
 import { useWeaponSystem } from "@/game/weapons/WeaponSystem";
@@ -306,6 +306,16 @@ export default function ProjectQuatroApp() {
       // [C] — toggle camera mode when driving
       if (e.code === "KeyC" && currentMode === "DRIVING" && !e.repeat) {
         setCameraMode((prev) => (prev === "CHASE" ? "COCKPIT" : "CHASE"));
+        return;
+      }
+
+      // [P] — toggle Pocket Car scale when driving
+      if (e.code === "KeyP" && currentMode === "DRIVING" && !e.repeat) {
+        soundManager.playClick();
+        if (vehicleStateRef.current) {
+          vehicleStateRef.current = toggleVehicleScale(vehicleStateRef.current);
+          setVehicleState({ ...vehicleStateRef.current });
+        }
         return;
       }
 
@@ -689,14 +699,18 @@ export default function ProjectQuatroApp() {
       }
     }
 
-    // Exit front door onto porch/driveway
-    if (distToDoor < 2.2 && session.phase === "MORNING_ROUTINE" && session.rumah.canExitHouse) {
+    // Exit front door onto porch/driveway (seamless exploration)
+    if (distToDoor < 2.2 && session.phase === "MORNING_ROUTINE") {
       soundManager.playClick();
       setSession((prev) => ({
         ...prev,
         currentLocation: "JALAN",
         phase: "COMMUTE_TO_WORK",
-        activePrompt: "✦ Menuju mobil Quattro di halaman depan.",
+        rumah: {
+          ...prev.rumah,
+          canExitHouse: true,
+        },
+        activePrompt: "✦ Menuju mobil Quattro di halaman depan. Tekan [E] untuk masuk.",
       }));
       return;
     }
@@ -889,8 +903,8 @@ export default function ProjectQuatroApp() {
       } else if (Math.hypot(playerWorldX - 23.4, playerWorldZ - (-63.4)) < 2.2) {
         if (isEvening && !session.rumah.hasShoweredEvening) contextualAction = "Mandi Malam";
         else if (!isEvening && session.rumah.hasEaten && !session.rumah.hasShowered) contextualAction = "Mandi Pagi";
-      } else if (!isEvening && Math.hypot(playerWorldX - 20.0, playerWorldZ - (-55.7)) < 2.0 && session.rumah.canExitHouse) {
-        contextualAction = "Keluar ke Halaman";
+      } else if (!isEvening && Math.hypot(playerWorldX - 20.0, playerWorldZ - (-55.7)) < 2.0) {
+        contextualAction = session.rumah.canExitHouse ? "Keluar ke Halaman" : "Buka Pintu (Eksplorasi)";
       } else if (session.kastil.insideEscapeRoom) {
         if (Math.hypot(playerWorldX - 5.5, playerWorldZ - 205.0) < 2.5) contextualAction = "Periksa Lemari";
         else if (session.kastil.escapeRoom.cabinetSearched && Math.hypot(playerWorldX - (-5.5), playerWorldZ - 205.0) < 2.5) contextualAction = "Periksa Perapian";
