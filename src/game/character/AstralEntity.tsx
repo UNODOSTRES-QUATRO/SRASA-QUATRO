@@ -311,6 +311,7 @@ function SingleAstralEntity({
   const ringRef = useRef<THREE.Group>(null);
   const leftWingRef = useRef<THREE.Mesh>(null);
   const rightWingRef = useRef<THREE.Mesh>(null);
+  const shadowTailRef = useRef<THREE.Group>(null);
   const defeatBloomRef = useRef<THREE.Group>(null);
   const rippleRingRef = useRef<THREE.Mesh>(null);
 
@@ -353,15 +354,20 @@ function SingleAstralEntity({
     if (data.isDefeated) {
       defeatProgressRef.current += dt;
       if (defeatBloomRef.current) {
-        defeatBloomRef.current.visible = true;
-        defeatBloomRef.current.scale.addScalar(dt * 1.8);
-        defeatBloomRef.current.position.y += dt * 1.2;
-        defeatBloomRef.current.rotation.y += dt * 1.4;
+        if (defeatProgressRef.current < 3.2) {
+          defeatBloomRef.current.visible = true;
+          defeatBloomRef.current.scale.addScalar(dt * 1.2);
+          defeatBloomRef.current.position.y += dt * 1.8;
+          defeatBloomRef.current.rotation.y += dt * 1.6;
+        } else {
+          defeatBloomRef.current.visible = false;
+        }
       }
       if (coreRef.current) coreRef.current.visible = false;
       if (ringRef.current) ringRef.current.visible = false;
       if (leftWingRef.current) leftWingRef.current.visible = false;
       if (rightWingRef.current) rightWingRef.current.visible = false;
+      if (shadowTailRef.current) shadowTailRef.current.visible = false;
       return;
     }
 
@@ -370,6 +376,7 @@ function SingleAstralEntity({
     if (ringRef.current) ringRef.current.visible = true;
     if (leftWingRef.current) leftWingRef.current.visible = true;
     if (rightWingRef.current) rightWingRef.current.visible = true;
+    if (shadowTailRef.current) shadowTailRef.current.visible = true;
     if (defeatBloomRef.current) {
       defeatBloomRef.current.visible = false;
       defeatBloomRef.current.scale.set(1, 1, 1);
@@ -520,6 +527,36 @@ function SingleAstralEntity({
           opacity={0.45}
         />
       </mesh>
+
+      {/* Ethereal Shadow Cowl / Floating Shadow Tail */}
+      <group ref={shadowTailRef} position={[0, -0.32, 0]}>
+        <mesh>
+          <coneGeometry args={[0.26, 0.72, 8, 1, true]} />
+          <meshStandardMaterial
+            color="#090d16"
+            emissive={data.color}
+            emissiveIntensity={0.5}
+            transparent
+            opacity={0.65}
+            roughness={0.9}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        {/* Floating subtle shadow embers */}
+        {[0, 1, 2].map((i) => (
+          <mesh
+            key={`shadow-ember-${i}`}
+            position={[
+              Math.sin(i * 2.1) * 0.16,
+              -0.42 - i * 0.14,
+              Math.cos(i * 2.1) * 0.16,
+            ]}
+          >
+            <sphereGeometry args={[0.04, 6, 6]} />
+            <meshBasicMaterial color={data.color} transparent opacity={0.45} />
+          </mesh>
+        ))}
+      </group>
 
       {/* Orbiting Sacred Geometry Rings */}
       <group ref={ringRef}>

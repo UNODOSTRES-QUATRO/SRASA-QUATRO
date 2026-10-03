@@ -105,20 +105,52 @@ export function HumanPlayer({
 
     if (liveIsAttacking) {
       if (liveWeaponId === "BLUE_SHARD_SWORD") {
-        // Fluid, satisfying diagonal slash arc
-        const slashPhase = Math.sin(liveProgress * Math.PI);
-        targetRightArm.set(
-          -1.2 + slashPhase * 2.3,
-          -0.45 + slashPhase * 1.0,
-          -0.3 + slashPhase * 0.7
-        );
-        targetLeftArm.set(0.2, 0.3, -0.2); // Left arm balances swing
-        targetWeapon.set(0.35, -slashPhase * 0.6, -0.25 + slashPhase * 0.5);
+        // Multi-phase dynamic cutting stroke (windup -> swift cutting arc -> ease-out follow-through)
+        let armX: number;
+        let armY: number;
+        let armZ: number;
+        let wX: number;
+        let wY: number;
+        let wZ: number;
+
+        if (liveProgress < 0.22) {
+          // Phase 1: High coiled windup (raising blade up to right shoulder)
+          const p = liveProgress / 0.22;
+          armX = THREE.MathUtils.lerp(0.2, -1.1, p);
+          armY = THREE.MathUtils.lerp(-0.12, -0.5, p);
+          armZ = THREE.MathUtils.lerp(0.1, 0.45, p);
+          wX = THREE.MathUtils.lerp(0.55, -0.4, p);
+          wY = THREE.MathUtils.lerp(0.1, 0.35, p);
+          wZ = THREE.MathUtils.lerp(-0.15, -0.5, p);
+        } else if (liveProgress < 0.72) {
+          // Phase 2: High-speed cutting slash diagonally downward across torso
+          const p = (liveProgress - 0.22) / 0.50;
+          const easeSwing = Math.sin(p * Math.PI * 0.5); // fast start, accelerating through contact
+          armX = THREE.MathUtils.lerp(-1.1, 1.25, easeSwing);
+          armY = THREE.MathUtils.lerp(-0.5, 0.65, easeSwing);
+          armZ = THREE.MathUtils.lerp(0.45, -0.35, easeSwing);
+          wX = THREE.MathUtils.lerp(-0.4, 0.85, easeSwing);
+          wY = THREE.MathUtils.lerp(0.35, -0.65, easeSwing);
+          wZ = THREE.MathUtils.lerp(-0.5, 0.4, easeSwing);
+        } else {
+          // Phase 3: Deceleration, follow-through & return to guard
+          const p = (liveProgress - 0.72) / 0.28;
+          armX = THREE.MathUtils.lerp(1.25, 0.2, p);
+          armY = THREE.MathUtils.lerp(0.65, -0.12, p);
+          armZ = THREE.MathUtils.lerp(-0.35, 0.1, p);
+          wX = THREE.MathUtils.lerp(0.85, 0.55, p);
+          wY = THREE.MathUtils.lerp(-0.65, 0.1, p);
+          wZ = THREE.MathUtils.lerp(0.4, -0.15, p);
+        }
+
+        targetRightArm.set(armX, armY, armZ);
+        targetLeftArm.set(0.15, 0.25, -0.15); // Left arm balances natural swing
+        targetWeapon.set(wX, wY, wZ);
       } else if (liveWeaponId === "BOW") {
         // Left arm extends bow forward, right arm draws string back
         const draw = (liveCharge || 0.1);
-        targetLeftArm.set(-1.48, 0.15, 0.05);
-        targetRightArm.set(-1.38, -0.35 - draw * 0.35, 0.18);
+        targetLeftArm.set(-1.45, 0.12, 0.05);
+        targetRightArm.set(-1.35, -0.32 - draw * 0.32, 0.16);
         targetWeapon.set(0.0, 0.0, 0.0);
       } else if (liveWeaponId === "HEAVENLY_PEN") {
         // Poetic calligraphy arc
@@ -127,11 +159,11 @@ export function HumanPlayer({
         targetLeftArm.set(-0.2, 0.2, 0);
         targetWeapon.set(0.25, 0.1, 0.05);
       } else if (liveWeaponId === "SCYTHE") {
-        // Wide sweeping scythe harvest strike
-        const sweepPhase = Math.sin(liveProgress * Math.PI);
-        targetRightArm.set(-1.3 + sweepPhase * 2.0, 0.7 - sweepPhase * 1.4, 0);
-        targetLeftArm.set(-0.9 + sweepPhase * 1.2, 0.4, 0.2);
-        targetWeapon.set(-0.15, 0, 0.2);
+        // Wide sweeping scythe harvest strike across full forward arc
+        const p = Math.sin(liveProgress * Math.PI);
+        targetRightArm.set(-1.35 + p * 2.2, 0.75 - p * 1.5, 0.1);
+        targetLeftArm.set(-0.95 + p * 1.3, 0.45, 0.25);
+        targetWeapon.set(-0.2, -p * 0.3, 0.25);
       } else if (liveWeaponId === "RPG") {
         // Shoulder recoil
         const recoil = Math.sin(liveProgress * Math.PI) * 0.2;
@@ -199,12 +231,12 @@ export function HumanPlayer({
 
     // ── 5. Dynamic Slash Energy Ribbon ──
     if (slashRibbonRef.current) {
-      if (liveIsAttacking && liveWeaponId === "BLUE_SHARD_SWORD" && liveProgress > 0.05 && liveProgress < 0.88) {
+      if (liveIsAttacking && liveWeaponId === "BLUE_SHARD_SWORD" && liveProgress >= 0.20 && liveProgress <= 0.75) {
         slashRibbonRef.current.visible = true;
-        const slashPhase = liveProgress;
-        slashRibbonRef.current.rotation.set(0.35 + slashPhase * 0.4, -slashPhase * 0.85, -0.6 + slashPhase * 1.3);
-        slashRibbonRef.current.scale.set(0.85 + slashPhase * 0.4, 0.85 + slashPhase * 0.4, 1.0);
-        (slashRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = Math.sin(liveProgress * Math.PI) * 0.92;
+        const slashP = (liveProgress - 0.20) / 0.55;
+        slashRibbonRef.current.rotation.set(0.35 + slashP * 0.35, -slashP * 0.9, -0.65 + slashP * 1.4);
+        slashRibbonRef.current.scale.set(0.85 + slashP * 0.45, 0.85 + slashP * 0.45, 1.0);
+        (slashRibbonRef.current.material as THREE.MeshBasicMaterial).opacity = Math.sin(slashP * Math.PI) * 0.95;
       } else {
         slashRibbonRef.current.visible = false;
       }
@@ -287,7 +319,7 @@ export function HumanPlayer({
 
         {/* ── ETHEREAL LONGBOW (HELD SECURELY IN LEFT FIST) ── */}
         {currentWeaponId === "BOW" && (
-          <group position={[0, -0.54, 0.08]} rotation={[0, Math.PI / 2, 0]}>
+          <group position={[0, -0.54, 0.02]} rotation={[0, Math.PI / 2, 0]}>
             {/* Bow Grip Handle (inside palm) */}
             <mesh position={[0, 0, 0]}>
               <cylinderGeometry args={[0.022, 0.022, 0.14, 8]} />
@@ -418,9 +450,9 @@ export function HumanPlayer({
 
           {/* 4. RPG LAUNCHER */}
           {currentWeaponId === "RPG" && (
-            <group position={[0, 0.15, -0.05]}>
+            <group position={[0, 0.10, 0.12]} rotation={[Math.PI / 2, 0, 0]}>
               <mesh>
-                <cylinderGeometry args={[0.05, 0.05, 0.82, 8]} />
+                <cylinderGeometry args={[0.045, 0.045, 0.82, 8]} />
                 <meshStandardMaterial color="#374151" metalness={0.8} />
               </mesh>
               <mesh position={[0, 0.44, 0]}>

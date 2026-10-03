@@ -250,23 +250,22 @@ export default function ProjectQuatroApp() {
     const car = vehicleStateRef.current;
 
     // If driving at speed, decelerate smoothly to a stop before dismounting
-    if (Math.abs(car.speed) > 2.5) {
+    if (Math.abs(car.speed) > 2.0) {
       isDismountingRef.current = true;
       inputRef.current.forward = false;
+      inputRef.current.backward = false;
       inputRef.current.brake = true;
-      const startTime = performance.now();
-      const initialSpeed = car.speed;
 
-      const slowInterval = setInterval(() => {
-        const elapsed = (performance.now() - startTime) / 320;
-        if (elapsed >= 1 || Math.abs(vehicleStateRef.current.speed) < 1.0) {
-          clearInterval(slowInterval);
+      const checkStop = () => {
+        if (!isDismountingRef.current) return;
+        if (Math.abs(vehicleStateRef.current.speed) < 1.2) {
           inputRef.current.brake = false;
           performDismount();
         } else {
-          vehicleStateRef.current.speed = initialSpeed * (1 - elapsed);
+          requestAnimationFrame(checkStop);
         }
-      }, 30);
+      };
+      requestAnimationFrame(checkStop);
     } else {
       performDismount();
     }
@@ -322,7 +321,7 @@ export default function ProjectQuatroApp() {
           const hz = humanPosRef.current?.z ?? currentSession.humanPosition[2];
           const car = vehicleStateRef.current;
           const distToCar = Math.hypot(hx - car.position.x, hz - car.position.z);
-          if (distToCar < 3.5) {
+          if (distToCar < 3.8) {
             handleMountVehicle();
             return;
           }
@@ -337,9 +336,12 @@ export default function ProjectQuatroApp() {
         // [F] — attack
         if (e.code === "KeyF") {
           const { startAttack } = weaponSystem;
-          const pos = currentSession.humanPosition;
+          const pos: [number, number, number] = humanPosRef.current
+            ? [humanPosRef.current.x, humanPosRef.current.y, humanPosRef.current.z]
+            : currentSession.humanPosition;
+          const heading = humanPosRef.current ? humanPosRef.current.heading : currentSession.humanHeading;
           isAttackingRef.current = true;
-          startAttack(pos, currentSession.humanHeading);
+          startAttack(pos, heading);
           setWeaponHUDTick((t) => t + 1);
           return;
         }
@@ -410,9 +412,12 @@ export default function ProjectQuatroApp() {
       // Release attack key — fire charge weapons on release
       if (e.code === "KeyF") {
         isAttackingRef.current = false;
-        const currentSession = sessionRef.current;
         if (playerModeRef.current === "ON_FOOT" && weaponSystem.stateRef.current.activeAttack?.isCharging) {
-          weaponSystem.releaseAttack(currentSession.humanPosition, currentSession.humanHeading);
+          const pos: [number, number, number] = humanPosRef.current
+            ? [humanPosRef.current.x, humanPosRef.current.y, humanPosRef.current.z]
+            : sessionRef.current.humanPosition;
+          const heading = humanPosRef.current ? humanPosRef.current.heading : sessionRef.current.humanHeading;
+          weaponSystem.releaseAttack(pos, heading);
           setWeaponHUDTick((t) => t + 1);
         }
         return;
@@ -598,7 +603,7 @@ export default function ProjectQuatroApp() {
     // Proximity to vehicle on foot
     const car = vehicleStateRef.current;
     const distToCar = Math.hypot(hx - car.position.x, hz - car.position.z);
-    if (distToCar < 3.5) {
+    if (distToCar < 3.8) {
       handleMountVehicle();
       return;
     }
@@ -870,7 +875,7 @@ export default function ProjectQuatroApp() {
   } else if (playerMode === "ON_FOOT") {
     // Proximity to vehicle in world space
     const distToCar = Math.hypot(playerWorldX - vehicleState.position.x, playerWorldZ - vehicleState.position.z);
-    if (distToCar < 3.4) {
+    if (distToCar < 3.8) {
       contextualAction = "Masuk Quattro";
     } else {
       const isEvening = session.phase === "EVENING_ROUTINE";

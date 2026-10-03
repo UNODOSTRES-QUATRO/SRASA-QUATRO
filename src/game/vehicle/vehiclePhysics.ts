@@ -100,18 +100,18 @@ export function updateVehiclePhysics(
 
   // ─── 3. DRIFT PHYSICS (True slip-angle bicycle model with FR Legends flow) ───
   const isWeightTransferFlick =
-    Math.abs(speed) > 6.0 &&
-    Math.abs(steeringAngle) > config.maxSteerAngle * 0.40;
+    Math.abs(speed) > 5.5 &&
+    Math.abs(steeringAngle) > config.maxSteerAngle * 0.35;
 
   const isSustainedDrift =
-    (current.driftFactor > 0.12 || Math.abs(current.lateralSpeed) > 1.0) &&
+    (current.driftFactor > 0.10 || Math.abs(current.lateralSpeed) > 0.8) &&
     input.forward &&
-    Math.abs(speed) > 4.0;
+    Math.abs(speed) > 3.5;
 
   const effectiveGrip = isHandbraking
     ? config.handbrakeGrip
     : isWeightTransferFlick || isSustainedDrift
-    ? config.gripFactor * 0.38
+    ? config.gripFactor * 0.35
     : config.gripFactor;
 
   const effectiveWheelbase = current.scaleMode === "POCKET" ? config.wheelbase * 0.35 : config.wheelbase;
@@ -133,29 +133,31 @@ export function updateVehiclePhysics(
     (lateralSpeed < -0.15 && steeringAngle > 0.02);
 
   if (isCounterSteering) {
-    // Lock drift angle and prevent spin-out
-    angularVelocity *= (1.0 - Math.min(0.85, clampedDt * 8.5));
-    // Power-slide propulsion when holding throttle
+    // Dynamic balance around optimal drift slip angle (self-aligning caster assist)
+    const targetDriftYaw = (steeringAngle * 0.75) * (Math.abs(speed) / effectiveWheelbase);
+    angularVelocity += (targetDriftYaw - angularVelocity) * Math.min(1.0, clampedDt * 6.5);
+
+    // Power-slide propulsion when holding throttle through corners
     if (input.forward && Math.abs(speed) < config.maxSpeed * 0.98) {
-      speed += config.acceleration * 0.52 * clampedDt;
+      speed += config.acceleration * 0.55 * clampedDt;
     }
   }
 
   // Safety clamp to ensure smooth, forgiving FR Legends drift without snappy spin-outs
-  angularVelocity = Math.max(-2.4, Math.min(2.4, angularVelocity));
+  angularVelocity = Math.max(-2.2, Math.min(2.2, angularVelocity));
 
   // Apply rotation
   heading += angularVelocity * clampedDt;
 
   // ─── 4. LATERAL VELOCITY (slide/drift) ───────────────────────────────────
   // Centrifugal lateral force from rotation
-  const centrifugalLateral = angularVelocity * speed * 0.65;
-  // If counter-steering in a slide, let drift carry; if centering, recover grip quickly
-  const gripMultiplier = isCounterSteering ? 0.62 : Math.abs(steeringAngle) < 0.04 ? 1.45 : 1.0;
-  const lateralGripDamp = effectiveGrip * 12.0 * gripMultiplier * clampedDt;
+  const centrifugalLateral = angularVelocity * speed * 0.70;
+  // If counter-steering in a slide, let drift carry; if centering, recover grip smoothly
+  const gripMultiplier = isCounterSteering ? 0.58 : Math.abs(steeringAngle) < 0.04 ? 1.5 : 1.0;
+  const lateralGripDamp = effectiveGrip * 12.5 * gripMultiplier * clampedDt;
   lateralSpeed += centrifugalLateral * clampedDt;
   lateralSpeed -= lateralSpeed * Math.min(0.9, lateralGripDamp); // dampen toward 0
-  lateralSpeed = Math.max(-12.0, Math.min(12.0, lateralSpeed));
+  lateralSpeed = Math.max(-12.5, Math.min(12.5, lateralSpeed));
 
   // ─── 5. POSITION UPDATE ───────────────────────────────────────────────────
   // Forward/back movement along heading

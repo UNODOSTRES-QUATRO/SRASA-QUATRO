@@ -37,6 +37,7 @@ export function UnifiedCamera({
   const currentLookAt = useRef(new THREE.Vector3(targetPos[0], targetPos[1] + 1.2, targetPos[2]));
   const smoothedHeading = useRef(targetHeading);
   const smoothedDrift = useRef(0);
+  const smoothedLookAhead = useRef(2.8);
   const isInitialized = useRef(false);
   const prevMode = useRef<UnifiedCameraMode>(mode);
 
@@ -229,12 +230,13 @@ export function UnifiedCamera({
         liveTargetPos[2] - Math.cos(panAngle) * distance
       );
 
-      const isReversing = (speed || 0) < -0.2;
-      const lookAheadDist = (isPocket ? 0.8 : 2.8) * (isReversing ? -0.4 : 1.0);
+      const targetLookAhead = (isPocket ? 0.8 : 2.8) * ((speed || 0) < -0.3 ? -0.35 : 1.0);
+      smoothedLookAhead.current = THREE.MathUtils.damp(smoothedLookAhead.current, targetLookAhead, 4.0, dt);
+
       desiredLookAt.set(
-        liveTargetPos[0] + Math.sin(smoothedHeading.current) * lookAheadDist,
+        liveTargetPos[0] + Math.sin(smoothedHeading.current) * smoothedLookAhead.current,
         liveTargetPos[1] + 0.65,
-        liveTargetPos[2] + Math.cos(smoothedHeading.current) * lookAheadDist
+        liveTargetPos[2] + Math.cos(smoothedHeading.current) * smoothedLookAhead.current
       );
 
       // Speed FOV: breathing expansion sensation without motion sickness
@@ -403,14 +405,10 @@ export function UnifiedCamera({
     const lookAlpha = 1.0 - Math.exp(-lookLambda * dt);
 
     if (mode === "DRIVING_COCKPIT") {
-      if (transitionProgress.current > 0.01) {
-        // Smooth cinematic glide into the driver's seat during mode transitions
-        const cockpitPosAlpha = 1.0 - Math.exp(-14.0 * dt);
-        currentPos.current.lerp(desiredPos, cockpitPosAlpha);
-      } else {
-        // Pin eye position rigidly to cabin coordinate space (zero dashboard jitter / zero clipping)
-        currentPos.current.copy(desiredPos);
-      }
+      const posRate = transitionProgress.current > 0.01 ? 14.0 : 36.0;
+      const cockpitPosAlpha = 1.0 - Math.exp(-posRate * dt);
+      currentPos.current.lerp(desiredPos, cockpitPosAlpha);
+
       const cockpitLookAlpha = 1.0 - Math.exp(-24.0 * dt);
       currentLookAt.current.lerp(desiredLookAt, cockpitLookAlpha);
     } else {

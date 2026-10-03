@@ -228,7 +228,7 @@ export function QuatroMesh({
         const px = humanPosRef?.current?.x ?? playerPos?.[0] ?? 0;
         const pz = humanPosRef?.current?.z ?? playerPos?.[2] ?? 0;
         const dist = Math.hypot(px - live.position.x, pz - live.position.z);
-        if (dist < 3.6) {
+        if (dist < 3.8) {
           mountPromptRef.current.visible = true;
           const bob = Math.sin(state.clock.getElapsedTime() * 3.5) * 0.05;
           mountPromptRef.current.position.y = 1.35 + bob;

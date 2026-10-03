@@ -157,8 +157,8 @@ export class SoundManager {
     // Dedicated sub-bass shelf boost for satisfying 5-cylinder rumble
     this.engineBassShelf = this.ctx.createBiquadFilter();
     this.engineBassShelf.type = "lowshelf";
-    this.engineBassShelf.frequency.setValueAtTime(85, this.ctx.currentTime);
-    this.engineBassShelf.gain.setValueAtTime(6.5, this.ctx.currentTime); // +6.5dB visceral bass boost
+    this.engineBassShelf.frequency.setValueAtTime(80, this.ctx.currentTime);
+    this.engineBassShelf.gain.setValueAtTime(8.0, this.ctx.currentTime); // +8.0dB visceral bass boost
 
     this.engineGain = this.ctx.createGain();
     this.engineGain.gain.setValueAtTime(0.001, this.ctx.currentTime);
@@ -311,10 +311,20 @@ export class SoundManager {
     this.subDroneOsc.type = "sine";
     this.subDroneOsc.frequency.setValueAtTime(55, this.ctx.currentTime);
     this.subDroneGain = this.ctx.createGain();
-    this.subDroneGain.gain.setValueAtTime(0.32, this.ctx.currentTime);
+    this.subDroneGain.gain.setValueAtTime(0.38, this.ctx.currentTime);
     this.subDroneOsc.connect(this.subDroneGain);
     this.subDroneGain.connect(this.ambientFilter);
     this.subDroneOsc.start();
+
+    // Analog LFO filter breathing (Juno-106 slow warmth)
+    const padLfo = this.ctx.createOscillator();
+    padLfo.type = "sine";
+    padLfo.frequency.setValueAtTime(0.08, this.ctx.currentTime);
+    const padLfoGain = this.ctx.createGain();
+    padLfoGain.gain.setValueAtTime(115, this.ctx.currentTime);
+    padLfo.connect(padLfoGain);
+    padLfoGain.connect(this.ambientFilter.frequency);
+    padLfo.start();
 
     // Play initial chord
     this.playNextPadChord();
@@ -486,7 +496,7 @@ export class SoundManager {
     }
 
     // Warm, heavy bass volume that scales with speed (punchy & satisfying)
-    const engineVol = 0.58 + Math.min(1.0, absSpeed / 20) * 0.72;
+    const engineVol = 0.65 + Math.min(1.0, absSpeed / 20) * 0.85;
     this.engineGain.gain.setTargetAtTime(this.isCinematic ? 0 : engineVol, now, 0.05);
 
     if (this.engineFilter) {
@@ -551,8 +561,8 @@ export class SoundManager {
     const absSpeed = Math.abs(speed);
     if (driftFactor > 0.06 && absSpeed > 1.8) {
       const intensity = Math.min(1.0, (driftFactor - 0.06) * 2.2);
-      const tireVol = intensity * 0.92;
-      const targetFreq = 820 + intensity * 950;
+      const tireVol = intensity * 1.05;
+      const targetFreq = 780 + intensity * 1050;
 
       const now = this.ctx.currentTime;
       this.tireGain.gain.setTargetAtTime(tireVol, now, 0.025);
