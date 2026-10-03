@@ -14,6 +14,15 @@ import { EndCreditsScene } from "@/components/ui/EndCreditsScene";
 import { PauseOverlay } from "@/components/ui/PauseOverlay";
 import { DrivingHUD } from "@/components/ui/DrivingHUD";
 import { WeaponHUD } from "@/components/ui/WeaponHUD";
+import { OpeningCinematic } from "@/components/ui/OpeningCinematic";
+import { CharacterSelectModal } from "@/components/ui/CharacterSelectModal";
+import { CharacterId } from "@/components/ui/CharacterPortraits";
+import { LanguageSelector } from "@/components/ui/LanguageSelector";
+import {
+  useLocalizationProvider,
+  LocalizationContext,
+} from "@/game/localization/useLocalization";
+import type { TranslationDictionary } from "@/game/localization/translations";
 
 import {
   createInitialSessionState,
@@ -40,7 +49,86 @@ import { resolvePlayerWorldPosition } from "@/game/core/playerCollision";
 
 export type PlayerMode = "ON_FOOT" | "DRIVING";
 
+function getLocalizedObjective(
+  session: GameSessionState,
+  t: (k: keyof TranslationDictionary) => string
+): string {
+  switch (session.phase) {
+    case "MORNING_ROUTINE":
+      if (session.currentLocation !== "RUMAH") return t("obj_leave_house");
+      if (!session.rumah.wokenUp) return t("obj_wake_up");
+      if (!session.rumah.hasCooked) return t("obj_cook");
+      if (!session.rumah.hasEaten) return t("obj_eat");
+      if (!session.rumah.hasShowered) return t("obj_shower");
+      return t("obj_leave_house");
+    case "COMMUTE_TO_WORK":
+      return t("obj_drive_work");
+    case "AT_WORK":
+      return session.workplace.allTasksDone ? t("obj_leave_work") : t("obj_work_tasks");
+    case "COMMUTE_HOME":
+      return t("obj_drive_home");
+    case "EVENING_ROUTINE":
+      if (!session.rumah.hasShoweredEvening) return t("obj_shower_evening");
+      if (!session.rumah.hasEatenEvening) return t("obj_dinner_evening");
+      return t("obj_sleep_evening");
+    case "PORTAL_APPROACH":
+      return t("obj_enter_portal");
+    case "CASTLE_EXPLORATION":
+      if (session.currentLocation === "DIMENSI_LAIN") return t("obj_reach_castle");
+      if (!session.kastil.insideEscapeRoom) return t("obj_escape_keep");
+      if (!session.kastil.escapeRoom.cabinetSearched) return t("obj_search_cabinet");
+      if (!session.kastil.escapeRoom.stoveChecked) return t("obj_inspect_hearth");
+      if (!session.kastil.escapeRoom.secretWallRevealed) return t("obj_find_loose_stone");
+      if (!session.kastil.escapeRoom.hasMasterKey) return t("obj_open_safe");
+      return t("obj_unlock_exit");
+    case "SANCTUARY_REACHED":
+    case "RESTING":
+    default:
+      return t("obj_rest_moment");
+  }
+}
+
 export default function ProjectQuatroApp() {
+  const localization = useLocalizationProvider();
+  const { t } = localization;
+
+  // Character selection state with persistence
+  const [characterId, setCharacterId] = useState<CharacterId>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("quatro_selected_character");
+      if (saved) return saved as CharacterId;
+    }
+    return "ORIGINAL";
+  });
+  const [isCharacterSelectOpen, setIsCharacterSelectOpen] = useState(false);
+
+  // Cinematic sequence state (starts on first load, skippable)
+  const [showOpeningCinematic, setShowOpeningCinematic] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !sessionStorage.getItem("quatro_seen_cinematic");
+    }
+    return false;
+  });
+
+  const handleCompleteCinematic = useCallback(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("quatro_seen_cinematic", "true");
+    }
+    setShowOpeningCinematic(false);
+    // If first time playing, open character selection
+    if (typeof window !== "undefined" && !localStorage.getItem("quatro_selected_character")) {
+      setIsCharacterSelectOpen(true);
+    }
+  }, []);
+
+  const handleSelectCharacter = useCallback((newId: CharacterId) => {
+    setCharacterId(newId);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("quatro_selected_character", newId);
+    }
+    setIsCharacterSelectOpen(false);
+  }, []);
+
   const [session, setSession] = useState<GameSessionState>(createInitialSessionState);
   const [playerMode, setPlayerMode] = useState<PlayerMode>("ON_FOOT");
   const [isHumanMoving, setIsHumanMoving] = useState(false);
@@ -924,18 +1012,37 @@ export default function ProjectQuatroApp() {
   }
 
   return (
-    <div className="relative w-full h-full overflow-hidden select-none bg-black">
-      {/* 3D Canvas Rendering Active Continuous Exploration Scene */}
-      {session.currentLocation !== "END_SCREEN" && (
-        <GameCanvas
-          playerMode={playerMode}
-          humanPos={session.humanPosition}
-          humanHeading={session.humanHeading}
-          isHumanMoving={isHumanMoving}
-          isInsideEscapeRoom={session.kastil.insideEscapeRoom}
-          remotePlayers={realtime.remotePlayers}
-          vehicleState={vehicleState}
-          vehicleStateRef={vehicleStateRef}
+    <LocalizationContext.Provider value={localization}>
+      <div className="relative w-full h-full overflow-hidden select-none bg-black">
+        {/* Opening Cinematic (shown on first visit or via replay button) */}
+        {showOpeningCinematic && (
+          <OpeningCinematic onComplete={handleCompleteCinematic} />
+        )}
+
+        {/* Character Selection Modal */}
+        <CharacterSelectModal
+          isOpen={isCharacterSelectOpen}
+          onSelectCharacter={handleSelectCharacter}
+          selectedId={characterId}
+        />
+
+        {/* Bottom Left Language Switcher */}
+        {session.currentLocation !== "END_SCREEN" && (
+          <LanguageSelector />
+        )}
+
+        {/* 3D Canvas Rendering Active Continuous Exploration Scene */}
+        {session.currentLocation !== "END_SCREEN" && (
+          <GameCanvas
+            playerMode={playerMode}
+            humanPos={session.humanPosition}
+            humanHeading={session.humanHeading}
+            isHumanMoving={isHumanMoving}
+            characterId={characterId}
+            isInsideEscapeRoom={session.kastil.insideEscapeRoom}
+            remotePlayers={realtime.remotePlayers}
+            vehicleState={vehicleState}
+            vehicleStateRef={vehicleStateRef}
           humanPosRef={humanPosRef}
           humanVelocityRef={humanVelocityRef}
           inputRef={inputRef}
@@ -1138,6 +1245,7 @@ export default function ProjectQuatroApp() {
           setSession((prev) => ({ ...prev, isAudioMuted: !prev.isAudioMuted }))
         }
       />
-    </div>
+      </div>
+    </LocalizationContext.Provider>
   );
 }

@@ -15,6 +15,7 @@ import { soundManager } from "@/game/audio/SoundManager";
 import { WeaponSystem3D } from "@/game/weapons/WeaponSystem";
 import type { WeaponSystemState } from "@/game/weapons/WeaponSystem";
 import { WeaponId } from "@/game/weapons/weaponTypes";
+import { CharacterId } from "@/components/ui/CharacterPortraits";
 
 interface ContinuousPhysicsProps {
   playerMode: "ON_FOOT" | "DRIVING";
@@ -194,6 +195,7 @@ interface GameCanvasProps {
   onFootstep?: () => void;
   onSyncUI?: (x: number, z: number, heading: number, isMoving: boolean, vehicle?: VehicleState) => void;
   cameraMode?: CameraMode;
+  characterId?: CharacterId;
   // Weapons
   weaponSystemStateRef?: React.MutableRefObject<WeaponSystemState>;
   isAttackingRef?: React.MutableRefObject<boolean>;
@@ -222,6 +224,7 @@ export function GameCanvas({
   onFootstep,
   onSyncUI,
   cameraMode = "CHASE",
+  characterId = "ORIGINAL",
   weaponSystemStateRef,
   isAttackingRef,
   isChargingRef,
@@ -284,6 +287,7 @@ export function GameCanvas({
           position={humanPos}
           heading={humanHeading}
           isMoving={isHumanMoving}
+          characterId={characterId}
           activeWeaponId={activeWeaponId}
           chargeLevel={chargeLevel}
           attackProgress={attackProgress}

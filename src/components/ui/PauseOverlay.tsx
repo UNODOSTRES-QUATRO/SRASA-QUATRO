@@ -5,6 +5,8 @@ interface PauseOverlayProps {
   onResume: () => void;
   isAudioMuted: boolean;
   onToggleAudio: () => void;
+  onOpenCharacterSelect?: () => void;
+  onReplayCinematic?: () => void;
 }
 
 export function PauseOverlay({
@@ -12,6 +14,8 @@ export function PauseOverlay({
   onResume,
   isAudioMuted,
   onToggleAudio,
+  onOpenCharacterSelect,
+  onReplayCinematic,
 }: PauseOverlayProps) {
   if (!isOpen) return null;
 
@@ -30,13 +34,38 @@ export function PauseOverlay({
           </p>
         </div>
 
-        <div className="space-y-4 my-6">
+        <div className="space-y-3 my-6">
           <button
             onClick={onResume}
             className="w-full py-2.5 bg-quatro-navy text-quatro-cream rounded font-mono text-sm tracking-wider hover:bg-quatro-slate transition-colors"
           >
             CONTINUE JOURNEY
           </button>
+
+          {onOpenCharacterSelect && (
+            <button
+              onClick={() => {
+                onResume();
+                onOpenCharacterSelect();
+              }}
+              className="w-full py-2.5 border border-quatro-navy/40 bg-quatro-navy/5 text-quatro-navy rounded font-mono text-sm tracking-wider hover:bg-quatro-navy/15 transition-colors flex items-center justify-center gap-2"
+            >
+              <span>👤</span>
+              <span>CHANGE CHARACTER</span>
+            </button>
+          )}
+
+          {onReplayCinematic && (
+            <button
+              onClick={() => {
+                onResume();
+                onReplayCinematic();
+              }}
+              className="w-full py-2 border border-quatro-navy/20 text-quatro-navy/80 rounded font-mono text-xs tracking-wider hover:bg-quatro-softGray transition-colors"
+            >
+              REPLAY OPENING CINEMATIC
+            </button>
+          )}
 
           <button
             onClick={onToggleAudio}

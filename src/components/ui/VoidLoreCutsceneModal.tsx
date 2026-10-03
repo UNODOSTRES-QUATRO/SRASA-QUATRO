@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { soundManager } from "@/game/audio/SoundManager";
 import { Sparkles, ArrowRight } from "lucide-react";
+import { CharacterPortrait } from "./CharacterPortraits";
 
 interface VoidLoreCutsceneModalProps {
   isOpen: boolean;
@@ -67,9 +68,11 @@ export function VoidLoreCutsceneModal({
         {/* Character Portrait & Dialogue */}
         <div className="flex items-start space-x-4">
           {/* Old Man Sage Avatar */}
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-800 to-indigo-950 border-2 border-purple-400 flex items-center justify-center shadow-lg shrink-0">
-            <span className="text-2xl">🧙‍♂️</span>
-          </div>
+          <CharacterPortrait
+            characterId="SAGE"
+            size={68}
+            className="rounded-2xl border-2 border-purple-400 bg-gradient-to-br from-purple-800 to-indigo-950 shadow-lg shrink-0"
+          />
 
           <div className="flex-1 space-y-2">
             <div className="text-xs font-bold tracking-wider text-amber-400 uppercase">

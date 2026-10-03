@@ -5,11 +5,13 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { WeaponId } from "../weapons/weaponTypes";
 import type { WeaponSystemState } from "../weapons/WeaponSystem";
+import { CharacterId } from "@/components/ui/CharacterPortraits";
 
 interface HumanPlayerProps {
   position: [number, number, number];
   heading: number; // in radians
   isMoving: boolean;
+  characterId?: CharacterId;
   activeWeaponId?: WeaponId;
   chargeLevel?: number;
   attackProgress?: number;
@@ -22,6 +24,7 @@ export function HumanPlayer({
   position,
   heading,
   isMoving,
+  characterId = "ORIGINAL",
   activeWeaponId = "BLUE_SHARD_SWORD",
   chargeLevel = 0,
   attackProgress = 0,
@@ -267,6 +270,8 @@ export function HumanPlayer({
 
   const currentWeaponId = (weaponSystemStateRef?.current?.activeWeaponId ?? activeWeaponId) as WeaponId;
 
+  const style = CHARACTER_PRESETS[characterId] ?? CHARACTER_PRESETS.ORIGINAL;
+
   return (
     <group ref={rootRef}>
       {/* SHADOW BLOB */}
@@ -278,54 +283,63 @@ export function HumanPlayer({
       {/* LEGS */}
       <mesh ref={leftLegRef} position={[-0.12, 0.35, 0]} castShadow>
         <boxGeometry args={[0.15, 0.65, 0.16]} />
-        <meshStandardMaterial color="#2d3748" roughness={0.8} />
+        <meshStandardMaterial color={style.pantsColor} roughness={0.8} />
       </mesh>
       <mesh ref={rightLegRef} position={[0.12, 0.35, 0]} castShadow>
         <boxGeometry args={[0.15, 0.65, 0.16]} />
-        <meshStandardMaterial color="#2d3748" roughness={0.8} />
+        <meshStandardMaterial color={style.pantsColor} roughness={0.8} />
       </mesh>
 
       {/* SHOES */}
       <mesh position={[-0.12, 0.06, 0.04]} castShadow>
         <boxGeometry args={[0.16, 0.12, 0.24]} />
-        <meshStandardMaterial color="#1a202c" roughness={0.9} />
+        <meshStandardMaterial color={style.shoesColor} roughness={0.9} />
       </mesh>
       <mesh position={[0.12, 0.06, 0.04]} castShadow>
         <boxGeometry args={[0.16, 0.12, 0.24]} />
-        <meshStandardMaterial color="#1a202c" roughness={0.9} />
+        <meshStandardMaterial color={style.shoesColor} roughness={0.9} />
       </mesh>
 
       {/* TORSO / JACKET */}
       <mesh position={[0, 0.95, 0]} castShadow>
         <boxGeometry args={[0.42, 0.55, 0.26]} />
-        <meshStandardMaterial color="#319795" roughness={0.7} />
+        <meshStandardMaterial color={style.jacketColor} roughness={0.7} />
       </mesh>
+
+      {/* COLLAR / INNER SHIRT */}
       <mesh position={[0, 1.15, 0.11]} castShadow>
         <boxGeometry args={[0.18, 0.15, 0.06]} />
-        <meshStandardMaterial color="#f7fafc" roughness={0.8} />
+        <meshStandardMaterial color={style.collarColor} roughness={0.8} />
       </mesh>
+
+      {/* TIE (for ORIGINAL) */}
+      {style.tieColor && (
+        <mesh position={[0, 0.96, 0.13]} castShadow>
+          <boxGeometry args={[0.06, 0.26, 0.02]} />
+          <meshStandardMaterial color={style.tieColor} roughness={0.6} />
+        </mesh>
+      )}
 
       {/* LEFT ARM */}
       <group ref={leftArmRef} position={[-0.28, 1.15, 0]}>
         <mesh position={[0, -0.26, 0]} castShadow>
           <boxGeometry args={[0.13, 0.52, 0.14]} />
-          <meshStandardMaterial color="#2c7a7b" roughness={0.7} />
+          <meshStandardMaterial color={style.sleeveColor} roughness={0.7} />
         </mesh>
         {/* Hand */}
         <mesh position={[0, -0.54, 0.02]} castShadow>
           <boxGeometry args={[0.09, 0.1, 0.1]} />
-          <meshStandardMaterial color="#fbd38d" />
+          <meshStandardMaterial color={style.skinColor} />
         </mesh>
 
         {/* ── ETHEREAL LONGBOW (HELD SECURELY IN LEFT FIST) ── */}
         {currentWeaponId === "BOW" && (
-          <group position={[0, -0.54, 0.02]} rotation={[0, Math.PI / 2, 0]}>
+          <group position={[0, -0.54, 0.08]} rotation={[0, Math.PI / 2, 0]}>
             {/* Bow Grip Handle (inside palm) */}
             <mesh position={[0, 0, 0]}>
               <cylinderGeometry args={[0.022, 0.022, 0.14, 8]} />
               <meshStandardMaterial color="#1f2937" roughness={0.7} />
             </mesh>
-            {/* Bow Upper & Lower Stave */}
             <mesh position={[0, 0, 0]}>
               <torusGeometry args={[0.44, 0.02, 6, 24, Math.PI * 0.95]} />
               <meshStandardMaterial
@@ -335,12 +349,10 @@ export function HumanPlayer({
                 roughness={0.4}
               />
             </mesh>
-            {/* Bowstring (Real-time dynamic draw via ref) */}
             <mesh ref={bowstringRef} position={[-0.18, 0, 0]}>
               <boxGeometry args={[0.006, 0.82, 0.006]} />
               <meshBasicMaterial color="#d1fae5" />
             </mesh>
-            {/* Nocked Arrow in Bow (Visible when drawing/charging, animated via ref) */}
             <group ref={nockedArrowRef} position={[-0.18, 0, 0]} rotation={[0, 0, Math.PI / 2]} visible={false}>
               <mesh position={[0, 0.22, 0]}>
                 <cylinderGeometry args={[0.006, 0.006, 0.65, 6]} />
@@ -359,35 +371,30 @@ export function HumanPlayer({
       <group ref={rightArmRef} position={[0.28, 1.15, 0]}>
         <mesh position={[0, -0.26, 0]} castShadow>
           <boxGeometry args={[0.13, 0.52, 0.14]} />
-          <meshStandardMaterial color="#2c7a7b" roughness={0.7} />
+          <meshStandardMaterial color={style.sleeveColor} roughness={0.7} />
         </mesh>
         {/* Hand Fist */}
         <mesh position={[0, -0.54, 0.02]} castShadow>
           <boxGeometry args={[0.09, 0.1, 0.1]} />
-          <meshStandardMaterial color="#fbd38d" />
+          <meshStandardMaterial color={style.skinColor} />
         </mesh>
 
-        {/* ── HAND SOCKET: CENTERED DIRECTLY IN RIGHT PALM ── */}
+        {/* HAND SOCKET */}
         <group ref={weaponSocketRef} position={[0, -0.54, 0.02]}>
-          {/* 1. BLUE SHARD KATANA */}
           {currentWeaponId === "BLUE_SHARD_SWORD" && (
             <group>
-              {/* Wrapped Hilt (Centered inside palm) */}
               <mesh position={[0, 0, 0]}>
                 <cylinderGeometry args={[0.018, 0.018, 0.22, 8]} />
                 <meshStandardMaterial color="#1e293b" roughness={0.85} />
               </mesh>
-              {/* Pommel */}
               <mesh position={[0, -0.11, 0]}>
                 <cylinderGeometry args={[0.024, 0.024, 0.025, 8]} />
                 <meshStandardMaterial color="#0284c7" metalness={0.9} />
               </mesh>
-              {/* Tsuba / Guard */}
               <mesh position={[0, 0.11, 0]}>
                 <boxGeometry args={[0.11, 0.02, 0.07]} />
                 <meshStandardMaterial color="#0284c7" metalness={0.95} roughness={0.2} />
               </mesh>
-              {/* Luminous Blue Shard Blade */}
               <mesh position={[0, 0.46, 0]} castShadow>
                 <boxGeometry args={[0.034, 0.68, 0.018]} />
                 <meshStandardMaterial
@@ -398,12 +405,10 @@ export function HumanPlayer({
                   roughness={0.1}
                 />
               </mesh>
-              {/* Shard Blade Edge Glow */}
               <mesh position={[0, 0.46, 0.014]}>
                 <boxGeometry args={[0.008, 0.66, 0.004]} />
                 <meshBasicMaterial color="#e0f2fe" />
               </mesh>
-              {/* Chiseled Crystal Tip */}
               <mesh position={[0, 0.82, 0]}>
                 <coneGeometry args={[0.03, 0.09, 4]} />
                 <meshStandardMaterial color="#e0f2fe" emissive="#7dd3fc" emissiveIntensity={3.0} />
@@ -411,20 +416,16 @@ export function HumanPlayer({
             </group>
           )}
 
-          {/* 2. VOID CALLIGRAPHY PEN */}
           {currentWeaponId === "HEAVENLY_PEN" && (
             <group>
-              {/* Bamboo & Gold Shaft held in fist */}
               <mesh position={[0, 0.1, 0]}>
                 <cylinderGeometry args={[0.018, 0.014, 0.52, 8]} />
                 <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={1.4} metalness={0.8} />
               </mesh>
-              {/* Calligraphy Brush Tip */}
               <mesh position={[0, 0.38, 0]}>
                 <coneGeometry args={[0.02, 0.11, 8]} />
                 <meshStandardMaterial color="#1c1917" metalness={0.9} />
               </mesh>
-              {/* Glowing Ink droplet at tip */}
               <mesh position={[0, 0.44, 0]}>
                 <sphereGeometry args={[0.02, 8, 8]} />
                 <meshStandardMaterial color="#fbbf24" emissive="#f59e0b" emissiveIntensity={3.5} />
@@ -432,15 +433,12 @@ export function HumanPlayer({
             </group>
           )}
 
-          {/* 3. REAPER SCYTHE */}
           {currentWeaponId === "SCYTHE" && (
             <group>
-              {/* Long haft gripped in fist */}
               <mesh position={[0, 0.25, 0]}>
                 <cylinderGeometry args={[0.018, 0.016, 1.1, 8]} />
                 <meshStandardMaterial color="#312e81" metalness={0.6} />
               </mesh>
-              {/* Curved scythe blade */}
               <mesh position={[0.18, 0.78, 0]} rotation={[0, 0, 0.8]}>
                 <torusGeometry args={[0.34, 0.022, 6, 20, Math.PI * 0.7]} />
                 <meshStandardMaterial color="#a78bfa" emissive="#7c3aed" emissiveIntensity={1.6} />
@@ -448,7 +446,6 @@ export function HumanPlayer({
             </group>
           )}
 
-          {/* 4. RPG LAUNCHER */}
           {currentWeaponId === "RPG" && (
             <group position={[0, 0.10, 0.12]} rotation={[Math.PI / 2, 0, 0]}>
               <mesh>
@@ -478,18 +475,13 @@ export function HumanPlayer({
 
       {/* HEAD GROUP */}
       <group ref={headRef} position={[0, 1.35, 0]}>
+        {/* Face Base */}
         <mesh position={[0, 0.12, 0]} castShadow>
           <boxGeometry args={[0.28, 0.28, 0.28]} />
-          <meshStandardMaterial color="#fbd38d" roughness={0.7} />
+          <meshStandardMaterial color={style.skinColor} roughness={0.7} />
         </mesh>
-        <mesh position={[0, 0.25, -0.02]} castShadow>
-          <boxGeometry args={[0.3, 0.12, 0.32]} />
-          <meshStandardMaterial color="#4a2c11" roughness={0.9} />
-        </mesh>
-        <mesh position={[0, 0.14, -0.13]} castShadow>
-          <boxGeometry args={[0.3, 0.2, 0.08]} />
-          <meshStandardMaterial color="#4a2c11" roughness={0.9} />
-        </mesh>
+
+        {/* Eyes */}
         <mesh position={[-0.07, 0.12, 0.145]}>
           <boxGeometry args={[0.04, 0.04, 0.01]} />
           <meshBasicMaterial color="#1a202c" />
@@ -498,7 +490,179 @@ export function HumanPlayer({
           <boxGeometry args={[0.04, 0.04, 0.01]} />
           <meshBasicMaterial color="#1a202c" />
         </mesh>
+
+        {/* Hijab Covering for Muslimah */}
+        {style.hasHijab ? (
+          <group>
+            {/* Hijab head wrap */}
+            <mesh position={[0, 0.14, -0.02]} castShadow>
+              <boxGeometry args={[0.34, 0.36, 0.34]} />
+              <meshStandardMaterial color={style.hairColor} roughness={0.7} />
+            </mesh>
+            {/* Hijab drape over shoulders */}
+            <mesh position={[0, -0.08, 0]} castShadow>
+              <boxGeometry args={[0.44, 0.16, 0.32]} />
+              <meshStandardMaterial color={style.hairColor} roughness={0.7} />
+            </mesh>
+          </group>
+        ) : (
+          <group>
+            {/* Hair Top */}
+            <mesh position={[0, 0.25, -0.02]} castShadow>
+              <boxGeometry args={[0.3, 0.12, 0.32]} />
+              <meshStandardMaterial color={style.hairColor} roughness={0.9} />
+            </mesh>
+            {/* Hair Back */}
+            <mesh position={[0, 0.14, -0.13]} castShadow>
+              <boxGeometry args={[0.3, 0.2, 0.08]} />
+              <meshStandardMaterial color={style.hairColor} roughness={0.9} />
+            </mesh>
+          </group>
+        )}
+
+        {/* Long hair ponytail for LONG_HAIR_GIRL */}
+        {style.hasLongHair && (
+          <group position={[0, 0.05, -0.16]}>
+            <mesh castShadow>
+              <boxGeometry args={[0.22, 0.48, 0.12]} />
+              <meshStandardMaterial color={style.hairColor} roughness={0.9} />
+            </mesh>
+            {/* Red hairclip */}
+            <mesh position={[0.08, 0.18, 0.02]}>
+              <sphereGeometry args={[0.035, 8, 8]} />
+              <meshStandardMaterial color="#f43f5e" />
+            </mesh>
+          </group>
+        )}
+
+        {/* Glasses for GLASSES_GUY */}
+        {style.hasGlasses && (
+          <group position={[0, 0.12, 0.155]}>
+            <mesh position={[-0.07, 0, 0]}>
+              <boxGeometry args={[0.07, 0.05, 0.01]} />
+              <meshStandardMaterial color="#38bdf8" metalness={0.9} />
+            </mesh>
+            <mesh position={[0.07, 0, 0]}>
+              <boxGeometry args={[0.07, 0.05, 0.01]} />
+              <meshStandardMaterial color="#38bdf8" metalness={0.9} />
+            </mesh>
+            <mesh position={[0, 0.01, 0]}>
+              <boxGeometry args={[0.04, 0.01, 0.01]} />
+              <meshStandardMaterial color="#38bdf8" metalness={0.9} />
+            </mesh>
+          </group>
+        )}
+
+        {/* Headphones for HOODIE_GUY */}
+        {style.hasHeadphones && (
+          <group position={[0, -0.04, 0]}>
+            {/* Left earpad */}
+            <mesh position={[-0.17, 0.08, 0]}>
+              <boxGeometry args={[0.05, 0.1, 0.1]} />
+              <meshStandardMaterial color="#06b6d4" />
+            </mesh>
+            {/* Right earpad */}
+            <mesh position={[0.17, 0.08, 0]}>
+              <boxGeometry args={[0.05, 0.1, 0.1]} />
+              <meshStandardMaterial color="#06b6d4" />
+            </mesh>
+            {/* Neck band */}
+            <mesh position={[0, 0, -0.08]}>
+              <torusGeometry args={[0.16, 0.02, 6, 16, Math.PI]} />
+              <meshStandardMaterial color="#0891b2" />
+            </mesh>
+          </group>
+        )}
+
+        {/* Ear stud for SHORT_HAIR_GIRL */}
+        {style.hasEarStud && (
+          <mesh position={[0.15, 0.1, 0]}>
+            <sphereGeometry args={[0.02, 6, 6]} />
+            <meshStandardMaterial color="#fbbf24" metalness={0.9} />
+          </mesh>
+        )}
       </group>
     </group>
   );
 }
+
+const CHARACTER_PRESETS: Record<
+  CharacterId,
+  {
+    pantsColor: string;
+    jacketColor: string;
+    collarColor: string;
+    sleeveColor: string;
+    skinColor: string;
+    hairColor: string;
+    shoesColor: string;
+    tieColor?: string;
+    hasGlasses?: boolean;
+    hasLongHair?: boolean;
+    hasHijab?: boolean;
+    hasHeadphones?: boolean;
+    hasEarStud?: boolean;
+  }
+> = {
+  ORIGINAL: {
+    pantsColor: "#1e293b",
+    jacketColor: "#334155",
+    collarColor: "#f1f5f9",
+    sleeveColor: "#334155",
+    skinColor: "#ffedd5",
+    hairColor: "#0f172a",
+    shoesColor: "#0f172a",
+    tieColor: "#0284c7",
+  },
+  GLASSES_GUY: {
+    pantsColor: "#0f172a",
+    jacketColor: "#1e3a5f",
+    collarColor: "#38bdf8",
+    sleeveColor: "#1e3a5f",
+    skinColor: "#fef3c7",
+    hairColor: "#1e293b",
+    shoesColor: "#1e293b",
+    hasGlasses: true,
+  },
+  LONG_HAIR_GIRL: {
+    pantsColor: "#451a03",
+    jacketColor: "#d97706",
+    collarColor: "#fef3c7",
+    sleeveColor: "#b45309",
+    skinColor: "#ffedd5",
+    hairColor: "#78350f",
+    shoesColor: "#451a03",
+    hasLongHair: true,
+  },
+  MUSLIMAH_GIRL: {
+    pantsColor: "#064e3b",
+    jacketColor: "#047857",
+    collarColor: "#d1fae5",
+    sleeveColor: "#047857",
+    skinColor: "#fde68a",
+    hairColor: "#059669",
+    shoesColor: "#1e293b",
+    hasHijab: true,
+  },
+  SHORT_HAIR_GIRL: {
+    pantsColor: "#292524",
+    jacketColor: "#7c2d12",
+    collarColor: "#ea580c",
+    sleeveColor: "#7c2d12",
+    skinColor: "#fef3c7",
+    hairColor: "#451a03",
+    shoesColor: "#1c1917",
+    hasEarStud: true,
+  },
+  HOODIE_GUY: {
+    pantsColor: "#18181b",
+    jacketColor: "#27272a",
+    collarColor: "#3f3f46",
+    sleeveColor: "#27272a",
+    skinColor: "#ffedd5",
+    hairColor: "#18181b",
+    shoesColor: "#09090b",
+    hasHeadphones: true,
+  },
+};
+

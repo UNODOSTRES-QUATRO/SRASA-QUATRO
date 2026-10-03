@@ -281,7 +281,7 @@ export function EndCreditsScene({ onPlayAgain }: { onPlayAgain: () => void }) {
           <div className="endcard-copy">
             <p className="endcard-title">SRASA-QUATRO</p>
             <p className="endcard-subtitle">A UNODOSTRES-QUATRO creation</p>
-            <p className="endcard-built">Built with GitHub <i>·</i> Vercel <i>·</i> Supabase</p>
+            <p className="endcard-built">Built with GitHub <i>·</i> Vercel <i>·</i> Supabase <i>·</i> Antigravity <i>·</i> GitHub Copilot <i>·</i> ChatGPT <i>·</i> Gemini</p>
             <p className="endcard-continuation">THE JOURNEY CONTINUES<span>;</span></p>
           </div>
         </div>

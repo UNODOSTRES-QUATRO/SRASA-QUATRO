@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { soundManager } from "@/game/audio/SoundManager";
 import { BookOpen, Shield, Sparkles, Wrench, X } from "lucide-react";
+import { CharacterPortrait } from "./CharacterPortraits";
 
 interface CastleLoreDialogueModalProps {
   npcId: "jeffrey" | "vespera" | "barnaby" | "mechanic" | null;
@@ -22,7 +23,7 @@ export function CastleLoreDialogueModal({
     jeffrey: {
       name: "SIR JEFFREY (PENJAGA BENTENG)",
       icon: <Shield className="w-6 h-6 text-amber-400" />,
-      avatar: "🛡️",
+      portraitId: "JEFFREY" as const,
       lines: [
         "Halt! Kau datang menembus kabut kehampaan. Benteng ini berdiri di atas fondasi kompilasi pertama.",
         "Aula utama mengunci siapa pun yang masuk tanpa Kunci Master. Jangan abaikan ukiran pada benda-benda tua di dalam.",
@@ -31,7 +32,7 @@ export function CastleLoreDialogueModal({
     vespera: {
       name: "LADY VESPERA (PENYIHIR KERAJAAN)",
       icon: <Sparkles className="w-6 h-6 text-purple-400" />,
-      avatar: "🔮",
+      portraitId: "VESPERA" as const,
       lines: [
         "Energi Semicolon mengalir di setiap batu bata kastil ini. Tiga benda menjaga rahasia aula.",
         "Ikuti urutan lemari, perapian, lalu batu lepas. Air mancur menyimpan jeda, bukan angka sandi.",
@@ -40,7 +41,7 @@ export function CastleLoreDialogueModal({
     barnaby: {
       name: "BARNABY (CENDEKIAWAN PENGEMBARA)",
       icon: <BookOpen className="w-6 h-6 text-emerald-400" />,
-      avatar: "📜",
+      portraitId: "BARNABY" as const,
       lines: [
         "Catatanku menyebutkan lemari tua menyimpan awal sandi, sementara perapian menjaga angka berikutnya.",
         "Setelah dua tanda itu ditemukan, cari batu yang longgar di dekat rak buku. Urutan petunjuk adalah kuncinya.",
@@ -49,7 +50,7 @@ export function CastleLoreDialogueModal({
     mechanic: {
       name: "PAK MONTIR",
       icon: <Wrench className="w-6 h-6 text-amber-400" />,
-      avatar: "🔧",
+      portraitId: "MECHANIC" as const,
       lines: [
         "Halo, Bung. Quatro-mu sudah ku-tune up dan dicuci bersih.",
         "Mesinnya terdengar mantap. Jalanan di luar sudah menunggu. Hati-hati di tikungan.",
@@ -92,8 +93,12 @@ export function CastleLoreDialogueModal({
       {currentNpc && (
         <div className="max-w-lg w-full bg-[#1e293b] border-2 border-amber-500/60 rounded-3xl p-6 shadow-2xl flex flex-col space-y-4">
           <div className="flex items-center justify-between border-b border-gray-700 pb-3">
-            <div className="flex items-center space-x-2.5">
-              <span className="text-2xl">{currentNpc.avatar}</span>
+            <div className="flex items-center space-x-3">
+              <CharacterPortrait
+                characterId={currentNpc.portraitId}
+                size={52}
+                className="border border-amber-400/40 rounded-2xl bg-slate-900 shrink-0"
+              />
               <div>
                 <div className="text-xs font-bold text-amber-400 uppercase tracking-wider">
                   {currentNpc.name}

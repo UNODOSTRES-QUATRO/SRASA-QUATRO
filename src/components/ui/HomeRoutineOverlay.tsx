@@ -19,7 +19,7 @@ export function HomeRoutineOverlay({
   nearbyAction,
 }: HomeRoutineOverlayProps) {
   return (
-    <div className="fixed top-4 left-4 z-40 max-w-sm w-full font-mono select-none pointer-events-none">
+    <div className="fixed top-16 left-4 z-40 max-w-sm w-full font-mono select-none pointer-events-none">
       <div className="bg-quatro-navy/90 backdrop-blur-md border border-quatro-amber/30 rounded-2xl p-4 shadow-2xl pointer-events-auto">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-quatro-cream/15 pb-2 mb-3">
