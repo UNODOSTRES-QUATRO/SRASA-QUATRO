@@ -48,6 +48,17 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
   humanPosRef,
   cameraMode,
 }: UnifiedWorldProps) {
+  const homeRoofRef = useRef<THREE.Mesh>(null);
+
+  useFrame(() => {
+    if (homeRoofRef.current) {
+      const px = humanPosRef?.current?.x ?? humanPos[0];
+      const pz = humanPosRef?.current?.z ?? humanPos[2];
+      const isInside = px > 15.0 && px < 25.0 && pz > -65.0 && pz < -54.0;
+      homeRoofRef.current.visible = !isInside;
+    }
+  });
+
   // Roadway parameters
   const roadLength = 340; // From Z = -100 to Z = 240
   const roadCenterZ = 70;
@@ -315,8 +326,8 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
           <planeGeometry args={[14, 14]} />
           <meshStandardMaterial color="#475569" roughness={0.9} />
         </mesh>
-        {/* Exterior Siding & Roof */}
-        <mesh position={[0, 4.2, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
+        {/* Exterior Siding & Roof (Rendered only when outside house to avoid blocking interior camera) */}
+        <mesh ref={homeRoofRef} position={[0, 4.2, 0]} rotation={[0, Math.PI / 4, 0]} castShadow>
           <coneGeometry args={[8.5, 3.2, 4]} />
           <meshStandardMaterial color="#78350f" roughness={0.8} />
         </mesh>

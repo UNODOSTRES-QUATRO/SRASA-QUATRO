@@ -8,8 +8,11 @@ export function SceneLighting() {
 
   return (
     <>
+      {/* 3D Horizon & Canvas Clear Color */}
+      <color attach="background" args={["#182030"]} />
+
       {/* Warm ambient base: soft twilight sky tone */}
-      <ambientLight color="#8ba2be" intensity={0.65} />
+      <ambientLight color="#94a3b8" intensity={0.85} />
 
       {/* Low-angle Golden Hour Directional Sunlight */}
       <directionalLight
@@ -21,7 +24,7 @@ export function SceneLighting() {
 
       {/* Gentle upward bounce light simulating warm asphalt / dusk ground radiation */}
       <hemisphereLight
-        args={["#fed7aa", "#1e293b", 0.5]}
+        args={["#fed7aa", "#1e293b", 0.65]}
       />
 
       {/* Atmospheric low-cortisol twilight fog (deep expansive horizon) */}

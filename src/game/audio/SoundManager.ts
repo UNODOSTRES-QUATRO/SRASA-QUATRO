@@ -293,7 +293,8 @@ export class SoundManager {
     this.ambientFilter.connect(this.ambientGain);
     this.ambientGain.connect(this.compressor);
 
-    // Sub-drone warmth oscillator
+    // Sub-drone warmth oscillator (disabled: causes continuous low-end humming)
+    /*
     this.subDroneOsc = this.ctx.createOscillator();
     this.subDroneOsc.type = "sine";
     this.subDroneOsc.frequency.setValueAtTime(55, this.ctx.currentTime);
@@ -302,6 +303,7 @@ export class SoundManager {
     this.subDroneOsc.connect(this.subDroneGain);
     this.subDroneGain.connect(this.ambientFilter);
     this.subDroneOsc.start();
+    */
 
     // Analog LFO filter breathing (Juno-106 slow warmth)
     const padLfo = this.ctx.createOscillator();
@@ -398,14 +400,14 @@ export class SoundManager {
       if (!this.ctx || !this.ambientFilter) return;
 
       const osc = this.ctx.createOscillator();
-      // Analog detuning for rich chorus vibe
-      const detuneCents = (idx % 2 === 0 ? 1 : -1) * (5 + idx * 3.0);
-      osc.type = idx === 0 ? "triangle" : idx === 1 ? "sawtooth" : "sine";
+      // Analog detuning for rich chorus vibe (soft sine/triangle for warm pads, eliminate harsh buzz)
+      const detuneCents = (idx % 2 === 0 ? 1 : -1) * (2 + idx * 1.5);
+      osc.type = idx === 0 ? "triangle" : "sine";
       osc.frequency.setValueAtTime(freq, now);
       osc.detune.setValueAtTime(detuneCents, now);
 
       const gain = this.ctx.createGain();
-      const targetVol = (1.15 / chord.length) * (idx === 0 ? 1.6 : idx === 1 ? 0.75 : 1.25);
+      const targetVol = (0.35 / chord.length) * (idx === 0 ? 1.0 : 0.7);
       gain.gain.setValueAtTime(0.0001, now);
       gain.gain.linearRampToValueAtTime(targetVol, now + fadeDuration * 0.7);
 

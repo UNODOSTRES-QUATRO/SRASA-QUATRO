@@ -32,9 +32,30 @@ export function UnifiedCamera({
 }: UnifiedCameraProps) {
   const { camera, gl } = useThree();
 
+  // Detect if initial target position is inside Home
+  const isHomeStart =
+    targetPos[0] > 15.5 &&
+    targetPos[0] < 24.5 &&
+    targetPos[2] > -64.5 &&
+    targetPos[2] < -55.5;
+
+  const initInterior = isInsideEscapeRoom || isHomeStart;
+  const initAzimuth = isHomeStart ? -Math.PI * 0.72 : targetHeading;
+  const initPolar = isHomeStart ? 0.58 : 0.65;
+  const initDistance = isHomeStart ? 3.0 : isInsideEscapeRoom ? 6.0 : 8.0;
+
+  const initialCamPos = isHomeStart
+    ? new THREE.Vector3(20.3, 2.4, -61.6)
+    : new THREE.Vector3(targetPos[0], targetPos[1] + 5, targetPos[2] - 8);
+  const initialLookAt = new THREE.Vector3(
+    targetPos[0],
+    targetPos[1] + (isHomeStart ? 1.0 : 1.2),
+    targetPos[2]
+  );
+
   // Current interpolated state with exponential damping
-  const currentPos = useRef(new THREE.Vector3(targetPos[0], targetPos[1] + 5, targetPos[2] - 8));
-  const currentLookAt = useRef(new THREE.Vector3(targetPos[0], targetPos[1] + 1.2, targetPos[2]));
+  const currentPos = useRef(initialCamPos);
+  const currentLookAt = useRef(initialLookAt);
   const smoothedHeading = useRef(targetHeading);
   const smoothedDrift = useRef(0);
   const smoothedLookAhead = useRef(2.8);
@@ -42,12 +63,12 @@ export function UnifiedCamera({
   const prevMode = useRef<UnifiedCameraMode>(mode);
 
   // Orbit parameters for ON_FOOT mode
-  const orbitAzimuth = useRef(targetHeading);
-  const orbitPolar = useRef(0.65);
-  const smoothedOrbitAzimuth = useRef(targetHeading);
-  const smoothedOrbitPolar = useRef(0.65);
-  const orbitDistance = useRef(isInsideEscapeRoom ? 6.0 : 8.0);
-  const targetOrbitDistance = useRef(isInsideEscapeRoom ? 6.0 : 8.0);
+  const orbitAzimuth = useRef(initAzimuth);
+  const orbitPolar = useRef(initPolar);
+  const smoothedOrbitAzimuth = useRef(initAzimuth);
+  const smoothedOrbitPolar = useRef(initPolar);
+  const orbitDistance = useRef(initDistance);
+  const targetOrbitDistance = useRef(initDistance);
   const pointer = useRef({ dragging: false, pointerId: -1, x: 0, y: 0 });
 
   // Cockpit head bob & dynamics
@@ -56,7 +77,7 @@ export function UnifiedCamera({
 
   // Transition smoothing between modes and environments
   const transitionProgress = useRef(0);
-  const smoothedInteriorRatio = useRef(isInsideEscapeRoom ? 1.0 : 0.0);
+  const smoothedInteriorRatio = useRef(initInterior ? 1.0 : 0.0);
   const prevDesiredPos = useRef(new THREE.Vector3());
 
   // Inertial pointer dragging velocity for ON_FOOT
@@ -124,7 +145,7 @@ export function UnifiedCamera({
       event.preventDefault();
       targetOrbitDistance.current = THREE.MathUtils.clamp(
         targetOrbitDistance.current + event.deltaY * 0.008,
-        3.5,
+        2.2,
         18.0
       );
     };
@@ -332,7 +353,7 @@ export function UnifiedCamera({
       // Smart interior distance clamping to prevent clipping through exterior walls/roofs
       const effectiveTargetDistance = THREE.MathUtils.lerp(
         targetOrbitDistance.current,
-        THREE.MathUtils.clamp(targetOrbitDistance.current, 2.8, 4.2),
+        THREE.MathUtils.clamp(targetOrbitDistance.current, 2.2, isInsideHome ? 3.4 : 4.2),
         smoothedInteriorRatio.current
       );
 
@@ -375,15 +396,22 @@ export function UnifiedCamera({
       const vDist = orbitDistance.current * Math.cos(smoothedOrbitPolar.current);
 
       const vOffset = THREE.MathUtils.lerp(0.85, 0.35, smoothedInteriorRatio.current);
-      const maxCamY = THREE.MathUtils.lerp(24.0, 2.85, smoothedInteriorRatio.current);
+      const maxCamY = THREE.MathUtils.lerp(24.0, isInsideHome ? 2.95 : 2.85, smoothedInteriorRatio.current);
       const calculatedCamY = liveTargetPos[1] + vDist + vOffset;
-      const clampedCamY = Math.min(maxCamY, Math.max(0.55, calculatedCamY));
+      const clampedCamY = Math.min(maxCamY, Math.max(0.65, calculatedCamY));
 
-      desiredPos.set(
-        liveTargetPos[0] - Math.sin(smoothedOrbitAzimuth.current) * hDist,
-        clampedCamY,
-        liveTargetPos[2] - Math.cos(smoothedOrbitAzimuth.current) * hDist
-      );
+      let camX = liveTargetPos[0] - Math.sin(smoothedOrbitAzimuth.current) * hDist;
+      let camY = clampedCamY;
+      let camZ = liveTargetPos[2] - Math.cos(smoothedOrbitAzimuth.current) * hDist;
+
+      if (isInsideHome) {
+        // Clamp camera strictly inside home interior bounds so it NEVER clips outside the exterior walls
+        camX = THREE.MathUtils.clamp(camX, 16.2, 23.8);
+        camZ = THREE.MathUtils.clamp(camZ, -63.8, -56.2);
+        camY = THREE.MathUtils.clamp(camY, 0.8, 3.1);
+      }
+
+      desiredPos.set(camX, camY, camZ);
 
       desiredLookAt.set(
         liveTargetPos[0],
