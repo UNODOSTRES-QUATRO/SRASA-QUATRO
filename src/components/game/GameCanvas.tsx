@@ -249,15 +249,31 @@ export function GameCanvas({
   const cameraTargetHeading =
     playerMode === "DRIVING" && vehicleState ? vehicleState.heading : humanHeading;
 
-  const camAzimuthRef = useRef(humanHeading);
+  const isHomeStart =
+    humanPos[0] > 15.5 &&
+    humanPos[0] < 24.5 &&
+    humanPos[2] > -64.5 &&
+    humanPos[2] < -55.5;
+
+  const initialCamAzimuth = isHomeStart ? -Math.PI * 0.72 : humanHeading;
+  const camAzimuthRef = useRef(initialCamAzimuth);
 
   return (
     <Canvas
       dpr={1}
-      camera={{ position: [-6, 6, 12], fov: 48, near: 0.1, far: 350 }}
+      camera={{
+        position: isHomeStart ? [20.3, 2.4, -61.6] : [-6, 6, 12],
+        fov: 48,
+        near: 0.1,
+        far: 350,
+      }}
       gl={{
         antialias: false,
         powerPreference: "high-performance",
+        preserveDrawingBuffer: true,
+      }}
+      onCreated={({ gl }) => {
+        gl.setClearColor(new THREE.Color("#182030"), 1.0);
       }}
       className="w-full h-full"
     >

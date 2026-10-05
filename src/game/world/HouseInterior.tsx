@@ -25,10 +25,10 @@ export const HouseInterior = React.memo(function HouseInterior({
   useFrame((_, delta) => {
     clockRef.current += delta;
     if (lampLightRef.current) {
-      const targetIntensity = isEvening ? 2.4 : 0.18;
+      const targetIntensity = isEvening ? 2.4 : 1.2;
       lampLightRef.current.intensity = THREE.MathUtils.damp(
         lampLightRef.current.intensity,
-        targetIntensity + Math.sin(clockRef.current * 3) * (isEvening ? 0.1 : 0.015),
+        targetIntensity + Math.sin(clockRef.current * 3) * (isEvening ? 0.1 : 0.04),
         2,
         delta
       );
@@ -178,15 +178,23 @@ export const HouseInterior = React.memo(function HouseInterior({
         <meshStandardMaterial
           color="#ffeedb"
           emissive="#f6ad55"
-          emissiveIntensity={isEvening ? 1.2 : 0.12}
+          emissiveIntensity={isEvening ? 1.2 : 0.6}
         />
       </mesh>
       <pointLight
         ref={lampLightRef}
         position={[-3.8, 1.1, -3.8]}
         color={isEvening ? "#f6ad55" : "#ffe6b7"}
-        intensity={isEvening ? 2.2 : 0.18}
-        distance={7}
+        intensity={isEvening ? 2.2 : 1.2}
+        distance={8}
+      />
+
+      {/* Bedroom Warm Ambient Ceiling Illumination */}
+      <pointLight
+        position={[-2.4, 2.7, -2.8]}
+        color="#fffaf0"
+        intensity={isEvening ? 1.6 : 2.2}
+        distance={9}
       />
 
       <group position={[-2.1, 2.0, -4.27]}>
