@@ -136,6 +136,7 @@ export default function ProjectQuatroApp() {
     doorAngle: 0,
   }));
   const [cameraMode, setCameraMode] = useState<CameraMode>("CHASE");
+  const [isShiftLock, setIsShiftLock] = useState(false);
 
   // Weapon system
   const weaponSystem = useWeaponSystem();
@@ -251,6 +252,7 @@ export default function ProjectQuatroApp() {
 
   // ── Seamless Mount / Dismount Handlers with Animated Driver Door ──
   const handleMountVehicle = useCallback(() => {
+    setIsShiftLock(false);
     // Open door smoothly
     if (vehicleStateRef.current) {
       vehicleStateRef.current.doorAngle = 0.95;
@@ -324,7 +326,7 @@ export default function ProjectQuatroApp() {
       ...prev,
       humanPosition: [dismountX, 0, dismountZ],
       humanHeading: dismountHeading,
-      activePrompt: "✦ Jalan kaki. [WASD] Gerak, [F] Serang, [Q] Ganti Senjata, [E] Masuk Mobil.",
+      activePrompt: "✦ Jalan kaki. [WASD] Gerak, [Shift] Shift Lock, [F] Serang, [Q] Ganti Senjata, [E] Masuk Mobil.",
     }));
     setPlayerMode("ON_FOOT");
 
@@ -507,7 +509,11 @@ export default function ProjectQuatroApp() {
           break;
         case "ShiftLeft":
         case "ShiftRight":
-          inputRef.current.brake = true;
+          if (currentMode === "DRIVING") {
+            inputRef.current.brake = true;
+          } else if (currentMode === "ON_FOOT" && !e.repeat) {
+            setIsShiftLock((prev) => !prev);
+          }
           break;
       }
     };
@@ -545,9 +551,13 @@ export default function ProjectQuatroApp() {
           inputRef.current.right = false;
           break;
         case "Space":
+          inputRef.current.brake = false;
+          break;
         case "ShiftLeft":
         case "ShiftRight":
-          inputRef.current.brake = false;
+          if (playerModeRef.current === "DRIVING") {
+            inputRef.current.brake = false;
+          }
           break;
       }
     };
@@ -619,61 +629,69 @@ export default function ProjectQuatroApp() {
     if (playerModeRef.current === "ON_FOOT") {
       setIsHumanMoving(isMoving);
       setSession((prev) => {
-        let updated: GameSessionState = {
-          ...prev,
-          humanPosition: [x, 0, z],
-          humanHeading: heading,
-        };
-
         // Zone 1: Entered Office Building
         if (
-          (updated.phase === "COMMUTE_TO_WORK" || updated.phase === "AT_WORK") &&
-          x >= 11 && x <= 25 && z >= 63 && z <= 77
+          (prev.phase === "COMMUTE_TO_WORK" || prev.phase === "AT_WORK") &&
+          x >= 11 && x <= 25 && z >= 63 && z <= 77 &&
+          prev.currentLocation !== "TEMPAT_KERJA"
         ) {
-          if (updated.currentLocation !== "TEMPAT_KERJA") {
-            updated = {
-              ...updated,
-              currentLocation: "TEMPAT_KERJA",
-              phase: "AT_WORK",
-              activePrompt: updated.workplace.allTasksDone
-                ? "✦ Tugas selesai. Kembali ke mobil untuk pulang."
-                : "✦ Masuk kantor. Tekan [E] di workstation PC untuk mulai coding.",
-            };
-          }
+          return {
+            ...prev,
+            currentLocation: "TEMPAT_KERJA",
+            phase: "AT_WORK",
+            humanPosition: [x, 0, z],
+            humanHeading: heading,
+            activePrompt: prev.workplace.allTasksDone
+              ? "✦ Tugas selesai. Kembali ke mobil untuk pulang."
+              : "✦ Masuk kantor. Tekan [E] di workstation PC untuk mulai coding.",
+          };
         }
 
         // Zone 2: Returned Home
         if (
-          updated.phase === "COMMUTE_HOME" &&
-          x >= 16 && x <= 24 && z >= -64 && z <= -56
+          prev.phase === "COMMUTE_HOME" &&
+          x >= 16 && x <= 24 && z >= -64 && z <= -56 &&
+          prev.currentLocation !== "RUMAH"
         ) {
-          if (updated.currentLocation !== "RUMAH") {
-            const arrived = arriveHomeForEvening(updated);
-            updated = {
-              ...arrived,
-              humanPosition: [x, 0, z],
-              humanHeading: heading,
-            };
-          }
+          const arrived = arriveHomeForEvening(prev);
+          return {
+            ...arrived,
+            humanPosition: [x, 0, z],
+            humanHeading: heading,
+          };
         }
 
         // Zone 3: Left Home onto Driveway
         if (
-          updated.phase === "MORNING_ROUTINE" &&
-          updated.rumah.canExitHouse &&
-          (x < 15.5 || z > -55.5)
+          prev.phase === "MORNING_ROUTINE" &&
+          prev.rumah.canExitHouse &&
+          (x < 15.5 || z > -55.5) &&
+          prev.currentLocation !== "JALAN"
         ) {
-          if (updated.currentLocation !== "JALAN") {
-            updated = {
-              ...updated,
-              currentLocation: "JALAN",
-              phase: "COMMUTE_TO_WORK",
-              activePrompt: "✦ Menuju mobil Quattro di halaman depan.",
-            };
-          }
+          return {
+            ...prev,
+            currentLocation: "JALAN",
+            phase: "COMMUTE_TO_WORK",
+            humanPosition: [x, 0, z],
+            humanHeading: heading,
+            activePrompt: "✦ Menuju mobil Quattro di halaman depan.",
+          };
         }
 
-        return updated;
+        // Avoid re-rendering whole App tree on minor movement while walking
+        const distMoved = Math.hypot(x - prev.humanPosition[0], z - prev.humanPosition[2]);
+        if (isMoving && distMoved < 0.75) {
+          return prev;
+        }
+        if (!isMoving && distMoved < 0.05 && Math.abs(heading - prev.humanHeading) < 0.05) {
+          return prev;
+        }
+
+        return {
+          ...prev,
+          humanPosition: [x, 0, z],
+          humanHeading: heading,
+        };
       });
     } else if (vehicle) {
       if (humanPosRef.current) {
@@ -1044,6 +1062,7 @@ export default function ProjectQuatroApp() {
             humanPos={session.humanPosition}
             humanHeading={session.humanHeading}
             isHumanMoving={isHumanMoving}
+            isShiftLock={isShiftLock}
             characterId={characterId}
             isInsideEscapeRoom={session.kastil.insideEscapeRoom}
             remotePlayers={realtime.remotePlayers}
@@ -1174,6 +1193,38 @@ export default function ProjectQuatroApp() {
           >
             Esc · Menu
           </button>
+
+          {playerMode === "ON_FOOT" && (
+            <button
+              type="button"
+              onClick={() => setIsShiftLock((prev) => !prev)}
+              className={`border px-2.5 py-2 text-[10px] font-mono uppercase tracking-wider shadow-xl backdrop-blur-md transition-all active:scale-95 ${
+                isShiftLock
+                  ? "border-emerald-400 bg-emerald-950/85 text-emerald-300 ring-1 ring-emerald-400/50"
+                  : "border-quatro-cream/20 bg-quatro-navy/85 text-quatro-cream/70 hover:bg-quatro-navy hover:text-quatro-cream"
+              }`}
+              title="Toggle Roblox Shift Lock [Shift]"
+            >
+              {isShiftLock ? "🔒 Shift Lock ON" : "🔓 Shift Lock OFF"}
+            </button>
+          )}
+
+          <div className="hidden sm:flex items-center border border-quatro-cream/15 bg-quatro-navy/60 px-2.5 py-2 text-[10px] font-mono text-quatro-cream/60 shadow-lg backdrop-blur-md pointer-events-none">
+            🖱️ Tahan Klik Kanan: Putar Kamera · Shift: Lock
+          </div>
+        </div>
+      )}
+
+      {/* Roblox Shift Lock Center Crosshair Reticle */}
+      {isShiftLock && playerMode === "ON_FOOT" && session.currentLocation !== "END_SCREEN" && (
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 pointer-events-none z-30 flex items-center justify-center"
+        >
+          <div className="relative flex items-center justify-center w-6 h-6">
+            <div className="w-3.5 h-3.5 rounded-full border-2 border-white/80 shadow-[0_0_8px_rgba(0,0,0,0.8)]" />
+            <div className="absolute w-1 h-1 rounded-full bg-cyan-400" />
+          </div>
         </div>
       )}
 

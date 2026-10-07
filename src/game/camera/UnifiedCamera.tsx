@@ -17,6 +17,7 @@ interface UnifiedCameraProps {
   isInsideEscapeRoom?: boolean;
   isMoving?: boolean;
   camAzimuthRef?: React.MutableRefObject<number>;
+  isShiftLock?: boolean;
 }
 
 export function UnifiedCamera({
@@ -29,6 +30,7 @@ export function UnifiedCamera({
   isInsideEscapeRoom = false,
   isMoving = false,
   camAzimuthRef,
+  isShiftLock = false,
 }: UnifiedCameraProps) {
   const { camera, gl } = useThree();
 
@@ -83,13 +85,36 @@ export function UnifiedCamera({
   // Inertial pointer dragging velocity for ON_FOOT
   const pointerVel = useRef({ x: 0, y: 0 });
   const lastPointerPos = useRef({ x: 0, y: 0, time: 0 });
+  const shoulderOffset = useRef(0);
+  const isShiftLockRef = useRef(isShiftLock);
+  isShiftLockRef.current = isShiftLock;
 
-  // Mouse drag & wheel handlers for ON_FOOT mode
+  // Mouse drag & wheel handlers for ON_FOOT mode (Roblox Camera: Right Click Drag & Shift Lock)
   useEffect(() => {
     const element = gl.domElement;
 
+    // Suppress context menu on right click for seamless Roblox camera orbiting
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+    element.addEventListener("contextmenu", handleContextMenu);
+
     const handlePointerDown = (event: PointerEvent) => {
-      if (mode !== "ON_FOOT" || (event.button !== 0 && event.button !== 2)) return;
+      if (mode !== "ON_FOOT") return;
+
+      if (isShiftLockRef.current) {
+        // Shift Lock mode: clicking canvas requests pointer lock if available
+        if (typeof document !== "undefined" && document.pointerLockElement !== element && element.requestPointerLock) {
+          element.requestPointerLock();
+        }
+        return;
+      }
+
+      // Normal Roblox mode: ONLY Right Click (button 2) or Touch controls camera orbit
+      const isRightClick = event.button === 2;
+      const isTouch = event.pointerType === "touch";
+      if (!isRightClick && !isTouch) return;
+
       pointer.current = {
         dragging: true,
         pointerId: event.pointerId,
@@ -99,10 +124,35 @@ export function UnifiedCamera({
       pointerVel.current = { x: 0, y: 0 };
       lastPointerPos.current = { x: event.clientX, y: event.clientY, time: performance.now() };
       element.setPointerCapture(event.pointerId);
-      element.style.cursor = "grabbing";
     };
 
     const handlePointerMove = (event: PointerEvent) => {
+      if (mode !== "ON_FOOT") return;
+
+      // ── Shift Lock Active: Direct mouse aim (no right click needed) ──
+      if (isShiftLockRef.current) {
+        let movX = event.movementX || 0;
+        let movY = event.movementY || 0;
+
+        // Fallback if movementX/Y not provided
+        if (movX === 0 && movY === 0 && lastPointerPos.current.time > 0) {
+          movX = event.clientX - lastPointerPos.current.x;
+          movY = event.clientY - lastPointerPos.current.y;
+        }
+        lastPointerPos.current = { x: event.clientX, y: event.clientY, time: performance.now() };
+
+        if (movX !== 0 || movY !== 0) {
+          orbitAzimuth.current -= movX * 0.0032;
+          orbitPolar.current = THREE.MathUtils.clamp(
+            orbitPolar.current + movY * 0.0022,
+            0.18,
+            Math.PI / 2 - 0.08
+          );
+        }
+        return;
+      }
+
+      // ── Normal Roblox Mode: Rotate ONLY while holding Right Click ──
       if (!pointer.current.dragging || pointer.current.pointerId !== event.pointerId) return;
       const now = performance.now();
       const dtMove = Math.max(1, now - lastPointerPos.current.time) / 1000;
@@ -112,7 +162,7 @@ export function UnifiedCamera({
       pointer.current.x = event.clientX;
       pointer.current.y = event.clientY;
 
-      // Track instantaneous velocity for smooth release inertia (safely clamped)
+      // Track instantaneous velocity for smooth release inertia
       const rawVx = (deltaX / Math.max(0.008, dtMove)) * 0.0022;
       const rawVy = (deltaY / Math.max(0.008, dtMove)) * 0.0016;
       pointerVel.current = {
@@ -124,7 +174,7 @@ export function UnifiedCamera({
       orbitAzimuth.current -= deltaX * 0.0045;
       orbitPolar.current = THREE.MathUtils.clamp(
         orbitPolar.current + deltaY * 0.003,
-        0.22,
+        0.18,
         Math.PI / 2 - 0.08
       );
     };
@@ -137,7 +187,11 @@ export function UnifiedCamera({
       }
       pointer.current.dragging = false;
       pointer.current.pointerId = -1;
-      element.style.cursor = mode === "ON_FOOT" ? "grab" : "default";
+      try {
+        if (element.hasPointerCapture(event.pointerId)) {
+          element.releasePointerCapture(event.pointerId);
+        }
+      } catch (_) {}
     };
 
     const handleWheel = (event: WheelEvent) => {
@@ -145,7 +199,7 @@ export function UnifiedCamera({
       event.preventDefault();
       targetOrbitDistance.current = THREE.MathUtils.clamp(
         targetOrbitDistance.current + event.deltaY * 0.008,
-        2.2,
+        2.0,
         18.0
       );
     };
@@ -157,11 +211,15 @@ export function UnifiedCamera({
     element.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
+      element.removeEventListener("contextmenu", handleContextMenu);
       element.removeEventListener("pointerdown", handlePointerDown);
       element.removeEventListener("pointermove", handlePointerMove);
       element.removeEventListener("pointerup", endDrag);
       element.removeEventListener("pointercancel", endDrag);
       element.removeEventListener("wheel", handleWheel);
+      if (typeof document !== "undefined" && document.pointerLockElement === element) {
+        document.exitPointerLock?.();
+      }
     };
   }, [gl, mode]);
 
@@ -400,9 +458,16 @@ export function UnifiedCamera({
       const calculatedCamY = liveTargetPos[1] + vDist + vOffset;
       const clampedCamY = Math.min(maxCamY, Math.max(0.65, calculatedCamY));
 
-      let camX = liveTargetPos[0] - Math.sin(smoothedOrbitAzimuth.current) * hDist;
+      // Roblox Shift Lock: Right-shoulder camera offset
+      const rightX = Math.cos(smoothedOrbitAzimuth.current);
+      const rightZ = -Math.sin(smoothedOrbitAzimuth.current);
+      const shoulderTarget = isShiftLock && !isInsideHome ? 0.72 : 0;
+      const shoulderAlpha = 1.0 - Math.exp(-12.0 * dt);
+      shoulderOffset.current += (shoulderTarget - shoulderOffset.current) * shoulderAlpha;
+
+      let camX = liveTargetPos[0] - Math.sin(smoothedOrbitAzimuth.current) * hDist + rightX * shoulderOffset.current;
       let camY = clampedCamY;
-      let camZ = liveTargetPos[2] - Math.cos(smoothedOrbitAzimuth.current) * hDist;
+      let camZ = liveTargetPos[2] - Math.cos(smoothedOrbitAzimuth.current) * hDist + rightZ * shoulderOffset.current;
 
       if (isInsideHome) {
         // Clamp camera strictly inside home interior bounds so it NEVER clips outside the exterior walls
@@ -414,9 +479,9 @@ export function UnifiedCamera({
       desiredPos.set(camX, camY, camZ);
 
       desiredLookAt.set(
-        liveTargetPos[0],
+        liveTargetPos[0] + rightX * (shoulderOffset.current * 0.65),
         liveTargetPos[1] + THREE.MathUtils.lerp(1.15, 1.0, smoothedInteriorRatio.current),
-        liveTargetPos[2]
+        liveTargetPos[2] + rightZ * (shoulderOffset.current * 0.65)
       );
 
       targetFov = THREE.MathUtils.lerp(48, 52, smoothedInteriorRatio.current);
