@@ -503,5 +503,24 @@ describe("PRD Rework: Seamless World, Driving, Weapons & Low-Cortisol Monsters",
     expect(alphaLook).toBeGreaterThan(0.4);
     expect(alphaLook).toBeLessThan(1.0);
   });
+
+  it("ensures useFrame priority is not set in UnifiedCamera or ContinuousWorldPhysics to prevent blackscreen render suppression", () => {
+    const fs = require("fs");
+    const path = require("path");
+
+    const cameraCode = fs.readFileSync(
+      path.join(__dirname, "../src/game/camera/UnifiedCamera.tsx"),
+      "utf-8"
+    );
+    const canvasCode = fs.readFileSync(
+      path.join(__dirname, "../src/components/game/GameCanvas.tsx"),
+      "utf-8"
+    );
+
+    // In @react-three/fiber, passing a positive priority to useFrame disables automatic gl.render(),
+    // causing a permanent black screen unless manually rendered.
+    expect(cameraCode).not.toMatch(/useFrame\s*\([^)]*,\s*[1-9]\d*\)/);
+    expect(canvasCode).not.toMatch(/useFrame\s*\([^)]*,\s*-[1-9]\d*\)/);
+  });
 });
 
