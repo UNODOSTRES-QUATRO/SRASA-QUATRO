@@ -44,6 +44,7 @@ function ContinuousWorldPhysics({
 }: ContinuousPhysicsProps) {
   const lastSyncTime = useRef(0);
   const lastFootstepTime = useRef(0);
+  const wasMovingRef = useRef(false);
 
   useFrame((_, delta) => {
     if (isPaused) return;
@@ -124,16 +125,14 @@ function ContinuousWorldPhysics({
           lastFootstepTime.current = now;
         }
 
+        wasMovingRef.current = true;
         if (now - lastSyncTime.current > 60) {
           onSyncUI?.(nextX, nextZ, nextHeading, isMoving);
           lastSyncTime.current = now;
         }
-      } else {
-        const now = performance.now();
-        if (now - lastSyncTime.current > 60) {
-          onSyncUI?.(humanPosRef.current.x, humanPosRef.current.z, humanPosRef.current.heading, false);
-          lastSyncTime.current = now;
-        }
+      } else if (wasMovingRef.current) {
+        wasMovingRef.current = false;
+        onSyncUI?.(humanPosRef.current.x, humanPosRef.current.z, humanPosRef.current.heading, false);
       }
     } else if (playerMode === "DRIVING" && vehicleStateRef?.current && inputRef?.current) {
       const input = inputRef.current;
@@ -173,7 +172,7 @@ function ContinuousWorldPhysics({
         lastSyncTime.current = now;
       }
     }
-  }, -1);
+  });
 
   return null;
 }

@@ -480,7 +480,7 @@ export function UnifiedCamera({
         perspCamera.updateProjectionMatrix();
       }
     }
-  }, 1);
+  });
 
   return null;
 }
