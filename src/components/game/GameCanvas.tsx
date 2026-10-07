@@ -28,6 +28,7 @@ interface ContinuousPhysicsProps {
   onFootstep?: () => void;
   onSyncUI?: (x: number, z: number, heading: number, isMoving: boolean, vehicle?: VehicleState) => void;
   camAzimuthRef?: React.MutableRefObject<number>;
+  isShiftLock?: boolean;
 }
 
 function ContinuousWorldPhysics({
@@ -41,6 +42,7 @@ function ContinuousWorldPhysics({
   onFootstep,
   onSyncUI,
   camAzimuthRef,
+  isShiftLock = false,
 }: ContinuousPhysicsProps) {
   const lastSyncTime = useRef(0);
   const lastFootstepTime = useRef(0);
@@ -89,19 +91,32 @@ function ContinuousWorldPhysics({
       const curSpeed = Math.hypot(humanVelocityRef.current.vx, humanVelocityRef.current.vz);
       const isMoving = curSpeed > 0.05;
 
+      // ── Heading Orientation ──
+      if (isShiftLock) {
+        // Roblox Shift Lock: Player strictly aligns to camera view angle even when idle or strafing
+        const camAngle = camAzimuthRef?.current ?? 0;
+        let headingDiff = camAngle - humanPosRef.current.heading;
+        while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
+        while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
+        const headingAlpha = 1.0 - Math.exp(-28.0 * dt);
+        humanPosRef.current.heading += headingDiff * headingAlpha;
+      }
+
       if (isMoving) {
         const curX = humanPosRef.current.x;
         const curZ = humanPosRef.current.z;
         let nextX = curX + humanVelocityRef.current.vx * dt;
         let nextZ = curZ + humanVelocityRef.current.vz * dt;
 
-        // Smooth shortest-arc heading with exponential damping
-        const targetHeading = Math.atan2(humanVelocityRef.current.vx, humanVelocityRef.current.vz);
-        let headingDiff = targetHeading - humanPosRef.current.heading;
-        while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
-        while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
-        const headingAlpha = 1.0 - Math.exp(-18.0 * dt);
-        const nextHeading = humanPosRef.current.heading + headingDiff * headingAlpha;
+        if (!isShiftLock) {
+          // Normal Roblox Mode: Smooth heading alignment towards movement vector
+          const targetHeading = Math.atan2(humanVelocityRef.current.vx, humanVelocityRef.current.vz);
+          let headingDiff = targetHeading - humanPosRef.current.heading;
+          while (headingDiff < -Math.PI) headingDiff += Math.PI * 2;
+          while (headingDiff > Math.PI) headingDiff -= Math.PI * 2;
+          const headingAlpha = 1.0 - Math.exp(-18.0 * dt);
+          humanPosRef.current.heading += headingDiff * headingAlpha;
+        }
 
         // Continuous world collision checking
         const [rx, , rz] = resolvePlayerWorldPosition(
@@ -117,7 +132,6 @@ function ContinuousWorldPhysics({
         humanPosRef.current.x = nextX;
         humanPosRef.current.y = 0;
         humanPosRef.current.z = nextZ;
-        humanPosRef.current.heading = nextHeading;
 
         const now = performance.now();
         if (now - lastFootstepTime.current > 310) {
@@ -126,8 +140,9 @@ function ContinuousWorldPhysics({
         }
 
         wasMovingRef.current = true;
-        if (now - lastSyncTime.current > 60) {
-          onSyncUI?.(nextX, nextZ, nextHeading, isMoving);
+        // Throttled to 200ms to eliminate React re-render lag while walking
+        if (now - lastSyncTime.current > 200) {
+          onSyncUI?.(nextX, nextZ, humanPosRef.current.heading, isMoving);
           lastSyncTime.current = now;
         }
       } else if (wasMovingRef.current) {
@@ -203,6 +218,7 @@ interface GameCanvasProps {
   chargeLevel?: number;
   attackProgress?: number;
   isAttacking?: boolean;
+  isShiftLock?: boolean;
   children?: React.ReactNode;
 }
 
@@ -231,6 +247,7 @@ export function GameCanvas({
   chargeLevel = 0,
   attackProgress = 0,
   isAttacking = false,
+  isShiftLock = false,
   children,
 }: GameCanvasProps) {
   const unifiedMode: UnifiedCameraMode =
@@ -269,7 +286,7 @@ export function GameCanvas({
       gl={{
         antialias: false,
         powerPreference: "high-performance",
-        preserveDrawingBuffer: true,
+        preserveDrawingBuffer: false,
       }}
       onCreated={({ gl }) => {
         gl.setClearColor(new THREE.Color("#182030"), 1.0);
@@ -290,6 +307,7 @@ export function GameCanvas({
         onFootstep={onFootstep}
         onSyncUI={onSyncUI}
         camAzimuthRef={camAzimuthRef}
+        isShiftLock={isShiftLock}
       />
 
       {/* ── Human Player Character (Shown on foot, socketed with weapon) ── */}
@@ -338,6 +356,7 @@ export function GameCanvas({
         isInsideEscapeRoom={isInsideEscapeRoom}
         isMoving={isHumanMoving}
         camAzimuthRef={camAzimuthRef}
+        isShiftLock={isShiftLock}
       />
     </Canvas>
   );
