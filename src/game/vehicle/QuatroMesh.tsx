@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { Html } from "@react-three/drei";
 import { VehicleState } from "./vehicleTypes";
 import { SemicolonCat } from "../character/SemicolonCat";
 import { soundManager } from "../audio/SoundManager";
@@ -257,7 +258,7 @@ export function QuatroMesh({
         const px = humanPosRef?.current?.x ?? playerPos?.[0] ?? 0;
         const pz = humanPosRef?.current?.z ?? playerPos?.[2] ?? 0;
         const dist = Math.hypot(px - live.position.x, pz - live.position.z);
-        if (dist < 3.8) {
+        if (dist < 20.0) {
           mountPromptRef.current.visible = true;
           const bob = Math.sin(state.clock.getElapsedTime() * 3.5) * 0.05;
           mountPromptRef.current.position.y = 1.35 + bob;
@@ -851,6 +852,12 @@ export function QuatroMesh({
           <sphereGeometry args={[0.06, 12, 12]} />
           <meshStandardMaterial color="#ffffff" emissive="#f8fafc" emissiveIntensity={4.5} />
         </mesh>
+        {/* Obvious HTML Label */}
+        <Html center position={[0, 0.6, 0]} className="pointer-events-none whitespace-nowrap">
+          <div className="bg-quatro-navy/90 border-2 border-quatro-amber px-3 py-1 text-xs font-mono font-bold text-quatro-cream uppercase tracking-[0.2em] shadow-2xl backdrop-blur-md animate-pulse">
+            YOUR CAR
+          </div>
+        </Html>
         {/* Interactive glow ring */}
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.18, 0.24, 16]} />
