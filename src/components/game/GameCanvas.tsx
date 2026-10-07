@@ -71,13 +71,14 @@ function ContinuousWorldPhysics({
         const normF = moveForward / len;
         const normR = moveRight / len;
 
-        // Camera-relative orientation so [W] is ALWAYS forward where the player is looking
+        // Camera-relative orientation: [W] is forward in view, [S] backward, [D] right on screen, [A] left on screen
         const camAngle = camAzimuthRef?.current ?? 0;
         const sinA = Math.sin(camAngle);
         const cosA = Math.cos(camAngle);
 
-        const dirX = normF * sinA + normR * cosA;
-        const dirZ = normF * cosA - normR * sinA;
+        // Forward = (sinA, cosA), Screen Right = (-cosA, sinA)
+        const dirX = normF * sinA - normR * cosA;
+        const dirZ = normF * cosA + normR * sinA;
 
         targetVx = dirX * walkSpeed;
         targetVz = dirZ * walkSpeed;

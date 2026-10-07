@@ -106,14 +106,6 @@ function StreetLamp({
           emissiveIntensity={1.8}
         />
       </mesh>
-
-      <pointLight
-        position={[armDirection * 0.75, 4.3, 0]}
-        color={lampColor}
-        intensity={2.0}
-        distance={11}
-        decay={2}
-      />
     </group>
   );
 }

@@ -247,18 +247,11 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
               <cylinderGeometry args={[0.06, 0.06, 2.0]} />
               <meshStandardMaterial color="#1e293b" />
             </mesh>
-            {/* Lamp Head */}
+            {/* Lamp Head with Warm Cozy Glow */}
             <mesh position={[isLeft ? 1.7 : -1.7, 5.1, 0]}>
               <boxGeometry args={[0.45, 0.16, 0.28]} />
               <meshStandardMaterial color="#fef08a" emissive="#eab308" emissiveIntensity={2.2} />
             </mesh>
-            <pointLight
-              position={[isLeft ? 1.7 : -1.7, 4.8, 0]}
-              color="#fef08a"
-              intensity={2.8}
-              distance={16}
-              decay={2}
-            />
           </group>
         );
       })}
@@ -434,13 +427,13 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
             <cylinderGeometry args={[0.22, 0.26, 6.4, 8]} />
             <meshStandardMaterial color="#1e1b4b" emissive="#4338ca" emissiveIntensity={0.6} />
           </mesh>
-          <pointLight color="#818cf8" intensity={2.8} distance={12} />
         </group>
       ))}
       <mesh position={[0, 6.1, 125]}>
         <boxGeometry args={[18, 0.5, 0.8]} />
         <meshStandardMaterial color="#4338ca" emissive="#6366f1" emissiveIntensity={1.4} />
       </mesh>
+      <pointLight position={[0, 5.8, 125]} color="#818cf8" intensity={2.8} distance={18} />
 
       {/* Secondary Inner Torii Gate at Z = 152 */}
       {[-8, 8].map((tx, ti) => (
@@ -449,13 +442,13 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
             <cylinderGeometry args={[0.2, 0.24, 6.0, 8]} />
             <meshStandardMaterial color="#1e1b4b" emissive="#312e81" emissiveIntensity={0.6} />
           </mesh>
-          <pointLight color="#a855f7" intensity={2.5} distance={10} />
         </group>
       ))}
       <mesh position={[0, 5.8, 152]}>
         <boxGeometry args={[17.5, 0.45, 0.7]} />
         <meshStandardMaterial color="#6366f1" emissive="#818cf8" emissiveIntensity={1.3} />
       </mesh>
+      <pointLight position={[0, 5.5, 152]} color="#a855f7" intensity={2.5} distance={16} />
 
       {/* Cyber Alley Neon Roadside Bollards (Z = 128 to 175) */}
       {[130, 140, 150, 160, 170].map((bz, bi) => (
@@ -618,6 +611,7 @@ function CarHeadlights({
   const rightTargetRef = useRef<THREE.Object3D>(null);
 
   useFrame(() => {
+    if (playerMode !== "DRIVING") return;
     const live = vehicleStateRef?.current ?? vehicleState;
     const sinH = Math.sin(live.heading);
     const cosH = Math.cos(live.heading);
@@ -652,7 +646,9 @@ function CarHeadlights({
     }
   });
 
-  const intensity = playerMode === "DRIVING" ? 6.5 : 2.5;
+  if (playerMode !== "DRIVING") return null;
+
+  const intensity = 6.5;
 
   return (
     <>
