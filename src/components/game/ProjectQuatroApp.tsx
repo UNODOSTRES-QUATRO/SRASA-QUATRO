@@ -14,7 +14,9 @@ import { EndCreditsScene } from "@/components/ui/EndCreditsScene";
 import { PauseOverlay } from "@/components/ui/PauseOverlay";
 import { DrivingHUD } from "@/components/ui/DrivingHUD";
 import { WeaponHUD } from "@/components/ui/WeaponHUD";
-import { MainMenu } from "./MainMenu";
+import { OpeningCinematic } from "@/components/ui/OpeningCinematic";
+import { CharacterSelectModal } from "@/components/ui/CharacterSelectModal";
+import { CharacterId } from "@/components/ui/CharacterPortraits";
 import { LanguageSelector } from "@/components/ui/LanguageSelector";
 import {
   useLocalizationProvider,
@@ -90,13 +92,37 @@ export default function ProjectQuatroApp() {
   const localization = useLocalizationProvider();
   const { t } = localization;
 
-  const [isMainMenuOpen, setIsMainMenuOpen] = useState(true);
-  const [username, setUsername] = useState("");
+  // Character selection state with persistence
+  const [characterId, setCharacterId] = useState<CharacterId>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("quatro_selected_character");
+      if (saved) return saved as CharacterId;
+    }
+    return "ORIGINAL";
+  });
+  const [isCharacterSelectOpen, setIsCharacterSelectOpen] = useState(false);
 
-  const handleStartGame = (name: string) => {
-    setUsername(name);
-    setIsMainMenuOpen(false);
-  };
+  // Cinematic sequence state (starts on first load, skippable)
+  const [showOpeningCinematic, setShowOpeningCinematic] = useState(false);
+
+  const handleCompleteCinematic = useCallback(() => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("quatro_seen_cinematic", "true");
+    }
+    setShowOpeningCinematic(false);
+    // If first time playing, open character selection
+    if (typeof window !== "undefined" && !localStorage.getItem("quatro_selected_character")) {
+      setIsCharacterSelectOpen(true);
+    }
+  }, []);
+
+  const handleSelectCharacter = useCallback((newId: CharacterId) => {
+    setCharacterId(newId);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("quatro_selected_character", newId);
+    }
+    setIsCharacterSelectOpen(false);
+  }, []);
 
   const [session, setSession] = useState<GameSessionState>(createInitialSessionState);
   const [playerMode, setPlayerMode] = useState<PlayerMode>("ON_FOOT");
@@ -994,10 +1020,17 @@ export default function ProjectQuatroApp() {
   return (
     <LocalizationContext.Provider value={localization}>
       <div className="relative w-full h-full overflow-hidden select-none bg-black">
-        {/* Main Menu for Username */}
-        {isMainMenuOpen && (
-          <MainMenu onPlay={handleStartGame} />
+        {/* Opening Cinematic (shown on first visit or via replay button) */}
+        {showOpeningCinematic && (
+          <OpeningCinematic onComplete={handleCompleteCinematic} />
         )}
+
+        {/* Character Selection Modal */}
+        <CharacterSelectModal
+          isOpen={isCharacterSelectOpen}
+          onSelectCharacter={handleSelectCharacter}
+          selectedId={characterId}
+        />
 
         {/* Bottom Left Language Switcher */}
         {session.currentLocation !== "END_SCREEN" && (
@@ -1005,13 +1038,13 @@ export default function ProjectQuatroApp() {
         )}
 
         {/* 3D Canvas Rendering Active Continuous Exploration Scene (only mount after cinematic completes) */}
-        {!isMainMenuOpen && session.currentLocation !== "END_SCREEN" && (
+        {!showOpeningCinematic && session.currentLocation !== "END_SCREEN" && (
           <GameCanvas
             playerMode={playerMode}
             humanPos={session.humanPosition}
             humanHeading={session.humanHeading}
             isHumanMoving={isHumanMoving}
-            characterId={"LONG_HAIR_GIRL"}
+            characterId={characterId}
             isInsideEscapeRoom={session.kastil.insideEscapeRoom}
             remotePlayers={realtime.remotePlayers}
             vehicleState={vehicleState}
