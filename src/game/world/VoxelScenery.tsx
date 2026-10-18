@@ -22,13 +22,13 @@ function VoxelTree({
   return (
     <group position={position}>
       {/* TRUNK */}
-      <mesh position={[0, 1.2, 0]} castShadow receiveShadow>
+      <mesh position={[0, 1.2, 0]}>
         <boxGeometry args={[0.6, 2.4, 0.6]} />
         <meshStandardMaterial color="#3a261a" roughness={0.9} />
       </mesh>
 
       {/* FOLIAGE LAYER 1 (Lower) */}
-      <mesh position={[0, 2.8, 0]} castShadow receiveShadow>
+      <mesh position={[0, 2.8, 0]}>
         <boxGeometry args={[2.4, 1.6, 2.4]} />
         <meshStandardMaterial
           color={foliageColor1}
@@ -39,7 +39,7 @@ function VoxelTree({
       </mesh>
 
       {/* FOLIAGE LAYER 2 (Upper) */}
-      <mesh position={[0, 4.0, 0]} castShadow receiveShadow>
+      <mesh position={[0, 4.0, 0]}>
         <boxGeometry args={[1.6, 1.2, 1.6]} />
         <meshStandardMaterial
           color={foliageColor2}
@@ -80,7 +80,7 @@ function StreetLamp({
   return (
     <group position={position}>
       {/* POLE */}
-      <mesh position={[0, 2.5, 0]} castShadow>
+      <mesh position={[0, 2.5, 0]}>
         <cylinderGeometry args={[0.08, 0.1, 5, 8]} />
         <meshStandardMaterial color="#22252c" roughness={0.7} />
       </mesh>

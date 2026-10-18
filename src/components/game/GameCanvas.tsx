@@ -282,11 +282,11 @@ export function GameCanvas({
         position: isHomeStart ? [20.3, 2.4, -61.6] : [-6, 6, 12],
         fov: 48,
         near: 0.1,
-        far: 350,
+        far: 190,
       }}
       gl={{
         antialias: false,
-        powerPreference: "high-performance",
+        powerPreference: "default",
         preserveDrawingBuffer: false,
       }}
       onCreated={({ gl }) => {

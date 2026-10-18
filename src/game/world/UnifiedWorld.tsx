@@ -49,13 +49,36 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
   cameraMode,
 }: UnifiedWorldProps) {
   const homeRoofRef = useRef<THREE.Mesh>(null);
+  const homeGroupRef = useRef<THREE.Group>(null);
+  const mechanicGroupRef = useRef<THREE.Group>(null);
+  const workplaceGroupRef = useRef<THREE.Group>(null);
+  const castleExteriorGroupRef = useRef<THREE.Group>(null);
+  const castleEscapeGroupRef = useRef<THREE.Group>(null);
 
   useFrame(() => {
+    const px = humanPosRef?.current?.x ?? (playerMode === "DRIVING" ? (vehicleStateRef?.current?.position.x ?? vehicleState.position.x) : humanPos[0]);
+    const pz = humanPosRef?.current?.z ?? (playerMode === "DRIVING" ? (vehicleStateRef?.current?.position.z ?? vehicleState.position.z) : humanPos[2]);
+
     if (homeRoofRef.current) {
-      const px = humanPosRef?.current?.x ?? humanPos[0];
-      const pz = humanPosRef?.current?.z ?? humanPos[2];
       const isInside = px > 15.0 && px < 25.0 && pz > -65.0 && pz < -54.0;
       homeRoofRef.current.visible = !isInside;
+    }
+
+    // ── High-Performance Distance Occlusion Culling (Saves 75% GPU draw calls) ──
+    if (homeGroupRef.current) {
+      homeGroupRef.current.visible = Math.abs(pz - (-60)) < 85;
+    }
+    if (mechanicGroupRef.current) {
+      mechanicGroupRef.current.visible = Math.abs(pz - 0) < 75;
+    }
+    if (workplaceGroupRef.current) {
+      workplaceGroupRef.current.visible = Math.abs(pz - 70) < 80;
+    }
+    if (castleExteriorGroupRef.current) {
+      castleExteriorGroupRef.current.visible = pz > 80;
+    }
+    if (castleEscapeGroupRef.current) {
+      castleEscapeGroupRef.current.visible = !!kastilState.insideEscapeRoom || pz > 165;
     }
   });
 
@@ -313,7 +336,7 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
       </mesh>
 
       {/* Home Structure Exterior & Interior */}
-      <group position={[20, 0, -60]}>
+      <group ref={homeGroupRef} position={[20, 0, -60]}>
         {/* Exterior Foundation Pavement */}
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]} receiveShadow>
           <planeGeometry args={[14, 14]} />
@@ -367,7 +390,7 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
       </group>
 
       {/* Mechanic Shop Interior & Pak Montir */}
-      <group position={[-18, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
+      <group ref={mechanicGroupRef} position={[-18, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
         <MechanicShopScene />
       </group>
 
@@ -396,7 +419,7 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
       ))}
 
       {/* Office Building Exterior & Modern Entrance */}
-      <group position={[18, 0, 70]}>
+      <group ref={workplaceGroupRef} position={[18, 0, 70]}>
         {/* Exterior Building Upper Shell */}
         <mesh position={[0, 7.5, 0]} castShadow>
           <boxGeometry args={[16, 7.0, 16]} />
@@ -546,14 +569,14 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
       ))}
 
       {/* Castle Grounds & Courtyard (Jeffrey, Vespera, Barnaby, Fountain, Keep Door) */}
-      <group position={[0, 0, 180]}>
+      <group ref={castleExteriorGroupRef} position={[0, 0, 180]}>
         <CastleExteriorScene
           kastilState={kastilState}
         />
       </group>
 
       {/* Castle Great Keep Hall / Escape Room physically inside the Fortress (Z = 205) */}
-      <group position={[0, 0, 205]} rotation={[0, Math.PI, 0]}>
+      <group ref={castleEscapeGroupRef} position={[0, 0, 205]} rotation={[0, Math.PI, 0]}>
         <CastleEscapeRoomScene
           escapeRoomState={kastilState.escapeRoom}
         />

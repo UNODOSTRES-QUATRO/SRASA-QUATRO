@@ -324,6 +324,21 @@ function SingleAstralEntity({
   const currentPos = useRef(new THREE.Vector3(...data.basePosition));
 
   useFrame(({ clock }, delta) => {
+    const px = humanPosRef?.current?.x ?? playerPos[0];
+    const pz = humanPosRef?.current?.z ?? playerPos[2];
+    const distToBase = Math.hypot(data.basePosition[0] - px, data.basePosition[2] - pz);
+
+    // Distance culling: hide and skip monster updates if player is far away (> 70m)
+    if (distToBase > 70) {
+      if (rootRef.current && rootRef.current.visible) {
+        rootRef.current.visible = false;
+      }
+      return;
+    }
+    if (rootRef.current && !rootRef.current.visible) {
+      rootRef.current.visible = true;
+    }
+
     const dt = Math.min(delta, 0.05);
     const t = clock.getElapsedTime();
 
@@ -413,8 +428,6 @@ function SingleAstralEntity({
     const idHash = data.id.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 20;
     const wanderX = data.basePosition[0] + Math.sin(t * 0.35 + idHash) * data.wanderRadius;
     const wanderZ = data.basePosition[2] + Math.cos(t * 0.28 + idHash * 1.3) * (data.wanderRadius * 0.75);
-    const px = humanPosRef?.current?.x ?? playerPos[0];
-    const pz = humanPosRef?.current?.z ?? playerPos[2];
     const dx = px - wanderX;
     const dz = pz - wanderZ;
     const distToPlayer = Math.hypot(dx, dz);

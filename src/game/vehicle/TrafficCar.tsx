@@ -64,13 +64,13 @@ export function TrafficCar({
   return (
     <group ref={groupRef} position={[laneX, 0, startZ]}>
       {/* ── BODY ── */}
-      <mesh position={[0, 0.42, 0]} castShadow receiveShadow>
+      <mesh position={[0, 0.42, 0]}>
         <boxGeometry args={[1.5, 0.38, 3.2]} />
         <meshStandardMaterial color={color} roughness={0.5} metalness={0.15} />
       </mesh>
 
       {/* Cabin / roof */}
-      <mesh position={[0, 0.82, -0.1]} castShadow>
+      <mesh position={[0, 0.82, -0.1]}>
         <boxGeometry args={[1.28, 0.34, 1.7]} />
         <meshStandardMaterial color={color} roughness={0.5} metalness={0.15} />
       </mesh>
