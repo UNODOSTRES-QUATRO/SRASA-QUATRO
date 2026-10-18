@@ -76,9 +76,9 @@ function ContinuousWorldPhysics({
         const sinA = Math.sin(camAngle);
         const cosA = Math.cos(camAngle);
 
-        // Forward = (sinA, cosA), Screen Right = (-cosA, sinA)
-        const dirX = normF * sinA - normR * cosA;
-        const dirZ = normF * cosA + normR * sinA;
+        // Forward = (sinA, cosA), Screen Right = (cosA, -sinA)
+        const dirX = normF * sinA + normR * cosA;
+        const dirZ = normF * cosA - normR * sinA;
 
         targetVx = dirX * walkSpeed;
         targetVz = dirZ * walkSpeed;

@@ -27,9 +27,11 @@ function ProjectileMesh({ projectile }: { projectile: Projectile }) {
       const vx = projectile.velocity[0];
       const vy = projectile.velocity[1];
       const vz = projectile.velocity[2];
-      const pitch = Math.atan2(-vy, Math.hypot(vx, vz));
-      const yaw = Math.atan2(vx, vz);
-      groupRef.current.rotation.set(pitch, yaw, 0);
+      const dir = new THREE.Vector3(vx, vy, vz);
+      if (dir.lengthSq() > 0.0001) {
+        dir.normalize();
+        groupRef.current.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      }
     }
   });
 
@@ -37,18 +39,7 @@ function ProjectileMesh({ projectile }: { projectile: Projectile }) {
 
   if (projectile.weaponId === "RPG") {
     return (
-      <group
-        ref={groupRef}
-        position={projectile.position}
-        rotation={[
-          Math.atan2(
-            -projectile.velocity[1],
-            Math.hypot(projectile.velocity[0], projectile.velocity[2])
-          ),
-          Math.atan2(projectile.velocity[0], projectile.velocity[2]),
-          0,
-        ]}
-      >
+      <group ref={groupRef} position={projectile.position}>
         {/* Rocket body */}
         <mesh>
           <cylinderGeometry args={[0.06, 0.06, 0.5, 8]} />
@@ -67,30 +58,30 @@ function ProjectileMesh({ projectile }: { projectile: Projectile }) {
 
   if (projectile.weaponId === "BOW") {
     return (
-      <group
-        ref={groupRef}
-        position={projectile.position}
-        rotation={[
-          Math.atan2(
-            -projectile.velocity[1],
-            Math.hypot(projectile.velocity[0], projectile.velocity[2])
-          ),
-          Math.atan2(projectile.velocity[0], projectile.velocity[2]),
-          0,
-        ]}
-      >
-        <mesh>
-          <cylinderGeometry args={[0.007, 0.007, 0.6, 6]} />
-          <meshStandardMaterial color="#d1fae5" metalness={0.8} />
+      <group ref={groupRef} position={projectile.position}>
+        {/* Slender polished wood arrow shaft */}
+        <mesh position={[0, 0, 0]}>
+          <cylinderGeometry args={[0.012, 0.012, 0.85, 8]} />
+          <meshStandardMaterial color="#78350f" roughness={0.7} />
         </mesh>
-        <mesh position={[0, 0.35, 0]}>
-          <coneGeometry args={[0.02, 0.1, 6]} />
-          <meshStandardMaterial color="#86efac" emissive="#4ade80" emissiveIntensity={2.0} />
+        {/* Razor-sharp glowing emerald arrowhead */}
+        <mesh position={[0, 0.44, 0]}>
+          <coneGeometry args={[0.038, 0.16, 4]} />
+          <meshStandardMaterial color="#4ade80" emissive="#22c55e" emissiveIntensity={3.5} roughness={0.2} metalness={0.9} />
         </mesh>
-        {/* Arrow energy trail */}
-        <mesh position={[0, -0.2, 0]}>
-          <coneGeometry args={[0.018, 0.35, 6]} />
-          <meshBasicMaterial color="#86efac" transparent opacity={0.45} depthWrite={false} />
+        {/* Aerodynamic white & jade fletching feathers */}
+        <group position={[0, -0.36, 0]}>
+          {[0, (Math.PI * 2) / 3, (Math.PI * 4) / 3].map((fAngle, fi) => (
+            <mesh key={`fletch-${fi}`} rotation={[0, fAngle, 0]} position={[0.025, 0, 0]}>
+              <boxGeometry args={[0.05, 0.18, 0.005]} />
+              <meshStandardMaterial color="#f0fdf4" emissive="#86efac" emissiveIntensity={0.6} />
+            </mesh>
+          ))}
+        </group>
+        {/* Kinetic luminous arrow trail ribbon */}
+        <mesh position={[0, -0.3, 0]}>
+          <cylinderGeometry args={[0.005, 0.035, 0.7, 6]} />
+          <meshBasicMaterial color="#86efac" transparent opacity={0.6} depthWrite={false} />
         </mesh>
       </group>
     );
@@ -181,6 +172,26 @@ function HitEffectMesh({ effect }: { effect: HitEffect }) {
           >
             <tetrahedronGeometry args={[0.1 * (1 - ratio)]} />
             <meshBasicMaterial color="#38bdf8" transparent opacity={1 - ratio} />
+          </mesh>
+        ))}
+      </group>
+    );
+  }
+
+  if (effect.weaponId === "BOW") {
+    return (
+      <group ref={groupRef} position={effect.position}>
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <mesh
+            key={`arrow-spark-${i}`}
+            position={[
+              Math.cos((i / 6) * Math.PI * 2) * scale * 0.35,
+              Math.sin((i / 6) * Math.PI) * scale * 0.35,
+              Math.sin((i / 6) * Math.PI * 2) * scale * 0.35,
+            ]}
+          >
+            <sphereGeometry args={[0.045 * (1 - ratio), 6, 6]} />
+            <meshBasicMaterial color="#4ade80" />
           </mesh>
         ))}
       </group>
@@ -339,21 +350,24 @@ export function useWeaponSystem() {
     const newProjectiles = [...s.projectiles];
     if (def.projectileSpeed) {
       const id = `proj-${_projectileCounter++}`;
+      const isBow = s.activeWeaponId === "BOW";
+      const speed = def.projectileSpeed * (0.65 + chargeLevel * 0.75);
+      const upVelocity = isBow ? 1.6 + chargeLevel * 3.6 : 0;
       newProjectiles.push({
         id,
         weaponId: s.activeWeaponId,
         position: [
           playerPos[0] + Math.sin(playerHeading) * 0.8,
-          playerPos[1] + 1.2,
+          playerPos[1] + 1.25,
           playerPos[2] + Math.cos(playerHeading) * 0.8,
         ],
         velocity: [
-          Math.sin(playerHeading) * def.projectileSpeed * (0.5 + chargeLevel * 0.5),
-          0,
-          Math.cos(playerHeading) * def.projectileSpeed * (0.5 + chargeLevel * 0.5),
+          Math.sin(playerHeading) * speed,
+          upVelocity,
+          Math.cos(playerHeading) * speed,
         ],
         age: 0,
-        maxAge: 2.5,
+        maxAge: isBow ? 3.5 : 2.5,
         chargeLevel,
       });
     }
@@ -428,9 +442,11 @@ export function WeaponSystem3D({
       p.age += dt;
       if (p.age >= p.maxAge) continue;
 
-      // Gravity for RPG arc
+      // Ballistic gravity arcs
       if (p.weaponId === "RPG") {
-        p.velocity[1] -= 6.0 * dt; // gravity
+        p.velocity[1] -= 6.0 * dt; // rocket arc
+      } else if (p.weaponId === "BOW") {
+        p.velocity[1] -= 9.8 * dt; // realistic aerodynamic gravity arc
       }
 
       p.position[0] += p.velocity[0] * dt;
@@ -439,12 +455,15 @@ export function WeaponSystem3D({
 
       // Hit ground → create impact effect
       if (p.position[1] <= 0.1 || p.age > p.maxAge * 0.98) {
+        if (p.weaponId === "BOW") {
+          soundManager.playArrowImpact();
+        }
         const effect: HitEffect = {
           id: `hit-${p.id}`,
           weaponId: p.weaponId,
           position: [...p.position],
           age: 0,
-          maxAge: p.weaponId === "RPG" ? 0.8 : 0.4,
+          maxAge: p.weaponId === "RPG" ? 0.8 : p.weaponId === "BOW" ? 0.35 : 0.4,
         };
         stateRef.current.hitEffects = [...stateRef.current.hitEffects, effect];
         continue;

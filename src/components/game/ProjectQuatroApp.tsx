@@ -710,242 +710,246 @@ export default function ProjectQuatroApp() {
 
   // ── Context-Sensitive Interaction Logic for [E] / Click ──
   const handleContextInteraction = useCallback(() => {
-    // 0. VEHICLE MOUNT / DISMOUNT VIA CONTEXT BUTTON OR SPACE
-    if (playerModeRef.current === "DRIVING") {
-      handleDismountVehicle();
-      return;
-    }
-
-    const [hx, , hz] = [
-      humanPosRef.current?.x ?? session.humanPosition[0],
-      session.humanPosition[1],
-      humanPosRef.current?.z ?? session.humanPosition[2],
-    ];
-
-    // Proximity to vehicle on foot
-    const car = vehicleStateRef.current;
-    const distToCar = Math.hypot(hx - car.position.x, hz - car.position.z);
-    if (distToCar < 3.8) {
-      handleMountVehicle();
-      return;
-    }
-
-    // 1. RUMAH INTERACTIONS (all in continuous world coords)
-    const distToBed = Math.hypot(hx - 17.6, hz - (-63.2));
-    const distToStove = Math.hypot(hx - 16.2, hz - (-59.0));
-    const distToTable = Math.hypot(hx - 20.8, hz - (-58.4));
-    const distToShower = Math.hypot(hx - 23.4, hz - (-63.4));
-    const distToDoor = Math.hypot(hx - 20.0, hz - (-55.7));
-
-    // Morning wake up
-    if (distToBed < 2.2 && session.phase === "MORNING_ROUTINE" && !session.rumah.wokenUp) {
-      soundManager.playClick();
-      setSession((prev) => wakeUp(prev));
-      return;
-    }
-
-    // Cook at stove
-    if (distToStove < 2.0 && session.phase === "MORNING_ROUTINE" && session.rumah.wokenUp && !session.rumah.hasCooked) {
-      soundManager.playCook();
-      setSession((prev) => cookBreakfast(prev));
-      return;
-    }
-
-    // Eat at dining table
-    if (distToTable < 2.0) {
-      if (session.phase === "EVENING_ROUTINE" && session.rumah.hasShoweredEvening && !session.rumah.hasEatenEvening) {
-        soundManager.playEat();
-        setSession((prev) => eatDinner(prev));
-        return;
-      } else if (session.phase === "MORNING_ROUTINE" && session.rumah.hasCooked && !session.rumah.hasEaten) {
-        soundManager.playEat();
-        setSession((prev) => eatBreakfast(prev));
+    try {
+      // 0. VEHICLE MOUNT / DISMOUNT VIA CONTEXT BUTTON OR SPACE
+      if (playerModeRef.current === "DRIVING") {
+        handleDismountVehicle();
         return;
       }
-    }
 
-    // Shower in bathroom
-    if (distToShower < 2.2) {
-      if (session.phase === "EVENING_ROUTINE" && !session.rumah.hasShoweredEvening) {
-        soundManager.playWater();
-        setSession((prev) => takeEveningShower(prev));
-        return;
-      } else if (session.phase === "MORNING_ROUTINE" && session.rumah.hasEaten && !session.rumah.hasShowered) {
-        soundManager.playWater();
-        setSession((prev) => takeMorningShower(prev));
+      const [hx, , hz] = [
+        humanPosRef.current?.x ?? session.humanPosition[0],
+        session.humanPosition[1],
+        humanPosRef.current?.z ?? session.humanPosition[2],
+      ];
+
+      // Proximity to vehicle on foot
+      const car = vehicleStateRef.current;
+      const distToCar = Math.hypot(hx - car.position.x, hz - car.position.z);
+      if (distToCar < 3.8) {
+        handleMountVehicle();
         return;
       }
-    }
 
-    // Evening sleep in bed
-    if (distToBed < 2.2 && session.phase === "EVENING_ROUTINE") {
-      if (session.rumah.canSleepEvening) {
-        soundManager.playPurr();
-        const next = advanceDay(session);
-        // Reset player ref and vehicle to driveway for fresh morning
-        humanPosRef.current = {
-          x: next.humanPosition[0],
-          y: 0,
-          z: next.humanPosition[2],
-          heading: next.humanHeading,
-        };
-        humanVelocityRef.current = { vx: 0, vz: 0 };
-        setVehicleState((prev) => ({
-          ...prev,
-          position: { x: 20, y: 0.35, z: -48 },
-          heading: 0,
-          speed: 0,
-          lateralSpeed: 0,
-          angularVelocity: 0,
-          driftFactor: 0,
-          doorAngle: 0,
-        }));
-        setSession(next);
+      // 1. RUMAH INTERACTIONS (all in continuous world coords)
+      const distToBed = Math.hypot(hx - 17.6, hz - (-63.2));
+      const distToStove = Math.hypot(hx - 16.2, hz - (-59.0));
+      const distToTable = Math.hypot(hx - 20.8, hz - (-58.4));
+      const distToShower = Math.hypot(hx - 23.4, hz - (-63.4));
+      const distToDoor = Math.hypot(hx - 20.0, hz - (-55.7));
+
+      // Morning wake up
+      if (distToBed < 2.2 && session.phase === "MORNING_ROUTINE" && !session.rumah.wokenUp) {
+        soundManager.playClick();
+        setSession((prev) => wakeUp(prev));
         return;
-      } else {
+      }
+
+      // Cook at stove
+      if (distToStove < 2.0 && session.phase === "MORNING_ROUTINE" && session.rumah.wokenUp && !session.rumah.hasCooked) {
+        soundManager.playCook();
+        setSession((prev) => cookBreakfast(prev));
+        return;
+      }
+
+      // Eat at dining table
+      if (distToTable < 2.0) {
+        if (session.phase === "EVENING_ROUTINE" && session.rumah.hasShoweredEvening && !session.rumah.hasEatenEvening) {
+          soundManager.playEat();
+          setSession((prev) => eatDinner(prev));
+          return;
+        } else if (session.phase === "MORNING_ROUTINE" && session.rumah.hasCooked && !session.rumah.hasEaten) {
+          soundManager.playEat();
+          setSession((prev) => eatBreakfast(prev));
+          return;
+        }
+      }
+
+      // Shower in bathroom
+      if (distToShower < 2.2) {
+        if (session.phase === "EVENING_ROUTINE" && !session.rumah.hasShoweredEvening) {
+          soundManager.playWater();
+          setSession((prev) => takeEveningShower(prev));
+          return;
+        } else if (session.phase === "MORNING_ROUTINE" && session.rumah.hasEaten && !session.rumah.hasShowered) {
+          soundManager.playWater();
+          setSession((prev) => takeMorningShower(prev));
+          return;
+        }
+      }
+
+      // Evening sleep in bed
+      if (distToBed < 2.2 && session.phase === "EVENING_ROUTINE") {
+        if (session.rumah.canSleepEvening) {
+          soundManager.playPurr();
+          const next = advanceDay(session);
+          // Reset player ref and vehicle to driveway for fresh morning
+          humanPosRef.current = {
+            x: next.humanPosition[0],
+            y: 0,
+            z: next.humanPosition[2],
+            heading: next.humanHeading,
+          };
+          humanVelocityRef.current = { vx: 0, vz: 0 };
+          setVehicleState((prev) => ({
+            ...prev,
+            position: { x: 20, y: 0.35, z: -48 },
+            heading: 0,
+            speed: 0,
+            lateralSpeed: 0,
+            angularVelocity: 0,
+            driftFactor: 0,
+            doorAngle: 0,
+          }));
+          setSession(next);
+          return;
+        } else {
+          setSession((prev) => ({
+            ...prev,
+            activePrompt: "Kamu harus mandi dan makan malam terlebih dahulu sebelum tidur!",
+          }));
+          return;
+        }
+      }
+
+      // Exit front door onto porch/driveway (seamless exploration)
+      if (distToDoor < 2.2 && session.phase === "MORNING_ROUTINE") {
+        soundManager.playClick();
         setSession((prev) => ({
           ...prev,
-          activePrompt: "Kamu harus mandi dan makan malam terlebih dahulu sebelum tidur!",
+          currentLocation: "JALAN",
+          phase: "COMMUTE_TO_WORK",
+          rumah: {
+            ...prev.rumah,
+            canExitHouse: true,
+          },
+          activePrompt: "✦ Menuju mobil Quattro di halaman depan. Tekan [E] untuk masuk.",
         }));
         return;
       }
-    }
 
-    // Exit front door onto porch/driveway (seamless exploration)
-    if (distToDoor < 2.2 && session.phase === "MORNING_ROUTINE") {
-      soundManager.playClick();
-      setSession((prev) => ({
-        ...prev,
-        currentLocation: "JALAN",
-        phase: "COMMUTE_TO_WORK",
-        rumah: {
-          ...prev.rumah,
-          canExitHouse: true,
-        },
-        activePrompt: "✦ Menuju mobil Quattro di halaman depan. Tekan [E] untuk masuk.",
-      }));
-      return;
-    }
-
-    // 2. CONTINUOUS WORLD INTERACTIONS
-    // Proximity to Mechanic Pak Montir at [-19.5, 0, -2.0]
-    const distToMontir = Math.hypot(hx - (-19.5), hz - (-2.0));
-    if (distToMontir < 3.2) {
-      soundManager.playPurr();
-      setActiveNpcId("mechanic");
-      return;
-    }
-
-    // Proximity to Workplace PC Workstation at [21.0, 0, 68.0]
-    const distToPC = Math.hypot(hx - 21.0, hz - 68.0);
-    if (distToPC < 3.0 && !session.workplace.allTasksDone) {
-      soundManager.playClick();
-      setIsWorkModalOpen(true);
-      return;
-    }
-
-    // Proximity to Castle NPCs
-    const distToJeffrey = Math.hypot(hx - (-3.5), hz - 176.0);
-    const distToVespera = Math.hypot(hx - 3.5, hz - 176.0);
-    const distToBarnaby = Math.hypot(hx - (-5.0), hz - 180.0);
-    const distToFountain = Math.hypot(hx - 0, hz - 179.0);
-    const distToHay = Math.hypot(hx - (-5.5), hz - 183.0);
-    const distToKeepDoor = Math.hypot(hx - 0, hz - 198.0);
-
-    if (distToJeffrey < 2.5) {
-      soundManager.playClick();
-      setActiveNpcId("jeffrey");
-      return;
-    }
-    if (distToVespera < 2.5) {
-      soundManager.playClick();
-      setActiveNpcId("vespera");
-      return;
-    }
-    if (distToBarnaby < 2.5) {
-      soundManager.playClick();
-      setActiveNpcId("barnaby");
-      return;
-    }
-
-    // Easter Eggs
-    if (distToFountain < 2.5 && !session.kastil.easterEggs.fountain) {
-      soundManager.playPurr();
-      setSession((prev) => ({
-        ...prev,
-        kastil: {
-          ...prev.kastil,
-          easterEggs: { ...prev.kastil.easterEggs, fountain: true },
-          easterEggCount: prev.kastil.easterEggCount + 1,
-        },
-        stats: { ...prev.stats, easterEggsFound: prev.stats.easterEggsFound + 1 },
-      }));
-      setEasterEggAlert("Kamu menemukan Easter Egg Semicolon di dalam air mancur kuno!");
-      return;
-    }
-
-    if (distToHay < 2.5 && !session.kastil.easterEggs.hayBales) {
-      soundManager.playPurr();
-      setSession((prev) => ({
-        ...prev,
-        kastil: {
-          ...prev.kastil,
-          easterEggs: { ...prev.kastil.easterEggs, hayBales: true },
-          easterEggCount: prev.kastil.easterEggCount + 1,
-        },
-        stats: { ...prev.stats, easterEggsFound: prev.stats.easterEggsFound + 1 },
-      }));
-      setEasterEggAlert("Kamu menemukan Easter Egg Semicolon tersembunyi di balik jerami!");
-      return;
-    }
-
-    // Keep Doorway Entry
-    if (distToKeepDoor < 2.5 && !session.kastil.insideEscapeRoom) {
-      soundManager.playDoorSlam();
-      humanVelocityRef.current = { vx: 0, vz: 0 };
-      humanPosRef.current = { x: 0, y: 0, z: 201.0, heading: 0 };
-      setSession((prev) => ({
-        ...prev,
-        currentLocation: "KASTIL",
-        humanPosition: [0, 0, 201.0],
-        humanHeading: 0,
-        kastil: { ...prev.kastil, insideEscapeRoom: true },
-        activePrompt: "✦ PINTU TERBANTING MENUTUP! Kamu terkunci di aula kastil! Cari cara keluar (Escape Room).",
-      }));
-      return;
-    }
-
-    // 3. INSIDE ESCAPE ROOM (physically inside Keep at Z = 205)
-    if (session.kastil.insideEscapeRoom) {
-      const distToCabinet = Math.hypot(hx - 5.5, hz - 205.0);
-      const distToStove = Math.hypot(hx - (-5.5), hz - 205.0);
-      const distToSecretWall = Math.hypot(hx - 1.4, hz - 210.8);
-      const distToExitDoor = Math.hypot(hx - (-2.0), hz - 210.8);
-
-      if (distToCabinet < 2.5) {
-        soundManager.playClick();
-        setEscapeInspectTarget("CABINET");
+      // 2. CONTINUOUS WORLD INTERACTIONS
+      // Proximity to Mechanic Pak Montir (at X = -16.0 or apron at X = -19.5)
+      const distToMontir = Math.min(Math.hypot(hx - (-16.0), hz - (-1.5)), Math.hypot(hx - (-19.5), hz - (-2.0)));
+      if (distToMontir < 3.5) {
+        soundManager.playPurr();
+        setActiveNpcId("mechanic");
         return;
       }
-      if (distToStove < 2.5 && session.kastil.escapeRoom.cabinetSearched) {
+
+      // Proximity to Workplace PC Workstation at [21.0, 0, 68.0]
+      const distToPC = Math.hypot(hx - 21.0, hz - 68.0);
+      if (distToPC < 3.0 && !session.workplace.allTasksDone) {
         soundManager.playClick();
-        setEscapeInspectTarget("STOVE");
+        setIsWorkModalOpen(true);
         return;
       }
-      if (
-        distToSecretWall < 2.5 &&
-        session.kastil.escapeRoom.cabinetSearched &&
-        session.kastil.escapeRoom.stoveChecked
-      ) {
+
+      // Proximity to Castle NPCs
+      const distToJeffrey = Math.hypot(hx - (-3.5), hz - 176.0);
+      const distToVespera = Math.hypot(hx - 3.5, hz - 176.0);
+      const distToBarnaby = Math.hypot(hx - (-5.0), hz - 180.0);
+      const distToFountain = Math.hypot(hx - 0, hz - 179.0);
+      const distToHay = Math.hypot(hx - (-5.5), hz - 183.0);
+      const distToKeepDoor = Math.hypot(hx - 0, hz - 198.0);
+
+      if (distToJeffrey < 2.5) {
         soundManager.playClick();
-        setEscapeInspectTarget("SECRET_WALL");
+        setActiveNpcId("jeffrey");
         return;
       }
-      if (distToExitDoor < 2.5) {
+      if (distToVespera < 2.5) {
         soundManager.playClick();
-        setEscapeInspectTarget("EXIT_DOOR");
+        setActiveNpcId("vespera");
         return;
       }
+      if (distToBarnaby < 2.5) {
+        soundManager.playClick();
+        setActiveNpcId("barnaby");
+        return;
+      }
+
+      // Easter Eggs
+      if (distToFountain < 2.5 && !session.kastil.easterEggs.fountain) {
+        soundManager.playPurr();
+        setSession((prev) => ({
+          ...prev,
+          kastil: {
+            ...prev.kastil,
+            easterEggs: { ...prev.kastil.easterEggs, fountain: true },
+            easterEggCount: prev.kastil.easterEggCount + 1,
+          },
+          stats: { ...prev.stats, easterEggsFound: prev.stats.easterEggsFound + 1 },
+        }));
+        setEasterEggAlert("Kamu menemukan Easter Egg Semicolon di dalam air mancur kuno!");
+        return;
+      }
+
+      if (distToHay < 2.5 && !session.kastil.easterEggs.hayBales) {
+        soundManager.playPurr();
+        setSession((prev) => ({
+          ...prev,
+          kastil: {
+            ...prev.kastil,
+            easterEggs: { ...prev.kastil.easterEggs, hayBales: true },
+            easterEggCount: prev.kastil.easterEggCount + 1,
+          },
+          stats: { ...prev.stats, easterEggsFound: prev.stats.easterEggsFound + 1 },
+        }));
+        setEasterEggAlert("Kamu menemukan Easter Egg Semicolon tersembunyi di balik jerami!");
+        return;
+      }
+
+      // Keep Doorway Entry
+      if (distToKeepDoor < 2.5 && !session.kastil.insideEscapeRoom) {
+        soundManager.playDoorSlam();
+        humanVelocityRef.current = { vx: 0, vz: 0 };
+        humanPosRef.current = { x: 0, y: 0, z: 201.0, heading: 0 };
+        setSession((prev) => ({
+          ...prev,
+          currentLocation: "KASTIL",
+          humanPosition: [0, 0, 201.0],
+          humanHeading: 0,
+          kastil: { ...prev.kastil, insideEscapeRoom: true },
+          activePrompt: "✦ PINTU TERBANTING MENUTUP! Kamu terkunci di aula kastil! Cari cara keluar (Escape Room).",
+        }));
+        return;
+      }
+
+      // 3. INSIDE ESCAPE ROOM (physically inside Keep at Z = 205)
+      if (session.kastil.insideEscapeRoom) {
+        const distToCabinet = Math.hypot(hx - 5.5, hz - 205.0);
+        const distToStove = Math.hypot(hx - (-5.5), hz - 205.0);
+        const distToSecretWall = Math.hypot(hx - 1.4, hz - 210.8);
+        const distToExitDoor = Math.hypot(hx - (-2.0), hz - 210.8);
+
+        if (distToCabinet < 2.5) {
+          soundManager.playClick();
+          setEscapeInspectTarget("CABINET");
+          return;
+        }
+        if (distToStove < 2.5 && session.kastil.escapeRoom.cabinetSearched) {
+          soundManager.playClick();
+          setEscapeInspectTarget("STOVE");
+          return;
+        }
+        if (
+          distToSecretWall < 2.5 &&
+          session.kastil.escapeRoom.cabinetSearched &&
+          session.kastil.escapeRoom.stoveChecked
+        ) {
+          soundManager.playClick();
+          setEscapeInspectTarget("SECRET_WALL");
+          return;
+        }
+        if (distToExitDoor < 2.5) {
+          soundManager.playClick();
+          setEscapeInspectTarget("EXIT_DOOR");
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Context interaction safely handled:", err);
     }
   }, [session, handleMountVehicle, handleDismountVehicle]);
 
@@ -1023,7 +1027,7 @@ export default function ProjectQuatroApp() {
         else if (session.kastil.escapeRoom.cabinetSearched && session.kastil.escapeRoom.stoveChecked && Math.hypot(playerWorldX - 1.4, playerWorldZ - 210.8) < 2.5) contextualAction = "Periksa Batu Longgar";
         else if (Math.hypot(playerWorldX - (-2.0), playerWorldZ - 210.8) < 2.5) contextualAction = "Periksa Pintu Keluar";
       } else {
-        if (Math.hypot(playerWorldX - (-19.5), playerWorldZ - (-2.0)) < 3.2) contextualAction = "Bincang · Pak Montir";
+        if (Math.min(Math.hypot(playerWorldX - (-16.0), playerWorldZ - (-1.5)), Math.hypot(playerWorldX - (-19.5), playerWorldZ - (-2.0))) < 3.5) contextualAction = "Bincang · Pak Montir";
         else if (Math.hypot(playerWorldX - 21.0, playerWorldZ - 68.0) < 3.0 && !session.workplace.allTasksDone) contextualAction = "Workstation · Coding";
         else if (Math.hypot(playerWorldX - (-3.5), playerWorldZ - 176.0) < 2.5) contextualAction = "Bincang · Jeffrey";
         else if (Math.hypot(playerWorldX - 3.5, playerWorldZ - 176.0) < 2.5) contextualAction = "Bincang · Vespera";

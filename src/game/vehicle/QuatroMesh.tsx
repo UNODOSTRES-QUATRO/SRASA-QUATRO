@@ -203,7 +203,7 @@ export function QuatroMesh({
     if (chassisRef.current) {
       chassisRef.current.rotation.x = chassisPitch.current;
       chassisRef.current.rotation.z = chassisRoll.current;
-      chassisRef.current.position.y = bounce;
+      chassisRef.current.position.y = 0.04 + bounce;
     }
 
     // ── Exhaust Pops on Deceleration ────────────────────────────────────────
@@ -313,7 +313,7 @@ export function QuatroMesh({
       {/* ========================================================
           DYNAMIC SUSPENSION CHASSIS GROUP
           ======================================================== */}
-      <group ref={chassisRef}>
+      <group ref={chassisRef} scale={[1.0, 1.28, 1.0]}>
         {/* 1. MAIN CHASSIS & SIGNATURE AUDI QUATTRO BOX-FLARES */}
         <mesh position={[0, 0.44, 0]} castShadow receiveShadow>
           <boxGeometry args={[1.6, 0.42, 3.5]} />

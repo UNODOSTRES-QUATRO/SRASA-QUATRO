@@ -180,8 +180,7 @@ export const MechanicShopScene = React.memo(function MechanicShopScene() {
       </group>
 
       {/* OVERHEAD WARM WORKSHOP LIGHTING */}
-      <pointLight position={[0, 3.2, 0]} color="#fef08a" intensity={3.5} distance={14} />
-      <pointLight position={[3, 2.8, -4]} color="#fef08a" intensity={2.0} distance={8} />
+      <pointLight position={[0, 3.2, -1]} color="#fef08a" intensity={2.8} distance={12} />
     </group>
   );
 });

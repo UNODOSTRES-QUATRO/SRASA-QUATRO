@@ -142,7 +142,7 @@ export function UnifiedCamera({
         lastPointerPos.current = { x: event.clientX, y: event.clientY, time: performance.now() };
 
         if (movX !== 0 || movY !== 0) {
-          orbitAzimuth.current += movX * 0.0032;
+          orbitAzimuth.current -= movX * 0.0032;
           orbitPolar.current = THREE.MathUtils.clamp(
             orbitPolar.current - movY * 0.0022,
             0.18,
@@ -171,7 +171,7 @@ export function UnifiedCamera({
       };
       lastPointerPos.current = { x: event.clientX, y: event.clientY, time: now };
 
-      orbitAzimuth.current += deltaX * 0.0045;
+      orbitAzimuth.current -= deltaX * 0.0045;
       orbitPolar.current = THREE.MathUtils.clamp(
         orbitPolar.current - deltaY * 0.003,
         0.18,
@@ -426,7 +426,7 @@ export function UnifiedCamera({
       // Inertia on pointer drag release (Roblox-style free camera: no auto-follow fighting user's view)
       if (!pointer.current.dragging) {
         if (Math.abs(pointerVel.current.x) > 0.0001 || Math.abs(pointerVel.current.y) > 0.0001) {
-          orbitAzimuth.current += pointerVel.current.x * dt;
+          orbitAzimuth.current -= pointerVel.current.x * dt;
           const minPolar = THREE.MathUtils.lerp(0.22, 0.35, smoothedInteriorRatio.current);
           const maxPolar = THREE.MathUtils.lerp(Math.PI / 2 - 0.08, 1.25, smoothedInteriorRatio.current);
           orbitPolar.current = THREE.MathUtils.clamp(
@@ -450,9 +450,9 @@ export function UnifiedCamera({
       const calculatedCamY = liveTargetPos[1] + vDist + vOffset;
       const clampedCamY = Math.min(maxCamY, Math.max(0.65, calculatedCamY));
 
-      // Roblox Shift Lock: True Right-Shoulder camera offset (-cos(A), sin(A))
-      const rightX = -Math.cos(smoothedOrbitAzimuth.current);
-      const rightZ = Math.sin(smoothedOrbitAzimuth.current);
+      // Roblox Shift Lock: True Right-Shoulder camera offset (cos(A), -sin(A))
+      const rightX = Math.cos(smoothedOrbitAzimuth.current);
+      const rightZ = -Math.sin(smoothedOrbitAzimuth.current);
       const shoulderTarget = isShiftLock && !isInsideHome ? 0.72 : 0;
       const shoulderAlpha = 1.0 - Math.exp(-12.0 * dt);
       shoulderOffset.current += (shoulderTarget - shoulderOffset.current) * shoulderAlpha;

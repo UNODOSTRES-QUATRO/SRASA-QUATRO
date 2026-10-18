@@ -743,36 +743,58 @@ export class SoundManager {
     this.ensureAudioContext();
     this.triggerCombatStance();
     if (!this.ctx || !this.compressor || this.isMuted) return;
-    const now = this.ctx.currentTime;
+    try {
+      const now = this.ctx.currentTime;
 
-    // Resonant string twang
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(330, now);
-    osc.frequency.exponentialRampToValueAtTime(180, now + 0.24);
+      // Resonant string twang
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(330, now);
+      osc.frequency.exponentialRampToValueAtTime(180, now + 0.24);
 
-    gain.gain.setValueAtTime(0.54, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+      gain.gain.setValueAtTime(0.54, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
 
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start(now);
-    osc.stop(now + 0.26);
+      osc.connect(gain);
+      gain.connect(this.compressor);
+      osc.start(now);
+      osc.stop(now + 0.26);
 
-    // Arrow whistle
-    const whistle = this.ctx.createOscillator();
-    const whistleGain = this.ctx.createGain();
-    whistle.type = "sine";
-    whistle.frequency.setValueAtTime(880, now);
-    whistle.frequency.linearRampToValueAtTime(1400, now + 0.15);
-    whistleGain.gain.setValueAtTime(0.28, now);
-    whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      // Arrow whistle
+      const whistle = this.ctx.createOscillator();
+      const whistleGain = this.ctx.createGain();
+      whistle.type = "sine";
+      whistle.frequency.setValueAtTime(880, now);
+      whistle.frequency.linearRampToValueAtTime(1400, now + 0.15);
+      whistleGain.gain.setValueAtTime(0.28, now);
+      whistleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
 
-    whistle.connect(whistleGain);
-    whistleGain.connect(this.compressor);
-    whistle.start(now);
-    whistle.stop(now + 0.2);
+      whistle.connect(whistleGain);
+      whistleGain.connect(this.compressor);
+      whistle.start(now);
+      whistle.stop(now + 0.2);
+    } catch (_) {}
+  }
+
+  // Bow Arrow Solid Impact (thwack / hit sound)
+  public playArrowImpact() {
+    this.ensureAudioContext();
+    if (!this.ctx || !this.compressor || this.isMuted) return;
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.08);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+      osc.connect(gain);
+      gain.connect(this.compressor);
+      osc.start(now);
+      osc.stop(now + 0.09);
+    } catch (_) {}
   }
 
   // Void Pen Calligraphy Stroke
@@ -888,43 +910,40 @@ export class SoundManager {
   }
 
   public playClick() {
+    this.ensureAudioContext();
     if (!this.ctx || !this.compressor || this.isMuted) return;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(440, this.ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(140, this.ctx.currentTime + 0.04);
-    gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    osc.start();
-    osc.stop(this.ctx.currentTime + 0.04);
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(140, now + 0.04);
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.connect(gain);
+      gain.connect(this.compressor);
+      osc.start(now);
+      osc.stop(now + 0.04);
+    } catch (_) {}
   }
 
   public playPurr() {
+    this.ensureAudioContext();
     if (!this.ctx || !this.compressor || this.isMuted) return;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    const lfo = this.ctx.createOscillator();
-    const lfoGain = this.ctx.createGain();
-
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(28, this.ctx.currentTime);
-    lfo.type = "sine";
-    lfo.frequency.setValueAtTime(24, this.ctx.currentTime);
-    lfoGain.gain.setValueAtTime(0.04, this.ctx.currentTime);
-    lfo.connect(lfoGain.gain);
-
-    gain.gain.setValueAtTime(0.06, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.2);
-
-    osc.connect(gain);
-    gain.connect(this.compressor);
-    lfo.start();
-    osc.start();
-    lfo.stop(this.ctx.currentTime + 1.2);
-    osc.stop(this.ctx.currentTime + 1.2);
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(48, now);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      osc.connect(gain);
+      gain.connect(this.compressor);
+      osc.start(now);
+      osc.stop(now + 0.5);
+    } catch (_) {}
   }
 
   public playMeow() {

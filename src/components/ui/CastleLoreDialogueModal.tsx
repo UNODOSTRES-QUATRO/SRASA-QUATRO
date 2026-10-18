@@ -58,16 +58,31 @@ export function CastleLoreDialogueModal({
     },
   };
 
-  const currentNpc = npcId ? npcData[npcId] : null;
+  const currentNpc = npcId
+    ? (npcData[npcId] ?? {
+        name: "PENGEMBARA MISTERIUS",
+        icon: <Shield className="w-6 h-6 text-amber-400" />,
+        portraitId: "ORIGINAL" as const,
+        lines: [
+          "Dunia ini dipenuhi baris perintah dan misteri yang menanti untuk dipecahkan.",
+          "Lanjutkan perjalananmu, pengembara. Jalanan di depan akan menuntunmu.",
+        ],
+      })
+    : null;
+
   const lines = currentNpc?.lines ?? [];
   const closeDialogue = () => {
     setLineIndex(0);
     onClose();
   };
   const advanceDialogue = () => {
-    soundManager.playClick();
-    if (lineIndex + 1 >= lines.length) closeDialogue();
-    else setLineIndex((current) => current + 1);
+    try {
+      soundManager.playClick();
+      if (lineIndex + 1 >= lines.length) closeDialogue();
+      else setLineIndex((current) => current + 1);
+    } catch (_) {
+      closeDialogue();
+    }
   };
 
   useEffect(() => {
@@ -77,15 +92,17 @@ export function CastleLoreDialogueModal({
   useEffect(() => {
     if (!npcId) return;
     const handleDialogueKey = (event: KeyboardEvent) => {
-      if (event.code === "KeyE" || event.code === "Enter" || event.code === "Space") {
-        if (event.repeat) return;
-        event.preventDefault();
-        advanceDialogue();
-      }
+      try {
+        if (event.code === "KeyE" || event.code === "Enter" || event.code === "Space") {
+          if (event.repeat) return;
+          event.preventDefault();
+          advanceDialogue();
+        }
+      } catch (_) {}
     };
     window.addEventListener("keydown", handleDialogueKey);
     return () => window.removeEventListener("keydown", handleDialogueKey);
-  }, [npcId, lineIndex]);
+  }, [npcId, lineIndex, lines.length]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 font-mono select-none">

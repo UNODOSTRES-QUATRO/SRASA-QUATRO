@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { HouseInterior } from "./HouseInterior";
@@ -55,6 +55,17 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
   const castleExteriorGroupRef = useRef<THREE.Group>(null);
   const castleEscapeGroupRef = useRef<THREE.Group>(null);
 
+  // ── True Dynamic Streaming Chunk Loading (Only mounts nearby regions) ──
+  const initPz = humanPosRef?.current?.z ?? (playerMode === "DRIVING" ? (vehicleStateRef?.current?.position.z ?? vehicleState.position.z) : humanPos[2]);
+  const [streamChunks, setStreamChunks] = useState(() => ({
+    home: initPz < 20,
+    mechanic: initPz > -55 && initPz < 45,
+    workplace: initPz > 15 && initPz < 130,
+    castleExterior: initPz > 95 && !kastilState.insideEscapeRoom,
+    castleEscape: !!kastilState.insideEscapeRoom || initPz > 165,
+  }));
+  const lastChunkCheckTime = useRef(0);
+
   useFrame(() => {
     const px = humanPosRef?.current?.x ?? (playerMode === "DRIVING" ? (vehicleStateRef?.current?.position.x ?? vehicleState.position.x) : humanPos[0]);
     const pz = humanPosRef?.current?.z ?? (playerMode === "DRIVING" ? (vehicleStateRef?.current?.position.z ?? vehicleState.position.z) : humanPos[2]);
@@ -64,7 +75,37 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
       homeRoofRef.current.visible = !isInside;
     }
 
-    // ── High-Performance Distance Occlusion Culling (Saves 75% GPU draw calls) ──
+    // Throttled streaming evaluation (checked every 200ms)
+    const now = performance.now();
+    if (now - lastChunkCheckTime.current > 200) {
+      lastChunkCheckTime.current = now;
+      const needHome = pz < 20;
+      const needMechanic = pz > -55 && pz < 45;
+      const needWorkplace = pz > 15 && pz < 130;
+      const needCastleExterior = pz > 95 && !kastilState.insideEscapeRoom;
+      const needCastleEscape = !!kastilState.insideEscapeRoom || pz > 165;
+
+      setStreamChunks((prev) => {
+        if (
+          prev.home === needHome &&
+          prev.mechanic === needMechanic &&
+          prev.workplace === needWorkplace &&
+          prev.castleExterior === needCastleExterior &&
+          prev.castleEscape === needCastleEscape
+        ) {
+          return prev;
+        }
+        return {
+          home: needHome,
+          mechanic: needMechanic,
+          workplace: needWorkplace,
+          castleExterior: needCastleExterior,
+          castleEscape: needCastleEscape,
+        };
+      });
+    }
+
+    // ── High-Performance Distance Occlusion Culling ──
     if (homeGroupRef.current) {
       homeGroupRef.current.visible = Math.abs(pz - (-60)) < 85;
     }
@@ -358,11 +399,13 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
         </mesh>
 
         {/* Home Interior Layout (Bed, Stove, Dining, Shower) */}
-        <HouseInterior
-          rumahState={rumahState}
-          dayNumber={dayNumber}
-          isEvening={isEvening}
-        />
+        {streamChunks.home && (
+          <HouseInterior
+            rumahState={rumahState}
+            dayNumber={dayNumber}
+            isEvening={isEvening}
+          />
+        )}
       </group>
 
       {/* ========================================================
@@ -391,7 +434,7 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
 
       {/* Mechanic Shop Interior & Pak Montir */}
       <group ref={mechanicGroupRef} position={[-18, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
-        <MechanicShopScene />
+        {streamChunks.mechanic && <MechanicShopScene />}
       </group>
 
       {/* ========================================================
@@ -434,10 +477,12 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
         ))}
 
         {/* Full Interactive Workplace Interior (Workstations, PCs, Semicolon Portal) */}
-        <WorkplaceInterior
-          workplaceState={workplaceState}
-          dayNumber={dayNumber}
-        />
+        {streamChunks.workplace && (
+          <WorkplaceInterior
+            workplaceState={workplaceState}
+            dayNumber={dayNumber}
+          />
+        )}
       </group>
 
       {/* ========================================================
@@ -570,16 +615,20 @@ export const UnifiedWorld = React.memo(function UnifiedWorld({
 
       {/* Castle Grounds & Courtyard (Jeffrey, Vespera, Barnaby, Fountain, Keep Door) */}
       <group ref={castleExteriorGroupRef} position={[0, 0, 180]}>
-        <CastleExteriorScene
-          kastilState={kastilState}
-        />
+        {streamChunks.castleExterior && (
+          <CastleExteriorScene
+            kastilState={kastilState}
+          />
+        )}
       </group>
 
       {/* Castle Great Keep Hall / Escape Room physically inside the Fortress (Z = 205) */}
       <group ref={castleEscapeGroupRef} position={[0, 0, 205]} rotation={[0, Math.PI, 0]}>
-        <CastleEscapeRoomScene
-          escapeRoomState={kastilState.escapeRoom}
-        />
+        {streamChunks.castleEscape && (
+          <CastleEscapeRoomScene
+            escapeRoomState={kastilState.escapeRoom}
+          />
+        )}
       </group>
 
       {/* ========================================================
